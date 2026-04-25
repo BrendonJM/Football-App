@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Insurance Quote Comparator | SharePoint Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Insurance Quote Comparator</p>
+          <h1>Connect your Microsoft 365 environment step by step.</h1>
+          <p class="hero-text">
+            Capture the tenant and app registration details needed for future
+            SharePoint authentication, then save them locally in this browser.
+          </p>
+          <div class="hero-links">
+            <a class="hero-link" href="./index.html">Back to Quote Comparison</a>
+          </div>
+        </div>
+        <div class="hero-card">
+          <p class="hero-card-label">Setup flow</p>
+          <div class="hero-metrics">
+            <div>
+              <span>1</span>
+              <p>Tenant</p>
+            </div>
+            <div>
+              <span>2</span>
+              <p>App</p>
+            </div>
+            <div>
+              <span>3</span>
+              <p>Save</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="wizard-page">
+        <section class="panel wizard-panel">
+          <div class="panel-heading">
+            <h2>SharePoint Connection Wizard</h2>
+            <p>
+              Guide users through the Microsoft app setup needed for SharePoint
+              access, then save the connection details in this browser.
+            </p>
+          </div>
+
+          <div class="wizard-progress" aria-label="Wizard progress">
+            <div class="wizard-step is-active" data-step="1">1. Tenant</div>
+            <div class="wizard-step" data-step="2">2. App</div>
+            <div class="wizard-step" data-step="3">3. Review</div>
+          </div>
+
+          <div id="wizardPanels">
+            <section class="wizard-screen" data-step="1">
+              <h3>Tenant details</h3>
+              <p class="wizard-copy">
+                Enter the Microsoft 365 tenant information for the SharePoint
+                environment you want this app to access.
+              </p>
+
+              <label class="field">
+                <span>Tenant name or domain</span>
+                <input
+                  id="tenantDomain"
+                  type="text"
+                  placeholder="contoso or contoso.onmicrosoft.com"
+                />
+              </label>
+
+              <label class="field">
+                <span>Tenant ID</span>
+                <input
+                  id="tenantId"
+                  type="text"
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                />
+              </label>
+
+              <div class="wizard-actions">
+                <button type="button" class="primary-button" data-next-step="2">
+                  Continue
+                </button>
+              </div>
+            </section>
+
+            <section class="wizard-screen hidden" data-step="2">
+              <h3>App registration</h3>
+              <p class="wizard-copy">
+                Create or reuse a Microsoft Entra app registration so users can
+                sign in and the app can call Microsoft Graph.
+              </p>
+
+              <div class="wizard-callout">
+                <strong>Recommended Graph delegated permissions</strong>
+                <span>`Sites.Read.All` and `Files.Read.All`</span>
+              </div>
+
+              <label class="field">
+                <span>Client ID</span>
+                <input
+                  id="clientId"
+                  type="text"
+                  placeholder="11111111-1111-1111-1111-111111111111"
+                />
+              </label>
+
+              <label class="field">
+                <span>Redirect URI</span>
+                <input
+                  id="redirectUri"
+                  type="url"
+                  placeholder="http://localhost:5500"
+                />
+              </label>
+
+              <label class="field">
+                <span>SharePoint site or folder example</span>
+                <input
+                  id="exampleSharePointUrl"
+                  type="url"
+                  placeholder="https://contoso.sharepoint.com/sites/Brokers/Shared%20Documents/..."
+                />
+              </label>
+
+              <div class="wizard-actions">
+                <button type="button" class="ghost-button" data-prev-step="1">
+                  Back
+                </button>
+                <button type="button" class="primary-button" data-next-step="3">
+                  Continue
+                </button>
+              </div>
+            </section>
+
+            <section class="wizard-screen hidden" data-step="3">
+              <h3>Review and save</h3>
+              <p class="wizard-copy">
+                Confirm the settings below, save them in this browser, and use
+                them later when live SharePoint authentication is enabled.
+              </p>
+
+              <div id="wizardSummary" class="wizard-summary"></div>
+
+              <div id="wizardValidation" class="wizard-validation"></div>
+
+              <div class="wizard-actions">
+                <button type="button" class="ghost-button" data-prev-step="2">
+                  Back
+                </button>
+                <button type="button" id="saveConnection" class="primary-button">
+                  Save Connection
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div id="savedConnection" class="saved-connection hidden"></div>
+        </section>
+      </main>
+
+      <script src="./app.js"></script>
+    </div>
+  </body>
+</html>
