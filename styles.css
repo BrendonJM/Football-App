@@ -697,12 +697,81 @@ textarea {
   }
 
   .slot {
-    width: min(24vw, 122px);
+    width: clamp(72px, 18vw, 96px);
+  }
+
+  .slot-role {
+    margin-bottom: 6px;
+    font-size: 0.7rem;
   }
 
   .player-token,
   .bench-player {
-    min-height: 80px;
-    border-radius: 18px;
+    min-height: 72px;
+    padding: 10px 8px;
+    border-radius: 16px;
+  }
+
+  .player-name {
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  .player-meta {
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+  }
+}
+
+@media (max-width: 520px) {
+  .pitch {
+    min-height: 600px;
+  }
+
+  .slot {
+    width: clamp(64px, 16vw, 82px);
+  }
+
+  .slot-role {
+    font-size: 0.62rem;
+  }
+
+  .player-token,
+  .bench-player {
+    min-height: 64px;
+    padding: 8px 6px;
+    border-radius: 14px;
+  }
+
+  .player-name {
+    font-size: 0.72rem;
+  }
+
+  .player-meta {
+    font-size: 0.56rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .pitch {
+    min-height: 560px;
+  }
+
+  .slot {
+    width: clamp(58px, 15vw, 72px);
+  }
+
+  .player-token,
+  .bench-player {
+    min-height: 58px;
+    padding: 7px 5px;
+  }
+
+  .player-name {
+    font-size: 0.66rem;
+  }
+
+  .player-meta {
+    font-size: 0.5rem;
   }
 }
