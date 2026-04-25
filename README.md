@@ -21,6 +21,8 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `app.js` contains the team configuration, lineup management, and image export logic
 - `server.js` serves the static app
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
+- `public-config.js` is the generated public runtime config consumed by the browser
+- `build-config.js` writes the public Supabase config file during Vercel builds
 - `supabase-schema.sql` contains the database schema and RLS policies for Supabase
 
 ## Run locally
@@ -38,6 +40,11 @@ Then open `http://localhost:3000`.
 3. Run the full contents of `supabase-schema.sql`.
 4. In `Authentication` -> `Providers`, enable `Anonymous Sign-Ins`.
 5. Copy your project URL and anon key.
+
+Important:
+
+- `SUPABASE_ANON_KEY` is safe to expose to the browser.
+- Never use the Supabase `service_role` key in frontend code.
 
 Local environment variables:
 
@@ -72,6 +79,7 @@ This project is ready to deploy on Vercel as:
 
 - static files from the project root
 - one Node function at `api/config.js`
+- one generated public config file at `public-config.js`
 
 ### Vercel dashboard flow
 
@@ -84,7 +92,7 @@ Recommended settings:
 
 - Framework Preset: `Other`
 - Root Directory: project root
-- Build Command: leave empty
+- Build Command: `npm run build`
 - Output Directory: leave empty
 
 5. Add these environment variables in Vercel Project Settings -> Environment Variables:
@@ -98,9 +106,24 @@ OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
 6. Deploy the project.
 7. After deploy, open the live URL and confirm:
 
+- `/public-config.js` contains your Supabase URL and anon key values
 - `/api/config` returns your Supabase public config
 - teams can be created and switched
 - a page refresh still shows the same saved teams
+
+### Troubleshooting deployed Supabase connection errors
+
+If the app shows a Supabase connection warning:
+
+1. Open `/public-config.js` on the deployed site.
+   It should contain real values, not blank strings.
+2. Open `/api/config`.
+   It should return JSON with non-empty `supabaseUrl` and `supabaseAnonKey`.
+3. In Supabase, confirm:
+   - `supabase-schema.sql` has been run successfully
+   - Anonymous Sign-Ins are enabled
+   - the `teams` and `app_preferences` tables exist
+4. If the schema changed after an earlier deploy, redeploy on Vercel after updating env vars.
 
 ### Vercel CLI flow
 

@@ -299,10 +299,14 @@ async function initialiseSupabaseSync() {
     if (!config.supabaseUrl || !config.supabaseAnonKey) {
       setStatus(
         configStatus,
-        "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to enable cloud sync.",
+        "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy.",
         true,
       );
       return;
+    }
+
+    if (!window.supabase || typeof window.supabase.createClient !== "function") {
+      throw new Error("Supabase client library did not load in the browser.");
     }
 
     supabaseClient = window.supabase.createClient(
@@ -316,17 +320,27 @@ async function initialiseSupabaseSync() {
   } catch (error) {
     setStatus(
       configStatus,
-      "Could not connect to Supabase. The app will keep using the current browser copy for now.",
+      `Could not connect to Supabase. ${describeSupabaseError(error)} The app will keep using the current browser copy for now.`,
       true,
     );
   }
 }
 
 async function fetchRuntimeConfig() {
-  const response = await fetch(configEndpoint);
+  const inlineConfig = window.__APP_CONFIG__ || {};
+
+  if (inlineConfig.supabaseUrl && inlineConfig.supabaseAnonKey) {
+    return inlineConfig;
+  }
+
+  const response = await fetch(configEndpoint, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
 
   if (!response.ok) {
-    throw new Error("Config endpoint unavailable");
+    throw new Error("Config endpoint unavailable or missing environment variables.");
   }
 
   return response.json();
@@ -405,6 +419,32 @@ async function hydrateStateFromSupabase() {
   syncFormFromState();
   renderAll();
   clearStatus(configStatus);
+}
+
+function describeSupabaseError(error) {
+  const message = String(error?.message || error || "");
+
+  if (message.includes("Anonymous sign-ins")) {
+    return "Enable Anonymous Sign-Ins in Supabase Auth.";
+  }
+
+  if (message.includes("Invalid API key") || message.includes("JWT")) {
+    return "Check that SUPABASE_URL and SUPABASE_ANON_KEY are correct.";
+  }
+
+  if (message.includes("relation") || message.includes("column")) {
+    return "The database schema does not match the app yet. Run the latest supabase-schema.sql in Supabase.";
+  }
+
+  if (message.includes("row-level security") || message.includes("permission denied")) {
+    return "Supabase RLS is blocking this request. Re-run the policies in supabase-schema.sql.";
+  }
+
+  if (message.includes("Config endpoint unavailable")) {
+    return "The frontend could not read runtime config. Confirm the Vercel build ran and /api/config or public-config.js is available.";
+  }
+
+  return message || "Check the browser console and Supabase settings.";
 }
 
 function loadState() {
