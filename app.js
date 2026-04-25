@@ -295,6 +295,14 @@ async function bootstrapApp() {
 async function initialiseSupabaseSync() {
   try {
     const config = await fetchRuntimeConfig();
+    console.info("[Supabase] Runtime config loaded", {
+      hasUrl: Boolean(config.supabaseUrl),
+      hasAnonKey: Boolean(config.supabaseAnonKey),
+      configSource:
+        window.__APP_CONFIG__?.supabaseUrl && window.__APP_CONFIG__?.supabaseAnonKey
+          ? "public-config.js"
+          : "api/config",
+    });
 
     if (!config.supabaseUrl || !config.supabaseAnonKey) {
       setStatus(
@@ -313,11 +321,24 @@ async function initialiseSupabaseSync() {
       config.supabaseUrl,
       config.supabaseAnonKey,
     );
+    console.info("[Supabase] Client initialised", {
+      urlHost: safeSupabaseHost(config.supabaseUrl),
+    });
 
     await ensureSupabaseSession();
     supabaseReady = true;
     await hydrateStateFromSupabase();
+    console.info("[Supabase] Initial sync complete", {
+      userId: supabaseUserId,
+      teamCount: state.teams.length,
+      activeTeamId: state.activeTeamId,
+    });
   } catch (error) {
+    console.error("[Supabase] Initialisation failed", {
+      error,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
     setStatus(
       configStatus,
       `Could not connect to Supabase. ${describeSupabaseError(error)} The app will keep using the current browser copy for now.`,
@@ -330,9 +351,11 @@ async function fetchRuntimeConfig() {
   const inlineConfig = window.__APP_CONFIG__ || {};
 
   if (inlineConfig.supabaseUrl && inlineConfig.supabaseAnonKey) {
+    console.info("[Supabase] Using public-config.js runtime config");
     return inlineConfig;
   }
 
+  console.warn("[Supabase] public-config.js did not contain Supabase values, falling back to /api/config");
   const response = await fetch(configEndpoint, {
     headers: {
       Accept: "application/json",
@@ -353,17 +376,32 @@ async function ensureSupabaseSession() {
   } = await supabaseClient.auth.getSession();
 
   if (sessionError) {
+    console.error("[Supabase] getSession failed", {
+      error: sessionError,
+      message: sessionError?.message || String(sessionError),
+    });
     throw sessionError;
   }
 
   if (session?.user?.id) {
     supabaseUserId = session.user.id;
+    console.info("[Supabase] Reusing existing session", {
+      userId: supabaseUserId,
+    });
     return;
   }
 
+  console.info("[Supabase] No session found, attempting anonymous sign-in");
   const { data, error } = await supabaseClient.auth.signInAnonymously();
 
   if (error) {
+    console.error("[Supabase] Anonymous sign-in failed", {
+      error,
+      message: error?.message || String(error),
+      details: error?.details || null,
+      hint: error?.hint || null,
+      code: error?.code || null,
+    });
     throw error;
   }
 
@@ -372,9 +410,14 @@ async function ensureSupabaseSession() {
   if (!supabaseUserId) {
     throw new Error("Anonymous Supabase session was not created");
   }
+
+  console.info("[Supabase] Anonymous session created", {
+    userId: supabaseUserId,
+  });
 }
 
 async function hydrateStateFromSupabase() {
+  console.info("[Supabase] Fetching teams and preferences");
   const [teamsResult, preferencesResult] = await Promise.all([
     supabaseClient
       .from("teams")
@@ -389,10 +432,24 @@ async function hydrateStateFromSupabase() {
   ]);
 
   if (teamsResult.error) {
+    console.error("[Supabase] Teams query failed", {
+      error: teamsResult.error,
+      message: teamsResult.error?.message || String(teamsResult.error),
+      details: teamsResult.error?.details || null,
+      hint: teamsResult.error?.hint || null,
+      code: teamsResult.error?.code || null,
+    });
     throw teamsResult.error;
   }
 
   if (preferencesResult.error) {
+    console.error("[Supabase] Preferences query failed", {
+      error: preferencesResult.error,
+      message: preferencesResult.error?.message || String(preferencesResult.error),
+      details: preferencesResult.error?.details || null,
+      hint: preferencesResult.error?.hint || null,
+      code: preferencesResult.error?.code || null,
+    });
     throw preferencesResult.error;
   }
 
@@ -445,6 +502,14 @@ function describeSupabaseError(error) {
   }
 
   return message || "Check the browser console and Supabase settings.";
+}
+
+function safeSupabaseHost(url) {
+  try {
+    return new URL(url).host;
+  } catch (error) {
+    return url;
+  }
 }
 
 function loadState() {
@@ -1365,6 +1430,12 @@ function queueRemoteSave() {
 
 async function saveStateToSupabase() {
   const teamRows = state.teams.map(mapTeamRecordToDatabaseRow);
+  console.info("[Supabase] Saving state", {
+    userId: supabaseUserId,
+    teamCount: teamRows.length,
+    deletedTeamCount: deletedTeamIds.size,
+    activeTeamId: state.activeTeamId,
+  });
 
   if (teamRows.length > 0) {
     const { error: upsertError } = await supabaseClient
@@ -1372,6 +1443,13 @@ async function saveStateToSupabase() {
       .upsert(teamRows, { onConflict: "id" });
 
     if (upsertError) {
+      console.error("[Supabase] Team upsert failed", {
+        error: upsertError,
+        message: upsertError?.message || String(upsertError),
+        details: upsertError?.details || null,
+        hint: upsertError?.hint || null,
+        code: upsertError?.code || null,
+      });
       throw upsertError;
     }
   }
@@ -1384,6 +1462,14 @@ async function saveStateToSupabase() {
         .eq("id", teamId);
 
       if (deleteError) {
+        console.error("[Supabase] Team delete failed", {
+          teamId,
+          error: deleteError,
+          message: deleteError?.message || String(deleteError),
+          details: deleteError?.details || null,
+          hint: deleteError?.hint || null,
+          code: deleteError?.code || null,
+        });
         throw deleteError;
       }
 
@@ -1403,9 +1489,17 @@ async function saveStateToSupabase() {
     );
 
   if (preferencesError) {
+    console.error("[Supabase] Preferences upsert failed", {
+      error: preferencesError,
+      message: preferencesError?.message || String(preferencesError),
+      details: preferencesError?.details || null,
+      hint: preferencesError?.hint || null,
+      code: preferencesError?.code || null,
+    });
     throw preferencesError;
   }
 
+  console.info("[Supabase] Save complete");
   clearStatus(configStatus);
 }
 
