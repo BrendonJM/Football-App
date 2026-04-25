@@ -1,0 +1,9 @@
+{
+  "name": "football-team-board",
+  "version": "0.1.0",
+  "private": false,
+  "description": "A football team management board for setting squads, switching formations, and exporting lineup images.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Football Team Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Football Team Board</p>
+          <h1>Set your squad, choose a shape, and move players around on the pitch.</h1>
+        </div>
+        <div class="topbar-side">
+          <div class="team-switcher">
+            <label class="field">
+              <span>Saved team</span>
+              <select id="teamSwitcher"></select>
+            </label>
+            <div class="team-switcher-actions">
+              <button id="newTeam" type="button" class="secondary-button">New Team</button>
+              <button id="deleteTeam" type="button" class="danger-button">Delete Team</button>
+            </div>
+          </div>
+
+          <div class="topbar-stats" aria-label="Squad summary">
+            <div>
+              <span id="statPlayers">0</span>
+              <p>Players</p>
+            </div>
+            <div>
+              <span id="statOnField">0</span>
+              <p>On field</p>
+            </div>
+            <div>
+              <span id="statFormationCount">0</span>
+              <p>Formations</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="page-nav" aria-label="Pages">
+        <button id="navConfig" class="nav-button is-active" type="button">Team Set Up</button>
+        <button id="navManage" class="nav-button" type="button">Manage Team</button>
+      </nav>
+
+      <main>
+        <section id="configPage" class="page-section">
+          <div class="layout-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Team Setup</h2>
+                <p>Enter your squad, pick how many players are on the field, and choose which formations should be available.</p>
+              </div>
+
+              <form id="configForm" class="stack-form">
+                <label class="field">
+                  <span>Team name</span>
+                  <input id="teamName" name="teamName" type="text" placeholder="Harbour United U12" />
+                </label>
+
+                <label class="field">
+                  <span>Players on the field</span>
+                  <select id="playersOnField" name="playersOnField"></select>
+                </label>
+
+                <label class="field">
+                  <span>Player names</span>
+                  <textarea
+                    id="playerNames"
+                    name="playerNames"
+                    rows="14"
+                    placeholder="Enter one player name per line"
+                  ></textarea>
+                </label>
+
+                <section class="formation-builder" aria-labelledby="formationBuilderTitle">
+                  <div class="formation-builder-header">
+                    <div>
+                      <h3 id="formationBuilderTitle">Formations</h3>
+                      <p>Select the shapes you want available on the team management page.</p>
+                    </div>
+                  </div>
+
+                  <div id="formationSuggestions" class="formation-list"></div>
+
+                  <div class="custom-formation-row">
+                    <label class="field compact-field">
+                      <span>Add a custom formation</span>
+                      <input id="customFormation" type="text" placeholder="3-2-3" />
+                    </label>
+                    <button id="addFormation" type="button" class="secondary-button">Add</button>
+                  </div>
+                  <p id="formationHelp" class="helper-text"></p>
+                </section>
+
+                <div class="button-row">
+                  <button type="submit" class="primary-button">Save And Open Team Board</button>
+                </div>
+                <p id="configStatus" class="status-text" aria-live="polite"></p>
+              </form>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-heading">
+                <h2>How It Works</h2>
+                <p>Built for quick team-sheet changes from the sideline.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>1. Configure once</strong>
+                <p>Add your squad, set the game format, and choose the formations you use most.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>2. Move players on the pitch</strong>
+                <p>Click a player and then another player or an empty position to swap or move them. Drag and drop works on desktop too.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>3. Export the lineup</strong>
+                <p>Copy the current field as an image or download a PNG that is ready to paste into messages and documents.</p>
+              </div>
+
+              <div class="mini-preview">
+                <p class="mini-preview-label">Recommended 9-a-side shapes</p>
+                <div class="tag-row">
+                  <span class="tag">3-4-1</span>
+                  <span class="tag">3-3-2</span>
+                  <span class="tag">2-5-1</span>
+                  <span class="tag">2-4-2</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="managePage" class="page-section hidden">
+          <div class="manage-grid">
+            <aside class="panel control-panel">
+              <div class="panel-heading">
+                <h2>Team Board</h2>
+                <p>Change the shape, switch players, and export the current view.</p>
+              </div>
+
+              <div class="summary-block">
+                <span class="summary-label">Team</span>
+                <strong id="teamNameSummary">-</strong>
+              </div>
+
+              <label class="field">
+                <span>Formation</span>
+                <select id="formationSelect"></select>
+              </label>
+
+              <div class="button-row">
+                <button id="fillEmptyPositions" type="button" class="secondary-button">Fill Empty Spots</button>
+                <button id="resetLineup" type="button" class="secondary-button">Reset Lineup</button>
+              </div>
+
+              <div class="button-row">
+                <button id="copyImage" type="button" class="primary-button">Copy Image</button>
+                <button id="downloadImage" type="button" class="secondary-button">Download PNG</button>
+              </div>
+
+              <button id="backToConfig" type="button" class="text-button">Edit config</button>
+              <p id="exportStatus" class="status-text" aria-live="polite"></p>
+
+              <div class="selection-card">
+                <span class="summary-label">Quick swap</span>
+                <p id="selectionHint">Select a player on the field or bench, then select another player or an empty position.</p>
+              </div>
+
+              <section class="bench-section" aria-labelledby="benchTitle">
+                <div class="bench-header">
+                  <h3 id="benchTitle">Bench</h3>
+                  <button id="sendSelectedToBench" type="button" class="ghost-button">Send selected to bench</button>
+                </div>
+                <div id="benchList" class="bench-list"></div>
+              </section>
+            </aside>
+
+            <section class="panel pitch-panel">
+              <div class="pitch-toolbar">
+                <div>
+                  <p class="eyebrow small-eyebrow">Live Layout</p>
+                  <h2 id="pitchTitle">Football Field</h2>
+                </div>
+                <div class="legend">
+                  <span><i class="legend-dot gk-dot"></i>Goalkeeper</span>
+                  <span><i class="legend-dot outfield-dot"></i>Outfield</span>
+                </div>
+              </div>
+
+              <div id="pitch" class="pitch" aria-label="Football field"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
