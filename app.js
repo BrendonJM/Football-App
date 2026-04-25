@@ -70,7 +70,6 @@ const pitchTitle = document.querySelector("#pitchTitle");
 let formationDraft = [];
 let state = loadState();
 let supabaseClient = null;
-let supabaseUserId = null;
 let supabaseReady = false;
 let remoteSaveTimeout = null;
 let remoteSaveQueue = Promise.resolve();
@@ -325,11 +324,9 @@ async function initialiseSupabaseSync() {
       urlHost: safeSupabaseHost(config.supabaseUrl),
     });
 
-    await ensureSupabaseSession();
     supabaseReady = true;
     await hydrateStateFromSupabase();
     console.info("[Supabase] Initial sync complete", {
-      userId: supabaseUserId,
       teamCount: state.teams.length,
       activeTeamId: state.activeTeamId,
     });
@@ -369,67 +366,14 @@ async function fetchRuntimeConfig() {
   return response.json();
 }
 
-async function ensureSupabaseSession() {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabaseClient.auth.getSession();
-
-  if (sessionError) {
-    console.error("[Supabase] getSession failed", {
-      error: sessionError,
-      message: sessionError?.message || String(sessionError),
-    });
-    throw sessionError;
-  }
-
-  if (session?.user?.id) {
-    supabaseUserId = session.user.id;
-    console.info("[Supabase] Reusing existing session", {
-      userId: supabaseUserId,
-    });
-    return;
-  }
-
-  console.info("[Supabase] No session found, attempting anonymous sign-in");
-  const { data, error } = await supabaseClient.auth.signInAnonymously();
-
-  if (error) {
-    console.error("[Supabase] Anonymous sign-in failed", {
-      error,
-      message: error?.message || String(error),
-      details: error?.details || null,
-      hint: error?.hint || null,
-      code: error?.code || null,
-    });
-    throw error;
-  }
-
-  supabaseUserId = data.user?.id || data.session?.user?.id || null;
-
-  if (!supabaseUserId) {
-    throw new Error("Anonymous Supabase session was not created");
-  }
-
-  console.info("[Supabase] Anonymous session created", {
-    userId: supabaseUserId,
-  });
-}
-
 async function hydrateStateFromSupabase() {
-  console.info("[Supabase] Fetching teams and preferences");
-  const [teamsResult, preferencesResult] = await Promise.all([
-    supabaseClient
-      .from("teams")
-      .select(
-        "id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
-      )
-      .order("updated_at", { ascending: false }),
-    supabaseClient
-      .from("app_preferences")
-      .select("active_team_id, last_page")
-      .maybeSingle(),
-  ]);
+  console.info("[Supabase] Fetching teams");
+  const teamsResult = await supabaseClient
+    .from("teams")
+    .select(
+      "id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
+    )
+    .order("updated_at", { ascending: false });
 
   if (teamsResult.error) {
     console.error("[Supabase] Teams query failed", {
@@ -440,17 +384,6 @@ async function hydrateStateFromSupabase() {
       code: teamsResult.error?.code || null,
     });
     throw teamsResult.error;
-  }
-
-  if (preferencesResult.error) {
-    console.error("[Supabase] Preferences query failed", {
-      error: preferencesResult.error,
-      message: preferencesResult.error?.message || String(preferencesResult.error),
-      details: preferencesResult.error?.details || null,
-      hint: preferencesResult.error?.hint || null,
-      code: preferencesResult.error?.code || null,
-    });
-    throw preferencesResult.error;
   }
 
   const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
@@ -465,10 +398,11 @@ async function hydrateStateFromSupabase() {
   }
 
   state = createStateFromPersisted({
-    page: preferencesResult.data?.last_page || cachedState.page,
+    page: cachedState.page,
     activeTeamId:
-      preferencesResult.data?.active_team_id ||
-      remoteTeams[0].id,
+      cachedState.activeTeamId && remoteTeams.some((team) => team.id === cachedState.activeTeamId)
+        ? cachedState.activeTeamId
+        : remoteTeams[0].id,
     teams: remoteTeams,
   });
 
@@ -481,10 +415,6 @@ async function hydrateStateFromSupabase() {
 function describeSupabaseError(error) {
   const message = String(error?.message || error || "");
 
-  if (message.includes("Anonymous sign-ins")) {
-    return "Enable Anonymous Sign-Ins in Supabase Auth.";
-  }
-
   if (message.includes("Invalid API key") || message.includes("JWT")) {
     return "Check that SUPABASE_URL and SUPABASE_ANON_KEY are correct.";
   }
@@ -494,7 +424,7 @@ function describeSupabaseError(error) {
   }
 
   if (message.includes("row-level security") || message.includes("permission denied")) {
-    return "Supabase RLS is blocking this request. Re-run the policies in supabase-schema.sql.";
+    return "Supabase RLS is blocking this request. Update your policies to allow anon access for this public app.";
   }
 
   if (message.includes("Config endpoint unavailable")) {
@@ -1431,7 +1361,6 @@ function queueRemoteSave() {
 async function saveStateToSupabase() {
   const teamRows = state.teams.map(mapTeamRecordToDatabaseRow);
   console.info("[Supabase] Saving state", {
-    userId: supabaseUserId,
     teamCount: teamRows.length,
     deletedTeamCount: deletedTeamIds.size,
     activeTeamId: state.activeTeamId,
@@ -1477,28 +1406,6 @@ async function saveStateToSupabase() {
     }
   }
 
-  const { error: preferencesError } = await supabaseClient
-    .from("app_preferences")
-    .upsert(
-      {
-        user_id: supabaseUserId,
-        active_team_id: state.activeTeamId,
-        last_page: state.page,
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (preferencesError) {
-    console.error("[Supabase] Preferences upsert failed", {
-      error: preferencesError,
-      message: preferencesError?.message || String(preferencesError),
-      details: preferencesError?.details || null,
-      hint: preferencesError?.hint || null,
-      code: preferencesError?.code || null,
-    });
-    throw preferencesError;
-  }
-
   console.info("[Supabase] Save complete");
   clearStatus(configStatus);
 }
@@ -1506,7 +1413,6 @@ async function saveStateToSupabase() {
 function mapTeamRecordToDatabaseRow(team) {
   return {
     id: team.id,
-    user_id: supabaseUserId,
     team_name: team.config.teamName || "Untitled team",
     players_on_field: team.config.playersOnField,
     players: team.config.players,

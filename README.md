@@ -23,7 +23,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
 - `public-config.js` is the generated public runtime config consumed by the browser
 - `build-config.js` writes the public Supabase config file during Vercel builds
-- `supabase-schema.sql` contains the database schema and RLS policies for Supabase
+- `supabase-schema.sql` contains the database schema and public RLS policies for Supabase
 
 ## Run locally
 
@@ -38,13 +38,13 @@ Then open `http://localhost:3000`.
 1. Create a Supabase project.
 2. In the Supabase dashboard, open the SQL editor.
 3. Run the full contents of `supabase-schema.sql`.
-4. In `Authentication` -> `Providers`, enable `Anonymous Sign-Ins`.
-5. Copy your project URL and anon key.
+4. Copy your project URL and anon key.
 
 Important:
 
 - `SUPABASE_ANON_KEY` is safe to expose to the browser.
 - Never use the Supabase `service_role` key in frontend code.
+- This app uses Supabase as a public database client only. It does not use Supabase Auth.
 
 Local environment variables:
 
@@ -121,8 +121,8 @@ If the app shows a Supabase connection warning:
    It should return JSON with non-empty `supabaseUrl` and `supabaseAnonKey`.
 3. In Supabase, confirm:
    - `supabase-schema.sql` has been run successfully
-   - Anonymous Sign-Ins are enabled
-   - the `teams` and `app_preferences` tables exist
+   - the `teams` table exists
+   - the public RLS policies from `supabase-schema.sql` were created
 4. If the schema changed after an earlier deploy, redeploy on Vercel after updating env vars.
 
 ### Vercel CLI flow
@@ -145,6 +145,7 @@ Then add the same environment variables in Vercel and redeploy if needed.
 
 - Team data is currently stored in browser `localStorage`, so saved teams are local to each user's device.
 - Team data is now synced to Supabase when the Supabase environment variables are configured. The browser still keeps a local cached copy for resilience.
+- The app does not use Supabase authentication. It reads and writes directly to the `teams` table using the public anon key.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
 
 ## Good next additions
