@@ -294,8 +294,9 @@ async function bootstrapApp() {
 async function initialiseSupabaseSync() {
   try {
     const config = await fetchRuntimeConfig();
+    const supabaseUrl = normaliseSupabaseProjectUrl(config.supabaseUrl);
     console.info("[Supabase] Runtime config loaded", {
-      hasUrl: Boolean(config.supabaseUrl),
+      hasUrl: Boolean(supabaseUrl),
       hasAnonKey: Boolean(config.supabaseAnonKey),
       configSource:
         window.__APP_CONFIG__?.supabaseUrl && window.__APP_CONFIG__?.supabaseAnonKey
@@ -303,7 +304,7 @@ async function initialiseSupabaseSync() {
           : "api/config",
     });
 
-    if (!config.supabaseUrl || !config.supabaseAnonKey) {
+    if (!supabaseUrl || !config.supabaseAnonKey) {
       setStatus(
         configStatus,
         "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy.",
@@ -317,11 +318,11 @@ async function initialiseSupabaseSync() {
     }
 
     supabaseClient = window.supabase.createClient(
-      config.supabaseUrl,
+      supabaseUrl,
       config.supabaseAnonKey,
     );
     console.info("[Supabase] Client initialised", {
-      urlHost: safeSupabaseHost(config.supabaseUrl),
+      urlHost: safeSupabaseHost(supabaseUrl),
     });
 
     supabaseReady = true;
@@ -439,6 +440,27 @@ function safeSupabaseHost(url) {
     return new URL(url).host;
   } catch (error) {
     return url;
+  }
+}
+
+function normaliseSupabaseProjectUrl(url) {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(url);
+    parsed.pathname = parsed.pathname
+      .replace(/\/rest\/v1\/?$/i, "/")
+      .replace(/\/auth\/v1\/?$/i, "/");
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch (error) {
+    return String(url)
+      .replace(/\/rest\/v1\/?$/i, "")
+      .replace(/\/auth\/v1\/?$/i, "")
+      .replace(/\/$/, "");
   }
 }
 
