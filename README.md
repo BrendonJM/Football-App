@@ -1,4 +1,4 @@
-# Football Team Board
+# Football Manager Pro
 
 This is a lightweight browser app for setting up a football squad, arranging players on a field, and exporting a lineup image.
 
