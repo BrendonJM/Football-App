@@ -6,6 +6,8 @@ const { spawnSync } = require("child_process");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const rootDir = __dirname;
 
 const mimeTypes = {
@@ -130,6 +132,14 @@ const server = http.createServer(async (request, response) => {
     requestUrl.pathname === "/api/extract-quotes"
   ) {
     await handleQuoteExtractionRequest(request, response);
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/api/config") {
+    sendJson(response, 200, {
+      supabaseUrl: SUPABASE_URL,
+      supabaseAnonKey: SUPABASE_ANON_KEY,
+    });
     return;
   }
 

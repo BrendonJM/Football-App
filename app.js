@@ -30,6 +30,7 @@ const sampleConfig = {
 };
 
 const storageKey = "football-team-board-state";
+const configEndpoint = "/api/config";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -68,10 +69,14 @@ const pitchTitle = document.querySelector("#pitchTitle");
 
 let formationDraft = [];
 let state = loadState();
+let supabaseClient = null;
+let supabaseUserId = null;
+let supabaseReady = false;
+let remoteSaveTimeout = null;
+let remoteSaveQueue = Promise.resolve();
+const deletedTeamIds = new Set();
 
-initialisePlayersOnFieldOptions();
-syncFormFromState();
-renderAll();
+bootstrapApp();
 
 configForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -278,6 +283,128 @@ function initialisePlayersOnFieldOptions() {
     .join("");
 
   playersOnFieldInput.innerHTML = options;
+}
+
+async function bootstrapApp() {
+  initialisePlayersOnFieldOptions();
+  syncFormFromState();
+  renderAll();
+  await initialiseSupabaseSync();
+}
+
+async function initialiseSupabaseSync() {
+  try {
+    const config = await fetchRuntimeConfig();
+
+    if (!config.supabaseUrl || !config.supabaseAnonKey) {
+      setStatus(
+        configStatus,
+        "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to enable cloud sync.",
+        true,
+      );
+      return;
+    }
+
+    supabaseClient = window.supabase.createClient(
+      config.supabaseUrl,
+      config.supabaseAnonKey,
+    );
+
+    await ensureSupabaseSession();
+    supabaseReady = true;
+    await hydrateStateFromSupabase();
+  } catch (error) {
+    setStatus(
+      configStatus,
+      "Could not connect to Supabase. The app will keep using the current browser copy for now.",
+      true,
+    );
+  }
+}
+
+async function fetchRuntimeConfig() {
+  const response = await fetch(configEndpoint);
+
+  if (!response.ok) {
+    throw new Error("Config endpoint unavailable");
+  }
+
+  return response.json();
+}
+
+async function ensureSupabaseSession() {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabaseClient.auth.getSession();
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  if (session?.user?.id) {
+    supabaseUserId = session.user.id;
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signInAnonymously();
+
+  if (error) {
+    throw error;
+  }
+
+  supabaseUserId = data.user?.id || data.session?.user?.id || null;
+
+  if (!supabaseUserId) {
+    throw new Error("Anonymous Supabase session was not created");
+  }
+}
+
+async function hydrateStateFromSupabase() {
+  const [teamsResult, preferencesResult] = await Promise.all([
+    supabaseClient
+      .from("teams")
+      .select(
+        "id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
+      )
+      .order("updated_at", { ascending: false }),
+    supabaseClient
+      .from("app_preferences")
+      .select("active_team_id, last_page")
+      .maybeSingle(),
+  ]);
+
+  if (teamsResult.error) {
+    throw teamsResult.error;
+  }
+
+  if (preferencesResult.error) {
+    throw preferencesResult.error;
+  }
+
+  const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
+  const cachedState = loadState();
+
+  if (remoteTeams.length === 0) {
+    state = cachedState;
+    persistCachedStateOnly();
+    queueRemoteSave();
+    renderAll();
+    return;
+  }
+
+  state = createStateFromPersisted({
+    page: preferencesResult.data?.last_page || cachedState.page,
+    activeTeamId:
+      preferencesResult.data?.active_team_id ||
+      remoteTeams[0].id,
+    teams: remoteTeams,
+  });
+
+  persistCachedStateOnly();
+  syncFormFromState();
+  renderAll();
+  clearStatus(configStatus);
 }
 
 function loadState() {
@@ -1120,6 +1247,8 @@ function deleteCurrentTeam() {
     return;
   }
 
+  deletedTeamIds.add(currentTeam.id);
+
   const remainingTeams = state.teams.filter((team) => team.id !== state.activeTeamId);
 
   if (remainingTeams.length === 0) {
@@ -1161,7 +1290,11 @@ function deleteCurrentTeam() {
 
 function persistState() {
   upsertCurrentTeam();
+  persistCachedStateOnly();
+  queueRemoteSave();
+}
 
+function persistCachedStateOnly() {
   const saved = {
     page: state.page,
     activeTeamId: state.activeTeamId,
@@ -1169,6 +1302,102 @@ function persistState() {
   };
 
   localStorage.setItem(storageKey, JSON.stringify(saved));
+}
+
+function queueRemoteSave() {
+  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
+    return;
+  }
+
+  window.clearTimeout(remoteSaveTimeout);
+  remoteSaveTimeout = window.setTimeout(() => {
+    remoteSaveQueue = remoteSaveQueue
+      .then(() => saveStateToSupabase())
+      .catch(() => {
+        setStatus(
+          configStatus,
+          "The latest change is still saved locally, but Supabase sync hit an error.",
+          true,
+        );
+      });
+  }, 250);
+}
+
+async function saveStateToSupabase() {
+  const teamRows = state.teams.map(mapTeamRecordToDatabaseRow);
+
+  if (teamRows.length > 0) {
+    const { error: upsertError } = await supabaseClient
+      .from("teams")
+      .upsert(teamRows, { onConflict: "id" });
+
+    if (upsertError) {
+      throw upsertError;
+    }
+  }
+
+  if (deletedTeamIds.size > 0) {
+    for (const teamId of Array.from(deletedTeamIds)) {
+      const { error: deleteError } = await supabaseClient
+        .from("teams")
+        .delete()
+        .eq("id", teamId);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      deletedTeamIds.delete(teamId);
+    }
+  }
+
+  const { error: preferencesError } = await supabaseClient
+    .from("app_preferences")
+    .upsert(
+      {
+        user_id: supabaseUserId,
+        active_team_id: state.activeTeamId,
+        last_page: state.page,
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (preferencesError) {
+    throw preferencesError;
+  }
+
+  clearStatus(configStatus);
+}
+
+function mapTeamRecordToDatabaseRow(team) {
+  return {
+    id: team.id,
+    user_id: supabaseUserId,
+    team_name: team.config.teamName || "Untitled team",
+    players_on_field: team.config.playersOnField,
+    players: team.config.players,
+    formations: team.config.formations,
+    selected_formation: team.lineup?.formation || team.config.selectedFormation,
+    lineup: team.lineup || {
+      formation: team.config.selectedFormation,
+      slotAssignments: [],
+      bench: [],
+    },
+  };
+}
+
+function mapDatabaseTeamToRecord(row) {
+  return {
+    id: row.id,
+    config: normaliseConfig({
+      teamName: row.team_name,
+      playersOnField: row.players_on_field,
+      players: Array.isArray(row.players) ? row.players : [],
+      formations: Array.isArray(row.formations) ? row.formations : [],
+      selectedFormation: row.selected_formation,
+    }),
+    lineup: row.lineup || null,
+  };
 }
 
 function setStatus(element, message, isError) {
