@@ -1362,7 +1362,7 @@ function persistCachedStateOnly() {
 }
 
 function queueRemoteSave() {
-  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
+  if (!supabaseReady || !supabaseClient) {
     return;
   }
 
