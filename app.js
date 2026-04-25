@@ -59,7 +59,6 @@ const fillEmptyPositionsButton = document.querySelector("#fillEmptyPositions");
 const resetLineupButton = document.querySelector("#resetLineup");
 const copyImageButton = document.querySelector("#copyImage");
 const downloadImageButton = document.querySelector("#downloadImage");
-const backToConfigButton = document.querySelector("#backToConfig");
 const exportStatus = document.querySelector("#exportStatus");
 const selectionHint = document.querySelector("#selectionHint");
 const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench");
@@ -160,12 +159,6 @@ copyImageButton.addEventListener("click", async () => {
 
 downloadImageButton.addEventListener("click", async () => {
   await downloadLineupImage();
-});
-
-backToConfigButton.addEventListener("click", () => {
-  state.page = "config";
-  persistState();
-  renderAll();
 });
 
 sendSelectedToBenchButton.addEventListener("click", () => {
