@@ -41,6 +41,15 @@ const customFormationInput = document.querySelector("#customFormation");
 const configStatus = document.querySelector("#configStatus");
 const configForm = document.querySelector("#configForm");
 const addFormationButton = document.querySelector("#addFormation");
+const signupForm = document.querySelector("#signupForm");
+const authEmailInput = document.querySelector("#authEmail");
+const authPasswordInput = document.querySelector("#authPassword");
+const loginButton = document.querySelector("#loginButton");
+const logoutButton = document.querySelector("#logoutButton");
+const authGuestPanel = document.querySelector("#authGuestPanel");
+const authUserPanel = document.querySelector("#authUserPanel");
+const authUserEmail = document.querySelector("#authUserEmail");
+const authStatus = document.querySelector("#authStatus");
 
 const navConfig = document.querySelector("#navConfig");
 const navManage = document.querySelector("#navManage");
@@ -70,6 +79,8 @@ let formationDraft = [];
 let state = loadState();
 let supabaseClient = null;
 let supabaseReady = false;
+let supabaseUserId = null;
+let supabaseUserEmail = "";
 let remoteSaveTimeout = null;
 let remoteSaveQueue = Promise.resolve();
 const deletedTeamIds = new Set();
@@ -117,6 +128,19 @@ addFormationButton.addEventListener("click", () => {
   customFormationInput.value = "";
   renderFormationChoices();
   setStatus(configStatus, `${formation} added to your formation list.`, false);
+});
+
+signupForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await signUpWithEmail();
+});
+
+loginButton.addEventListener("click", async () => {
+  await signInWithEmail();
+});
+
+logoutButton.addEventListener("click", async () => {
+  await signOutUser();
 });
 
 navConfig.addEventListener("click", () => {
@@ -321,11 +345,24 @@ async function initialiseSupabaseSync() {
     });
 
     supabaseReady = true;
-    await hydrateStateFromSupabase();
-    console.info("[Supabase] Initial sync complete", {
-      teamCount: state.teams.length,
-      activeTeamId: state.activeTeamId,
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+      console.info("[Supabase] Auth state changed", {
+        event: _event,
+        hasSession: Boolean(session),
+      });
+      await applyAuthSession(session);
     });
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseClient.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    await applyAuthSession(session);
   } catch (error) {
     console.error("[Supabase] Initialisation failed", {
       error,
@@ -362,6 +399,51 @@ async function fetchRuntimeConfig() {
   return response.json();
 }
 
+async function applyAuthSession(session) {
+  supabaseUserId = session?.user?.id || null;
+  supabaseUserEmail = session?.user?.email || "";
+  renderAuthState();
+
+  if (!supabaseUserId) {
+    console.info("[Supabase] No authenticated user session");
+    state = createStateFromPersisted({
+      page: "config",
+      activeTeamId: null,
+      teams: [],
+    });
+    persistCachedStateOnly();
+    syncFormFromState();
+    renderAll();
+    setStatus(
+      authStatus,
+      "Sign in to load and save your private teams.",
+      false,
+    );
+    return;
+  }
+
+  console.info("[Supabase] Authenticated user session ready", {
+    userId: supabaseUserId,
+    email: supabaseUserEmail,
+  });
+  clearStatus(authStatus);
+  await hydrateStateFromSupabase();
+  console.info("[Supabase] Initial sync complete", {
+    teamCount: state.teams.length,
+    activeTeamId: state.activeTeamId,
+  });
+}
+
+function renderAuthState() {
+  const isLoggedIn = Boolean(supabaseUserId);
+  authGuestPanel.classList.toggle("hidden", isLoggedIn);
+  authUserPanel.classList.toggle("hidden", !isLoggedIn);
+  authUserEmail.textContent = supabaseUserEmail || "Signed in";
+  teamSwitcher.disabled = !isLoggedIn;
+  newTeamButton.disabled = !isLoggedIn;
+  deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
+}
+
 async function hydrateStateFromSupabase() {
   console.info("[Supabase] Fetching teams");
   const teamsResult = await supabaseClient
@@ -369,6 +451,7 @@ async function hydrateStateFromSupabase() {
     .select(
       "id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
     )
+    .eq("user_id", supabaseUserId)
     .order("updated_at", { ascending: false });
 
   if (teamsResult.error) {
@@ -386,9 +469,13 @@ async function hydrateStateFromSupabase() {
   const cachedState = loadState();
 
   if (remoteTeams.length === 0) {
-    state = cachedState;
+    state = createStateFromPersisted({
+      page: cachedState.page,
+      activeTeamId: cachedState.activeTeamId,
+      teams: [],
+    });
     persistCachedStateOnly();
-    queueRemoteSave();
+    syncFormFromState();
     renderAll();
     return;
   }
@@ -406,6 +493,84 @@ async function hydrateStateFromSupabase() {
   syncFormFromState();
   renderAll();
   clearStatus(configStatus);
+}
+
+async function signUpWithEmail() {
+  if (!supabaseClient) {
+    setStatus(authStatus, "Supabase is not ready yet.", true);
+    return;
+  }
+
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+
+  if (!email || !password) {
+    setStatus(authStatus, "Enter an email and password first.", true);
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    setStatus(authStatus, error.message || "Could not create account.", true);
+    return;
+  }
+
+  if (!data.session) {
+    setStatus(
+      authStatus,
+      "Account created. Check your email if confirmation is enabled, then log in.",
+      false,
+    );
+    return;
+  }
+
+  setStatus(authStatus, "Account created and signed in.", false);
+}
+
+async function signInWithEmail() {
+  if (!supabaseClient) {
+    setStatus(authStatus, "Supabase is not ready yet.", true);
+    return;
+  }
+
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+
+  if (!email || !password) {
+    setStatus(authStatus, "Enter your email and password first.", true);
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    setStatus(authStatus, error.message || "Could not log in.", true);
+    return;
+  }
+
+  setStatus(authStatus, "Logged in.", false);
+}
+
+async function signOutUser() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    setStatus(authStatus, error.message || "Could not log out.", true);
+    return;
+  }
+
+  setStatus(authStatus, "Logged out.", false);
 }
 
 function describeSupabaseError(error) {
@@ -751,7 +916,7 @@ function renderTeamSwitcher() {
     })
     .join("");
 
-  deleteTeamButton.disabled = state.teams.length === 0;
+  deleteTeamButton.disabled = !supabaseUserId || state.teams.length === 0;
 }
 
 function renderPage() {
@@ -862,6 +1027,11 @@ function renderPitch() {
 }
 
 function saveConfigFromForm() {
+  if (!supabaseUserId) {
+    setStatus(configStatus, "Log in before saving teams.", true);
+    return;
+  }
+
   const config = buildConfigFromForm();
 
   if (!config.ok) {
@@ -1238,6 +1408,11 @@ function createLineupSnapshot(runtimeState) {
 }
 
 function switchTeam(teamId) {
+  if (!supabaseUserId) {
+    setStatus(configStatus, "Log in before loading teams.", true);
+    return;
+  }
+
   if (!teamId || teamId === state.activeTeamId) {
     return;
   }
@@ -1261,6 +1436,11 @@ function switchTeam(teamId) {
 }
 
 function createNewTeamDraft() {
+  if (!supabaseUserId) {
+    setStatus(configStatus, "Log in before creating teams.", true);
+    return;
+  }
+
   upsertCurrentTeam();
   const playersOnField = Number(playersOnFieldInput.value) || 9;
   const blankConfig = {
@@ -1285,6 +1465,11 @@ function createNewTeamDraft() {
 }
 
 function deleteCurrentTeam() {
+  if (!supabaseUserId) {
+    setStatus(configStatus, "Log in before deleting teams.", true);
+    return;
+  }
+
   const currentTeam = state.teams.find((team) => team.id === state.activeTeamId);
 
   if (!currentTeam) {
@@ -1357,7 +1542,7 @@ function persistCachedStateOnly() {
 }
 
 function queueRemoteSave() {
-  if (!supabaseReady || !supabaseClient) {
+  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
     return;
   }
 
@@ -1430,6 +1615,7 @@ async function saveStateToSupabase() {
 function mapTeamRecordToDatabaseRow(team) {
   return {
     id: team.id,
+    user_id: supabaseUserId,
     team_name: team.config.teamName || "Untitled team",
     players_on_field: team.config.playersOnField,
     players: team.config.players,
