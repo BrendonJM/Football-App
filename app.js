@@ -30,6 +30,7 @@ const sampleConfig = {
 };
 
 const storageKey = "football-team-board-state";
+const userStateStoragePrefix = "football-team-board-user-state";
 const configEndpoint = "/api/config";
 const feedbackEndpoint = "/api/feedback";
 
@@ -445,6 +446,7 @@ async function applyAuthSession(session) {
   });
   clearStatus(authStatus);
   await hydrateStateFromSupabase();
+  persistUserScopedState();
   console.info("[Supabase] Initial sync complete", {
     teamCount: state.teams.length,
     activeTeamId: state.activeTeamId,
@@ -483,7 +485,18 @@ async function hydrateStateFromSupabase() {
   }
 
   const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
+  const cachedUserState = loadUserScopedState(supabaseUserId);
   const cachedState = loadState();
+
+  if (remoteTeams.length === 0 && cachedUserState?.teams?.length > 0) {
+    state = createStateFromPersisted(cachedUserState);
+    persistCachedStateOnly();
+    syncFormFromState();
+    renderAll();
+    queueRemoteSave();
+    clearStatus(configStatus);
+    return;
+  }
 
   if (remoteTeams.length === 0) {
     state = createStateFromPersisted({
@@ -580,22 +593,7 @@ async function signOutUser() {
     return;
   }
 
-  setStatus(authStatus, "Saving your latest changes before logout...", false);
-
-  try {
-    await flushPendingRemoteSave();
-  } catch (error) {
-    console.error("[Supabase] Final save before logout failed", {
-      error,
-      message: error?.message || String(error),
-    });
-    setStatus(
-      authStatus,
-      "Your latest changes could not be saved yet. Please wait a moment and try logging out again.",
-      true,
-    );
-    return;
-  }
+  persistUserScopedState();
 
   setStatus(authStatus, "Logging out...", false);
 
@@ -1663,6 +1661,7 @@ function deleteCurrentTeam() {
 function persistState() {
   upsertCurrentTeam();
   persistCachedStateOnly();
+  persistUserScopedState();
   queueRemoteSave();
 }
 
@@ -1674,6 +1673,38 @@ function persistCachedStateOnly() {
   };
 
   localStorage.setItem(storageKey, JSON.stringify(saved));
+}
+
+function persistUserScopedState() {
+  if (!supabaseUserId) {
+    return;
+  }
+
+  const userState = {
+    page: state.page,
+    activeTeamId: state.activeTeamId,
+    teams: state.teams,
+    savedAt: Date.now(),
+  };
+
+  localStorage.setItem(getUserStateStorageKey(supabaseUserId), JSON.stringify(userState));
+}
+
+function loadUserScopedState(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  try {
+    const raw = localStorage.getItem(getUserStateStorageKey(userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getUserStateStorageKey(userId) {
+  return `${userStateStoragePrefix}:${userId}`;
 }
 
 function queueRemoteSave() {
@@ -1703,18 +1734,6 @@ function buildRemoteSaveSnapshot() {
     deletedTeamIds: Array.from(deletedTeamIds),
     activeTeamId: state.activeTeamId,
   };
-}
-
-async function flushPendingRemoteSave() {
-  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
-    return;
-  }
-
-  window.clearTimeout(remoteSaveTimeout);
-  remoteSaveTimeout = null;
-  const snapshot = buildRemoteSaveSnapshot();
-  remoteSaveQueue = remoteSaveQueue.then(() => saveStateToSupabase(snapshot));
-  await remoteSaveQueue;
 }
 
 async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
