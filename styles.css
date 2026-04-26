@@ -79,6 +79,28 @@ button {
   gap: 10px;
 }
 
+.brandmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 0 0 14px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.brandmark-team {
+  color: var(--brand);
+  text-shadow: 0 2px 10px rgba(197, 164, 109, 0.18);
+}
+
+.brandmark-pro {
+  color: var(--brand-strong);
+  text-shadow: 0 2px 10px rgba(226, 197, 142, 0.16);
+}
+
 .eyebrow {
   margin: 0 0 10px;
   font-family: "Space Grotesk", sans-serif;
