@@ -580,6 +580,8 @@ async function signOutUser() {
     return;
   }
 
+  setStatus(authStatus, "Logging out...", false);
+
   const { error } = await supabaseClient.auth.signOut();
 
   if (error) {
@@ -587,6 +589,8 @@ async function signOutUser() {
     return;
   }
 
+  console.info("[Supabase] Sign-out succeeded, clearing local auth state");
+  await applyAuthSession(null);
   setStatus(authStatus, "Logged out.", false);
 }
 
