@@ -53,13 +53,74 @@
       </header>
 
       <nav class="page-nav" aria-label="Pages">
-        <button id="navConfig" class="nav-button is-active" type="button">Team Set Up</button>
+        <button id="navAccount" class="nav-button is-active" type="button">Account</button>
+        <button id="navConfig" class="nav-button" type="button">Team Set Up</button>
         <button id="navManage" class="nav-button" type="button">Manage Team</button>
       </nav>
 
       <main>
-        <section id="configPage" class="page-section">
+        <section id="accountPage" class="page-section">
           <div class="layout-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Account</h2>
+                <p>Sign in to keep your teams private to your own account.</p>
+              </div>
+
+              <div id="authGuestPanel" class="info-card">
+                <form id="signupForm" class="stack-form">
+                  <label class="field">
+                    <span>Email</span>
+                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+                  </label>
+                  <label class="field">
+                    <span>Password</span>
+                    <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
+                  </label>
+                  <div class="button-row">
+                    <button type="submit" class="primary-button">Create Account</button>
+                    <button id="loginButton" type="button" class="secondary-button">Log In</button>
+                  </div>
+                </form>
+              </div>
+
+              <div id="authUserPanel" class="info-card hidden">
+                <strong id="authUserEmail">Signed in</strong>
+                <p>Your teams are saved privately to your account.</p>
+                <div class="button-row">
+                  <button id="logoutButton" type="button" class="secondary-button">Log Out</button>
+                </div>
+              </div>
+
+              <p id="authStatus" class="status-text" aria-live="polite"></p>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-heading">
+                <h2>How It Works</h2>
+                <p>Built for quick team-sheet changes from the sideline.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>1. Build you squad</strong>
+                <p>Add your squad, set the game format, and choose the formations you use most.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>2. Set your lineup</strong>
+                <p>Click a player and then another player or an empty position to swap or move them. Drag and drop works on desktop too.</p>
+              </div>
+
+              <div class="info-card">
+                <strong>3. Share and manage</strong>
+                <p>Copy the current field as an image so it is ready to paste into messages and documents.</p>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="configPage" class="page-section hidden">
+          <div class="layout-grid single-panel-layout">
             <section class="panel">
               <div class="panel-heading">
                 <h2>Team Setup</h2>
@@ -112,60 +173,6 @@
                 </div>
                 <p id="configStatus" class="status-text" aria-live="polite"></p>
               </form>
-            </section>
-
-            <section class="panel side-panel">
-              <div class="panel-heading">
-                <h2>Account</h2>
-                <p>Sign in to keep your teams private to your own account.</p>
-              </div>
-
-              <div id="authGuestPanel" class="info-card">
-                <form id="signupForm" class="stack-form">
-                  <label class="field">
-                    <span>Email</span>
-                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
-                  </label>
-                  <label class="field">
-                    <span>Password</span>
-                    <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
-                  </label>
-                  <div class="button-row">
-                    <button type="submit" class="primary-button">Create Account</button>
-                    <button id="loginButton" type="button" class="secondary-button">Log In</button>
-                  </div>
-                </form>
-              </div>
-
-              <div id="authUserPanel" class="info-card hidden">
-                <strong id="authUserEmail">Signed in</strong>
-                <p>Your teams are saved privately to your account.</p>
-                <div class="button-row">
-                  <button id="logoutButton" type="button" class="secondary-button">Log Out</button>
-                </div>
-              </div>
-
-              <p id="authStatus" class="status-text" aria-live="polite"></p>
-
-              <div class="panel-heading">
-                <h2>How It Works</h2>
-                <p>Built for quick team-sheet changes from the sideline.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>1. Build you squad</strong>
-                <p>Add your squad, set the game format, and choose the formations you use most.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>2. Set your lineup</strong>
-                <p>Click a player and then another player or an empty position to swap or move them. Drag and drop works on desktop too.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>3. Share and manage</strong>
-                <p>Copy the current field as an image or download a PNG that is ready to paste into messages and documents.</p>
-              </div>
             </section>
           </div>
         </section>

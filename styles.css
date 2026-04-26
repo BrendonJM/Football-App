@@ -219,6 +219,10 @@ p {
   grid-template-columns: minmax(340px, 0.95fr) minmax(280px, 0.65fr);
 }
 
+.single-panel-layout {
+  grid-template-columns: minmax(0, 920px);
+}
+
 .manage-grid {
   grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
   align-items: start;
@@ -706,7 +710,7 @@ textarea {
 
   .page-nav {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     width: 100%;
   }
 

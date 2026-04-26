@@ -51,8 +51,10 @@ const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
 
+const navAccount = document.querySelector("#navAccount");
 const navConfig = document.querySelector("#navConfig");
 const navManage = document.querySelector("#navManage");
+const accountPage = document.querySelector("#accountPage");
 const configPage = document.querySelector("#configPage");
 const managePage = document.querySelector("#managePage");
 const teamSwitcher = document.querySelector("#teamSwitcher");
@@ -141,6 +143,12 @@ loginButton.addEventListener("click", async () => {
 
 logoutButton.addEventListener("click", async () => {
   await signOutUser();
+});
+
+navAccount.addEventListener("click", () => {
+  state.page = "account";
+  persistState();
+  renderAll();
 });
 
 navConfig.addEventListener("click", () => {
@@ -407,7 +415,7 @@ async function applyAuthSession(session) {
   if (!supabaseUserId) {
     console.info("[Supabase] No authenticated user session");
     state = createStateFromPersisted({
-      page: "config",
+      page: "account",
       activeTeamId: null,
       teams: [],
     });
@@ -687,7 +695,7 @@ function createStateFromPersisted(saved) {
   const runtime = hydrateTeamRuntime(activeTeam);
 
   return {
-    page: saved.page === "manage" ? "manage" : "config",
+    page: ["account", "config", "manage"].includes(saved.page) ? saved.page : "config",
     teams: teams.length > 0 ? teams : [fallbackTeam],
     activeTeamId: activeTeam.id,
     config: runtime.config,
@@ -920,11 +928,16 @@ function renderTeamSwitcher() {
 }
 
 function renderPage() {
-  const configActive = state.page !== "manage";
+  const accountActive = state.page === "account";
+  const configActive = state.page === "config";
+  const manageActive = state.page === "manage";
+
+  accountPage.classList.toggle("hidden", !accountActive);
   configPage.classList.toggle("hidden", !configActive);
-  managePage.classList.toggle("hidden", configActive);
+  managePage.classList.toggle("hidden", !manageActive);
+  navAccount.classList.toggle("is-active", accountActive);
   navConfig.classList.toggle("is-active", configActive);
-  navManage.classList.toggle("is-active", !configActive);
+  navManage.classList.toggle("is-active", manageActive);
 }
 
 function renderStats() {
