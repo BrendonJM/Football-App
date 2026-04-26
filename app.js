@@ -1839,42 +1839,47 @@ async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
       payload: teamRows,
     });
 
-    const { data: upsertData, error: upsertError } = await supabaseClient
-      .from(teamsTableName)
-      .upsert(teamRows, { onConflict: "id" })
-      .select("id, user_id, team_name, selected_formation, updated_at");
+    let data;
+    let error;
 
-    console.info("[Supabase] after upsert", {
-      table: `public.${teamsTableName}`,
-      userId,
-      data: upsertData || [],
-      error: upsertError || null,
-    });
+    try {
+      ({ data, error } = await supabaseClient
+        .from("teams")
+        .upsert(teamRows, { onConflict: "id" })
+        .select());
 
-    if (upsertError) {
-      console.error("[Supabase] Team upsert failed", {
+      console.log("[Supabase] upsert result", {
+        table: "public.teams",
+        userId,
+        data,
+        error,
+      });
+    } catch (caughtError) {
+      console.error("[Supabase] upsert threw before result", {
         sequence: snapshot.sequence,
-        error: upsertError,
-        message: upsertError?.message || String(upsertError),
-        details: upsertError?.details || null,
-        hint: upsertError?.hint || null,
-        code: upsertError?.code || null,
+        error: caughtError,
+        message: caughtError?.message || String(caughtError),
+        table: "public.teams",
         userId,
         payload: teamRows,
       });
       setStatus(
         configStatus,
-        `Supabase save failed: ${upsertError?.message || "Unknown upsert error."}`,
+        `Supabase save failed: ${caughtError?.message || "Unknown upsert error."}`,
         true,
       );
-      throw upsertError;
+      throw caughtError;
     }
 
-    console.info("[Supabase] Team upsert result", {
-      sequence: snapshot.sequence,
-      userId,
-      data: upsertData || [],
-    });
+    if (error) {
+      console.error("[Supabase] upsert failed", error);
+      setStatus(
+        configStatus,
+        `Supabase save failed: ${error?.message || "Unknown upsert error."}`,
+        true,
+      );
+      throw error;
+    }
   }
 
   if (pendingDeletes.length > 0) {
