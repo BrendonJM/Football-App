@@ -580,6 +580,23 @@ async function signOutUser() {
     return;
   }
 
+  setStatus(authStatus, "Saving your latest changes before logout...", false);
+
+  try {
+    await flushPendingRemoteSave();
+  } catch (error) {
+    console.error("[Supabase] Final save before logout failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(
+      authStatus,
+      "Your latest changes could not be saved yet. Please wait a moment and try logging out again.",
+      true,
+    );
+    return;
+  }
+
   setStatus(authStatus, "Logging out...", false);
 
   let error = null;
@@ -1666,8 +1683,9 @@ function queueRemoteSave() {
 
   window.clearTimeout(remoteSaveTimeout);
   remoteSaveTimeout = window.setTimeout(() => {
+    const snapshot = buildRemoteSaveSnapshot();
     remoteSaveQueue = remoteSaveQueue
-      .then(() => saveStateToSupabase())
+      .then(() => saveStateToSupabase(snapshot))
       .catch(() => {
         setStatus(
           configStatus,
@@ -1678,12 +1696,38 @@ function queueRemoteSave() {
   }, 250);
 }
 
-async function saveStateToSupabase() {
-  const teamRows = state.teams.map(mapTeamRecordToDatabaseRow);
+function buildRemoteSaveSnapshot() {
+  return {
+    userId: supabaseUserId,
+    teamRows: state.teams.map(mapTeamRecordToDatabaseRow),
+    deletedTeamIds: Array.from(deletedTeamIds),
+    activeTeamId: state.activeTeamId,
+  };
+}
+
+async function flushPendingRemoteSave() {
+  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
+    return;
+  }
+
+  window.clearTimeout(remoteSaveTimeout);
+  remoteSaveTimeout = null;
+  const snapshot = buildRemoteSaveSnapshot();
+  remoteSaveQueue = remoteSaveQueue.then(() => saveStateToSupabase(snapshot));
+  await remoteSaveQueue;
+}
+
+async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
+  if (!snapshot.userId) {
+    return;
+  }
+
+  const { teamRows, deletedTeamIds: pendingDeletes, activeTeamId } = snapshot;
   console.info("[Supabase] Saving state", {
     teamCount: teamRows.length,
-    deletedTeamCount: deletedTeamIds.size,
-    activeTeamId: state.activeTeamId,
+    deletedTeamCount: pendingDeletes.length,
+    activeTeamId,
+    userId: snapshot.userId,
   });
 
   if (teamRows.length > 0) {
@@ -1703,8 +1747,8 @@ async function saveStateToSupabase() {
     }
   }
 
-  if (deletedTeamIds.size > 0) {
-    for (const teamId of Array.from(deletedTeamIds)) {
+  if (pendingDeletes.length > 0) {
+    for (const teamId of pendingDeletes) {
       const { error: deleteError } = await supabaseClient
         .from("teams")
         .delete()
