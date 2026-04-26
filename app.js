@@ -96,9 +96,9 @@ const deletedTeamIds = new Set();
 
 bootstrapApp();
 
-configForm.addEventListener("submit", async (event) => {
+configForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  await saveConfigFromForm();
+  saveConfigFromForm();
 });
 
 playersOnFieldInput.addEventListener("change", () => {
@@ -157,54 +157,54 @@ feedbackForm.addEventListener("submit", async (event) => {
   await submitFeedback();
 });
 
-navAccount.addEventListener("click", async () => {
+navAccount.addEventListener("click", () => {
   state.page = "account";
-  await persistState();
+  persistState();
   renderAll();
 });
 
-navConfig.addEventListener("click", async () => {
+navConfig.addEventListener("click", () => {
   state.page = "config";
-  await persistState();
+  persistState();
   renderAll();
 });
 
-navManage.addEventListener("click", async () => {
+navManage.addEventListener("click", () => {
   state.page = "manage";
-  await persistState();
+  persistState();
   renderAll();
 });
 
-teamSwitcher.addEventListener("change", async () => {
-  await switchTeam(teamSwitcher.value);
+teamSwitcher.addEventListener("change", () => {
+  switchTeam(teamSwitcher.value);
 });
 
-newTeamButton.addEventListener("click", async () => {
-  await createNewTeamDraft();
+newTeamButton.addEventListener("click", () => {
+  createNewTeamDraft();
 });
 
-deleteTeamButton.addEventListener("click", async () => {
-  await deleteCurrentTeam();
+deleteTeamButton.addEventListener("click", () => {
+  deleteCurrentTeam();
 });
 
-formationSelect.addEventListener("change", async () => {
+formationSelect.addEventListener("change", () => {
   const formation = formationSelect.value;
-  await setFormation(formation);
+  setFormation(formation);
 });
 
-fillEmptyPositionsButton.addEventListener("click", async () => {
-  await fillEmptySlotsFromBench();
+fillEmptyPositionsButton.addEventListener("click", () => {
+  fillEmptySlotsFromBench();
 });
 
-resetLineupButton.addEventListener("click", async () => {
-  await resetLineup();
+resetLineupButton.addEventListener("click", () => {
+  resetLineup();
 });
 
 copyImageButton.addEventListener("click", async () => {
   await copyLineupImage();
 });
 
-sendSelectedToBenchButton.addEventListener("click", async () => {
+sendSelectedToBenchButton.addEventListener("click", () => {
   if (!state.selectedTarget) {
     setStatus(exportStatus, "Select a player on the field first.", true);
     return;
@@ -215,23 +215,23 @@ sendSelectedToBenchButton.addEventListener("click", async () => {
     return;
   }
 
-  await moveSelectedToBench();
+  moveSelectedToBench();
 });
 
-pitch.addEventListener("click", async (event) => {
+pitch.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-target-type]");
 
   if (!trigger) {
     return;
   }
 
-  await handleTargetSelection({
+  handleTargetSelection({
     type: trigger.dataset.targetType,
     index: Number(trigger.dataset.targetIndex),
   });
 });
 
-benchList.addEventListener("click", async (event) => {
+benchList.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-target-type]");
 
   if (!trigger) {
@@ -239,11 +239,11 @@ benchList.addEventListener("click", async (event) => {
   }
 
   if (trigger.dataset.targetType === "bench-dropzone") {
-    await moveSelectedToBench();
+    moveSelectedToBench();
     return;
   }
 
-  await handleTargetSelection({
+  handleTargetSelection({
     type: trigger.dataset.targetType,
     index: Number(trigger.dataset.targetIndex),
   });
@@ -285,7 +285,7 @@ document.addEventListener("dragleave", (event) => {
   }
 });
 
-document.addEventListener("drop", async (event) => {
+document.addEventListener("drop", (event) => {
   const trigger = event.target.closest("[data-target-type]");
 
   if (!trigger) {
@@ -302,11 +302,11 @@ document.addEventListener("drop", async (event) => {
   }
 
   if (trigger.dataset.targetType === "bench-dropzone") {
-    await movePlayerToBench(source);
+    movePlayerToBench(source);
     return;
   }
 
-  await swapOrMove(source, {
+  swapOrMove(source, {
     type: trigger.dataset.targetType,
     index: Number(trigger.dataset.targetIndex),
   });
@@ -1189,7 +1189,7 @@ function renderPitch() {
   pitch.innerHTML = markings + slotMarkup;
 }
 
-async function saveConfigFromForm() {
+function saveConfigFromForm() {
   if (!supabaseUserId) {
     setStatus(configStatus, "Log in before saving teams.", true);
     return;
@@ -1216,7 +1216,7 @@ async function saveConfigFromForm() {
   upsertCurrentTeam();
   state.page = "manage";
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   setStatus(configStatus, "Team setup saved.", false);
   renderAll();
 }
@@ -1367,7 +1367,7 @@ function spreadAcross(count) {
   return Array.from({ length: count }, (_, index) => (index + 1) / (count + 1));
 }
 
-async function handleTargetSelection(target) {
+function handleTargetSelection(target) {
   clearStatus(exportStatus);
 
   if (!state.selectedTarget) {
@@ -1376,22 +1376,22 @@ async function handleTargetSelection(target) {
     }
 
     state.selectedTarget = target;
-    await persistState();
+    persistState();
     renderAll();
     return;
   }
 
   if (targetsMatch(state.selectedTarget, target)) {
     state.selectedTarget = null;
-    await persistState();
+    persistState();
     renderAll();
     return;
   }
 
-  await swapOrMove(state.selectedTarget, target);
+  swapOrMove(state.selectedTarget, target);
 }
 
-async function swapOrMove(source, target) {
+function swapOrMove(source, target) {
   if (!target) {
     return;
   }
@@ -1419,19 +1419,19 @@ async function swapOrMove(source, target) {
   }
 
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   renderAll();
 }
 
-async function moveSelectedToBench() {
+function moveSelectedToBench() {
   if (!state.selectedTarget) {
     return;
   }
 
-  await movePlayerToBench(state.selectedTarget);
+  movePlayerToBench(state.selectedTarget);
 }
 
-async function movePlayerToBench(target) {
+function movePlayerToBench(target) {
   if (!target || target.type !== "slot") {
     setStatus(exportStatus, "Select a player on the field to send them to the bench.", true);
     return;
@@ -1446,11 +1446,11 @@ async function movePlayerToBench(target) {
   state.lineup.slots[target.index].occupantId = null;
   state.lineup.benchIds.unshift(playerId);
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   renderAll();
 }
 
-async function fillEmptySlotsFromBench() {
+function fillEmptySlotsFromBench() {
   let changed = false;
 
   state.lineup.slots.forEach((slot) => {
@@ -1465,19 +1465,19 @@ async function fillEmptySlotsFromBench() {
     changed ? "Empty positions filled from the bench." : "There are no empty field positions to fill.",
     !changed,
   );
-  await persistState();
+  persistState();
   renderAll();
 }
 
-async function resetLineup() {
+function resetLineup() {
   state.lineup = buildLineup(state.players, state.config.playersOnField, state.lineup.formation);
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   setStatus(exportStatus, "Lineup reset to squad order.", false);
   renderAll();
 }
 
-async function setFormation(formation) {
+function setFormation(formation) {
   if (!state.config.formations.includes(formation)) {
     return;
   }
@@ -1498,7 +1498,7 @@ async function setFormation(formation) {
   };
   state.config.selectedFormation = formation;
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   renderAll();
 }
 
@@ -1570,7 +1570,7 @@ function createLineupSnapshot(runtimeState) {
   };
 }
 
-async function switchTeam(teamId) {
+function switchTeam(teamId) {
   if (!supabaseUserId) {
     setStatus(configStatus, "Log in before loading teams.", true);
     return;
@@ -1593,12 +1593,12 @@ async function switchTeam(teamId) {
   state.players = runtime.players;
   state.lineup = runtime.lineup;
   state.selectedTarget = null;
-  await persistState();
+  persistState();
   syncFormFromState();
   renderAll();
 }
 
-async function createNewTeamDraft() {
+function createNewTeamDraft() {
   if (!supabaseUserId) {
     setStatus(configStatus, "Log in before creating teams.", true);
     return;
@@ -1622,12 +1622,12 @@ async function createNewTeamDraft() {
   state.page = "config";
   formationDraft = [...state.config.formations];
   syncFormFromState();
-  await persistState();
+  persistState();
   renderAll();
   setStatus(configStatus, "New team draft ready. Add the squad and save it when you’re ready.", false);
 }
 
-async function deleteCurrentTeam() {
+function deleteCurrentTeam() {
   if (!supabaseUserId) {
     setStatus(configStatus, "Log in before deleting teams.", true);
     return;
@@ -1668,7 +1668,7 @@ async function deleteCurrentTeam() {
     state.page = "config";
     formationDraft = [...state.config.formations];
     syncFormFromState();
-    await persistState();
+    persistState();
     renderAll();
     setStatus(configStatus, `${label} deleted. A new blank team draft is ready.`, false);
     return;
@@ -1683,12 +1683,12 @@ async function deleteCurrentTeam() {
   state.lineup = runtime.lineup;
   state.selectedTarget = null;
   syncFormFromState();
-  await persistState();
+  persistState();
   renderAll();
   setStatus(configStatus, `${label} deleted.`, false);
 }
 
-async function persistState() {
+function persistState() {
   upsertCurrentTeam();
   console.info("[Supabase] persistState invoked", {
     userId: supabaseUserId,
@@ -1698,24 +1698,7 @@ async function persistState() {
   });
   persistCachedStateOnly();
   persistUserScopedState();
-
-  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
-    console.info("[Supabase] persistState skipped direct save", {
-      supabaseReady,
-      hasClient: Boolean(supabaseClient),
-      userId: supabaseUserId,
-    });
-    return;
-  }
-
-  const snapshot = buildRemoteSaveSnapshot();
-  console.info("[Supabase] persistState executing direct save", {
-    sequence: snapshot.sequence,
-    userId: snapshot.userId,
-    activeTeamId: snapshot.activeTeamId,
-    teamIds: snapshot.teamIds,
-  });
-  await saveStateToSupabase(snapshot);
+  queueRemoteSave();
 }
 
 function persistCachedStateOnly() {
