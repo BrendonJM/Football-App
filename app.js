@@ -90,6 +90,7 @@ let supabaseUserId = null;
 let supabaseUserEmail = "";
 let remoteSaveTimeout = null;
 let remoteSaveQueue = Promise.resolve();
+let remoteSaveSequence = 0;
 const deletedTeamIds = new Set();
 
 bootstrapApp();
@@ -420,6 +421,11 @@ async function fetchRuntimeConfig() {
 async function applyAuthSession(session) {
   supabaseUserId = session?.user?.id || null;
   supabaseUserEmail = session?.user?.email || "";
+  console.info("[Supabase] applyAuthSession", {
+    userId: supabaseUserId,
+    email: supabaseUserEmail,
+    hasSession: Boolean(session),
+  });
   renderAuthState();
 
   if (!supabaseUserId) {
@@ -464,11 +470,13 @@ function renderAuthState() {
 }
 
 async function hydrateStateFromSupabase() {
-  console.info("[Supabase] Fetching teams");
+  console.info("[Supabase] Fetching teams after login", {
+    userId: supabaseUserId,
+  });
   const teamsResult = await supabaseClient
     .from("teams")
     .select(
-      "id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
+      "id, user_id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
     )
     .eq("user_id", supabaseUserId)
     .order("updated_at", { ascending: false });
@@ -484,11 +492,25 @@ async function hydrateStateFromSupabase() {
     throw teamsResult.error;
   }
 
+  console.info("[Supabase] Teams fetched after login", {
+    userId: supabaseUserId,
+    rowCount: (teamsResult.data || []).length,
+    rows: teamsResult.data || [],
+  });
+
   const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
   const cachedUserState = loadUserScopedState(supabaseUserId);
   const cachedState = loadState();
   const remoteUpdatedAt = getLatestRemoteTimestamp(teamsResult.data || []);
   const cachedUpdatedAt = Number(cachedUserState?.savedAt || 0);
+
+  console.info("[Supabase] Source-of-truth check", {
+    usesCachedUserState: Boolean(cachedUserState?.teams?.length > 0 && cachedUpdatedAt >= remoteUpdatedAt),
+    cachedUpdatedAt,
+    remoteUpdatedAt,
+    cachedTeamCount: cachedUserState?.teams?.length || 0,
+    remoteTeamCount: remoteTeams.length,
+  });
 
   if (cachedUserState?.teams?.length > 0 && cachedUpdatedAt >= remoteUpdatedAt) {
     console.info("[Supabase] Restoring newer cached user state", {
@@ -1667,6 +1689,12 @@ function deleteCurrentTeam() {
 
 function persistState() {
   upsertCurrentTeam();
+  console.info("[Supabase] persistState invoked", {
+    userId: supabaseUserId,
+    activeTeamId: state.activeTeamId,
+    teamIds: state.teams.map((team) => team.id),
+    selectedFormation: state.lineup?.formation || null,
+  });
   persistCachedStateOnly();
   persistUserScopedState();
   queueRemoteSave();
@@ -1723,18 +1751,34 @@ function getLatestRemoteTimestamp(rows) {
 
 function queueRemoteSave() {
   if (!supabaseReady || !supabaseClient || !supabaseUserId) {
+    console.info("[Supabase] queueRemoteSave skipped", {
+      supabaseReady,
+      hasClient: Boolean(supabaseClient),
+      userId: supabaseUserId,
+    });
     return;
   }
 
   window.clearTimeout(remoteSaveTimeout);
   remoteSaveTimeout = window.setTimeout(() => {
     const snapshot = buildRemoteSaveSnapshot();
+    console.info("[Supabase] queueRemoteSave scheduled save", {
+      sequence: snapshot.sequence,
+      userId: snapshot.userId,
+      activeTeamId: snapshot.activeTeamId,
+      teamIds: snapshot.teamIds,
+      deleteIds: snapshot.deletedTeamIds,
+    });
     remoteSaveQueue = remoteSaveQueue
       .then(() => saveStateToSupabase(snapshot))
-      .catch(() => {
+      .catch((error) => {
+        console.error("[Supabase] queueRemoteSave failed", {
+          error,
+          message: error?.message || String(error),
+        });
         setStatus(
           configStatus,
-          "The latest change is still saved locally, but Supabase sync hit an error.",
+          `Supabase save failed: ${describeSupabaseError(error)}`,
           true,
         );
       });
@@ -1743,41 +1787,72 @@ function queueRemoteSave() {
 
 function buildRemoteSaveSnapshot() {
   return {
+    sequence: ++remoteSaveSequence,
     userId: supabaseUserId,
-    teamRows: state.teams.map(mapTeamRecordToDatabaseRow),
+    teamIds: state.teams.map((team) => team.id),
     deletedTeamIds: Array.from(deletedTeamIds),
     activeTeamId: state.activeTeamId,
   };
 }
 
 async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
-  if (!snapshot.userId) {
+  const { userId, error: userError } = await getLoggedInUserId();
+
+  if (userError) {
+    console.error("[Supabase] Could not resolve logged-in user before save", {
+      error: userError,
+      message: userError?.message || String(userError),
+    });
+    throw userError;
+  }
+
+  if (!userId) {
+    console.warn("[Supabase] saveStateToSupabase skipped because no user is logged in", {
+      snapshot,
+    });
     return;
   }
 
-  const { teamRows, deletedTeamIds: pendingDeletes, activeTeamId } = snapshot;
-  console.info("[Supabase] Saving state", {
+  const teamRows = state.teams.map((team) => mapTeamRecordToDatabaseRow(team, userId));
+  const pendingDeletes = Array.from(deletedTeamIds);
+  const activeTeamId = state.activeTeamId;
+  const activeTeam = state.teams.find((team) => team.id === activeTeamId) || null;
+
+  console.info("[Supabase] saving to Supabase", {
+    sequence: snapshot.sequence,
     teamCount: teamRows.length,
     deletedTeamCount: pendingDeletes.length,
     activeTeamId,
-    userId: snapshot.userId,
+    userId,
+    activeTeamRow: activeTeam ? mapTeamRecordToDatabaseRow(activeTeam, userId) : null,
+    payload: teamRows,
   });
 
   if (teamRows.length > 0) {
-    const { error: upsertError } = await supabaseClient
+    const { data: upsertData, error: upsertError } = await supabaseClient
       .from("teams")
-      .upsert(teamRows, { onConflict: "id" });
+      .upsert(teamRows, { onConflict: "id" })
+      .select("id, user_id, team_name, selected_formation, updated_at");
 
     if (upsertError) {
       console.error("[Supabase] Team upsert failed", {
+        sequence: snapshot.sequence,
         error: upsertError,
         message: upsertError?.message || String(upsertError),
         details: upsertError?.details || null,
         hint: upsertError?.hint || null,
         code: upsertError?.code || null,
+        userId,
+        payload: teamRows,
       });
       throw upsertError;
     }
+
+    console.info("[Supabase] Team upsert result", {
+      sequence: snapshot.sequence,
+      userId,
+      data: upsertData || [],
+    });
   }
 
   if (pendingDeletes.length > 0) {
@@ -1789,6 +1864,7 @@ async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
 
       if (deleteError) {
         console.error("[Supabase] Team delete failed", {
+          sequence: snapshot.sequence,
           teamId,
           error: deleteError,
           message: deleteError?.message || String(deleteError),
@@ -1803,14 +1879,37 @@ async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
     }
   }
 
-  console.info("[Supabase] Save complete");
+  console.info("[Supabase] Save complete", {
+    sequence: snapshot.sequence,
+    userId,
+    activeTeamId,
+  });
   clearStatus(configStatus);
 }
 
-function mapTeamRecordToDatabaseRow(team) {
+async function getLoggedInUserId() {
+  if (!supabaseClient) {
+    return {
+      userId: null,
+      error: new Error("Supabase client is not ready."),
+    };
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseClient.auth.getUser();
+
+  return {
+    userId: user?.id || null,
+    error: error || null,
+  };
+}
+
+function mapTeamRecordToDatabaseRow(team, userId) {
   return {
     id: team.id,
-    user_id: supabaseUserId,
+    user_id: userId,
     team_name: team.config.teamName || "Untitled team",
     players_on_field: team.config.playersOnField,
     players: team.config.players,
