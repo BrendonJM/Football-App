@@ -90,7 +90,6 @@ let supabaseReady = false;
 let supabaseUserId = null;
 let supabaseUserEmail = "";
 let remoteSaveTimeout = null;
-let remoteSaveQueue = Promise.resolve();
 let remoteSaveSequence = 0;
 const deletedTeamIds = new Set();
 
@@ -1778,19 +1777,17 @@ function queueRemoteSave() {
       teamIds: snapshot.teamIds,
       deleteIds: snapshot.deletedTeamIds,
     });
-    remoteSaveQueue = remoteSaveQueue
-      .then(() => saveStateToSupabase(snapshot))
-      .catch((error) => {
-        console.error("[Supabase] queueRemoteSave failed", {
-          error,
-          message: error?.message || String(error),
-        });
-        setStatus(
-          configStatus,
-          `Supabase save failed: ${describeSupabaseError(error)}`,
-          true,
-        );
+    void saveStateToSupabase(snapshot).catch((error) => {
+      console.error("[Supabase] queueRemoteSave failed", {
+        error,
+        message: error?.message || String(error),
       });
+      setStatus(
+        configStatus,
+        `Supabase save failed: ${describeSupabaseError(error)}`,
+        true,
+      );
+    });
   }, 250);
 }
 
@@ -1843,10 +1840,14 @@ async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
     let error;
 
     try {
-      ({ data, error } = await supabaseClient
-        .from("teams")
-        .upsert(teamRows, { onConflict: "id" })
-        .select());
+      ({ data, error } = await withTimeout(
+        supabaseClient
+          .from("teams")
+          .upsert(teamRows, { onConflict: "id" })
+          .select(),
+        8000,
+        "Supabase upsert timed out.",
+      ));
 
       console.log("[Supabase] upsert result", {
         table: "public.teams",
@@ -1929,6 +1930,17 @@ function mapTeamRecordToDatabaseRow(team, userId) {
       bench: [],
     },
   };
+}
+
+function withTimeout(promise, milliseconds, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(message));
+      }, milliseconds);
+    }),
+  ]);
 }
 
 function mapDatabaseTeamToRecord(row) {
