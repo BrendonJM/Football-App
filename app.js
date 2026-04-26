@@ -487,8 +487,15 @@ async function hydrateStateFromSupabase() {
   const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
   const cachedUserState = loadUserScopedState(supabaseUserId);
   const cachedState = loadState();
+  const remoteUpdatedAt = getLatestRemoteTimestamp(teamsResult.data || []);
+  const cachedUpdatedAt = Number(cachedUserState?.savedAt || 0);
 
-  if (remoteTeams.length === 0 && cachedUserState?.teams?.length > 0) {
+  if (cachedUserState?.teams?.length > 0 && cachedUpdatedAt >= remoteUpdatedAt) {
+    console.info("[Supabase] Restoring newer cached user state", {
+      cachedUpdatedAt,
+      remoteUpdatedAt,
+      teamCount: cachedUserState.teams.length,
+    });
     state = createStateFromPersisted(cachedUserState);
     persistCachedStateOnly();
     syncFormFromState();
@@ -1705,6 +1712,13 @@ function loadUserScopedState(userId) {
 
 function getUserStateStorageKey(userId) {
   return `${userStateStoragePrefix}:${userId}`;
+}
+
+function getLatestRemoteTimestamp(rows) {
+  return rows.reduce((latest, row) => {
+    const candidate = Date.parse(row.updated_at || row.created_at || "");
+    return Number.isFinite(candidate) ? Math.max(latest, candidate) : latest;
+  }, 0);
 }
 
 function queueRemoteSave() {
