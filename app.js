@@ -582,16 +582,62 @@ async function signOutUser() {
 
   setStatus(authStatus, "Logging out...", false);
 
-  const { error } = await supabaseClient.auth.signOut();
+  let error = null;
+
+  try {
+    const result = await Promise.race([
+      supabaseClient.auth.signOut({ scope: "local" }),
+      timeoutAfter(4000),
+    ]);
+    error = result?.error || null;
+  } catch (caughtError) {
+    error = caughtError;
+  }
 
   if (error) {
-    setStatus(authStatus, error.message || "Could not log out.", true);
-    return;
+    console.warn("[Supabase] Local sign-out did not complete cleanly, forcing local session clear", {
+      error,
+      message: error?.message || String(error),
+    });
+    clearSupabaseBrowserSession();
   }
 
   console.info("[Supabase] Sign-out succeeded, clearing local auth state");
   await applyAuthSession(null);
   setStatus(authStatus, "Logged out.", false);
+}
+
+function timeoutAfter(milliseconds) {
+  return new Promise((_, reject) => {
+    window.setTimeout(() => {
+      reject(new Error("Supabase sign-out timed out."));
+    }, milliseconds);
+  });
+}
+
+function clearSupabaseBrowserSession() {
+  clearSupabaseStorageArea(window.localStorage);
+  clearSupabaseStorageArea(window.sessionStorage);
+}
+
+function clearSupabaseStorageArea(storage) {
+  if (!storage) {
+    return;
+  }
+
+  const keysToRemove = [];
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+
+    if (key && /^sb-.*-(auth-token|code-verifier)$/.test(key)) {
+      keysToRemove.push(key);
+    }
+  }
+
+  keysToRemove.forEach((key) => {
+    storage.removeItem(key);
+  });
 }
 
 async function submitFeedback() {
