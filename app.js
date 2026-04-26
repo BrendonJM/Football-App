@@ -1805,20 +1805,7 @@ function buildRemoteSaveSnapshot() {
 }
 
 async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
-  const { userId, error: userError } = await getLoggedInUserId();
-
-  if (userError) {
-    console.error("[Supabase] Could not resolve logged-in user before save", {
-      error: userError,
-      message: userError?.message || String(userError),
-    });
-    setStatus(
-      configStatus,
-      `Supabase save failed: ${userError?.message || "Could not resolve logged-in user."}`,
-      true,
-    );
-    throw userError;
-  }
+  const userId = supabaseUserId;
 
   if (!userId) {
     console.warn("[Supabase] saveStateToSupabase skipped because no user is logged in", {
@@ -1920,25 +1907,6 @@ async function saveStateToSupabase(snapshot = buildRemoteSaveSnapshot()) {
     activeTeamId,
   });
   clearStatus(configStatus);
-}
-
-async function getLoggedInUserId() {
-  if (!supabaseClient) {
-    return {
-      userId: null,
-      error: new Error("Supabase client is not ready."),
-    };
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabaseClient.auth.getUser();
-
-  return {
-    userId: user?.id || null,
-    error: error || null,
-  };
 }
 
 function mapTeamRecordToDatabaseRow(team, userId) {
