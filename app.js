@@ -91,8 +91,6 @@ let supabaseReady = false;
 let supabaseUserId = null;
 let supabaseUserEmail = "";
 let remoteSaveSequence = 0;
-const pendingSaveTimers = new Map();
-const pendingSaveSnapshots = new Map();
 
 bootstrapApp();
 
@@ -1717,7 +1715,6 @@ function persistState() {
   });
   persistCachedStateOnly();
   persistUserScopedState();
-  scheduleActiveTeamSave();
 }
 
 function persistCachedStateOnly() {
@@ -1769,65 +1766,6 @@ function getLatestRemoteTimestamp(rows) {
   }, 0);
 }
 
-function scheduleActiveTeamSave() {
-  if (!supabaseReady || !supabaseClient || !supabaseUserId) {
-    console.info("[Supabase] scheduleActiveTeamSave skipped", {
-      supabaseReady,
-      hasClient: Boolean(supabaseClient),
-      userId: supabaseUserId,
-    });
-    return;
-  }
-
-  const snapshot = buildActiveTeamSaveSnapshot();
-  const existingTimer = pendingSaveTimers.get(snapshot.teamId);
-
-  if (existingTimer) {
-    console.info("[Supabase] canceled pending autosave for team", {
-      teamId: snapshot.teamId,
-      userId: snapshot.userId,
-    });
-    window.clearTimeout(existingTimer);
-  }
-
-  pendingSaveSnapshots.set(snapshot.teamId, snapshot);
-  const timerId = window.setTimeout(async () => {
-    pendingSaveTimers.delete(snapshot.teamId);
-    const latestSnapshot = pendingSaveSnapshots.get(snapshot.teamId);
-
-    if (!latestSnapshot) {
-      return;
-    }
-
-    console.info("[Supabase] autosave executing for team", {
-      sequence: latestSnapshot.sequence,
-      userId: latestSnapshot.userId,
-      teamId: latestSnapshot.teamId,
-    });
-
-    try {
-      await saveActiveTeamToSupabase(latestSnapshot);
-    } catch (error) {
-      console.error("[Supabase] autosave failed", {
-        error,
-        message: error?.message || String(error),
-      });
-      setStatus(
-        getSaveStatusElement(),
-        `Supabase save failed: ${describeSupabaseError(error)} Use Save Now to try again.`,
-        true,
-      );
-    }
-  }, 500);
-
-  pendingSaveTimers.set(snapshot.teamId, timerId);
-  console.info("[Supabase] autosave scheduled for team", {
-    sequence: snapshot.sequence,
-    userId: snapshot.userId,
-    teamId: snapshot.teamId,
-  });
-}
-
 function buildActiveTeamSaveSnapshot() {
   const activeTeam = state.teams.find((team) => team.id === state.activeTeamId);
 
@@ -1846,13 +1784,6 @@ async function saveActiveTeamNow() {
     setStatus(getSaveStatusElement(), "Log in before saving to Supabase.", true);
     return;
   }
-
-  if (pendingSaveTimers.has(snapshot.teamId)) {
-    window.clearTimeout(pendingSaveTimers.get(snapshot.teamId));
-    pendingSaveTimers.delete(snapshot.teamId);
-  }
-
-  pendingSaveSnapshots.set(snapshot.teamId, snapshot);
   setStatus(getSaveStatusElement(), "Saving now...", false);
 
   try {
@@ -1904,15 +1835,11 @@ async function saveActiveTeamToSupabase(snapshot = buildActiveTeamSaveSnapshot()
   let error;
 
   try {
-    ({ data, error } = await withTimeout(
-      supabaseClient
-        .from("teams")
-        .upsert(snapshot.payload, { onConflict: "id" })
-        .select()
-        .single(),
-      8000,
-      "Supabase upsert timed out.",
-    ));
+    ({ data, error } = await supabaseClient
+      .from("teams")
+      .upsert(snapshot.payload, { onConflict: "id" })
+      .select()
+      .single());
     console.log("[Supabase] upsert result", {
       table: "public.teams",
       userId,
@@ -1937,8 +1864,6 @@ async function saveActiveTeamToSupabase(snapshot = buildActiveTeamSaveSnapshot()
     console.error("[Supabase] upsert failed", error);
     throw error;
   }
-
-  pendingSaveSnapshots.delete(snapshot.teamId);
 
   console.info("[Supabase] Save complete", {
     sequence: snapshot.sequence,
@@ -1995,17 +1920,6 @@ function mapTeamRecordToDatabaseRow(team, userId) {
       bench: [],
     },
   };
-}
-
-function withTimeout(promise, milliseconds, message) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => {
-        reject(new Error(message));
-      }, milliseconds);
-    }),
-  ]);
 }
 
 function mapDatabaseTeamToRecord(row) {
