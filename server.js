@@ -8,6 +8,9 @@ const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+const FEEDBACK_TO_EMAIL = "brendonjmoore@gmail.com";
 const rootDir = __dirname;
 
 const mimeTypes = {
@@ -135,6 +138,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && requestUrl.pathname === "/api/feedback") {
+    await handleFeedbackRequest(request, response);
+    return;
+  }
+
   if (request.method === "GET" && requestUrl.pathname === "/api/config") {
     sendJson(response, 200, {
       supabaseUrl: SUPABASE_URL,
@@ -237,6 +245,64 @@ async function handleQuoteExtractionRequest(request, response) {
   } catch (error) {
     sendJson(response, 500, {
       error: error.message || "Quote extraction request failed.",
+    });
+  }
+}
+
+async function handleFeedbackRequest(request, response) {
+  try {
+    const payload = await readJsonBody(request);
+    const message = String(payload.message || "").trim();
+    const userEmail = String(payload.userEmail || "").trim();
+    const page = String(payload.page || "").trim();
+    const appName = String(payload.app || "TeamPro").trim();
+
+    if (!message) {
+      sendJson(response, 400, {
+        error: "Feedback message is required.",
+      });
+      return;
+    }
+
+    if (!RESEND_API_KEY) {
+      sendJson(response, 500, {
+        error: "RESEND_API_KEY is not configured yet.",
+      });
+      return;
+    }
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: [FEEDBACK_TO_EMAIL],
+        subject: `${appName} feedback`,
+        text: buildFeedbackText({ message, userEmail, page, appName }),
+        html: buildFeedbackHtml({ message, userEmail, page, appName }),
+      }),
+    });
+
+    if (!resendResponse.ok) {
+      const errorText = await resendResponse.text();
+      throw new Error(`Resend request failed: ${errorText}`);
+    }
+
+    const resendJson = await resendResponse.json();
+    sendJson(response, 200, {
+      ok: true,
+      id: resendJson.id || null,
+    });
+  } catch (error) {
+    console.error("[Feedback] Email send failed", {
+      error,
+      message: error.message || String(error),
+    });
+    sendJson(response, 500, {
+      error: error.message || "Feedback email failed to send.",
     });
   }
 }
@@ -678,6 +744,39 @@ function extractOutputText(responseJson) {
   }
 
   return "";
+}
+
+function buildFeedbackText({ message, userEmail, page, appName }) {
+  return [
+    `${appName} feedback received`,
+    "",
+    `From user: ${userEmail || "Not signed in"}`,
+    `Current page: ${page || "Unknown"}`,
+    "",
+    "Feedback:",
+    message,
+  ].join("\n");
+}
+
+function buildFeedbackHtml({ message, userEmail, page, appName }) {
+  return `
+    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+      <h2 style="margin-bottom: 12px;">${escapeHtml(appName)} feedback received</h2>
+      <p><strong>From user:</strong> ${escapeHtml(userEmail || "Not signed in")}</p>
+      <p><strong>Current page:</strong> ${escapeHtml(page || "Unknown")}</p>
+      <p><strong>Feedback:</strong></p>
+      <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(message)}</div>
+    </div>
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function readJsonBody(request) {

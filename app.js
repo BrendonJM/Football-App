@@ -31,6 +31,7 @@ const sampleConfig = {
 
 const storageKey = "football-team-board-state";
 const configEndpoint = "/api/config";
+const feedbackEndpoint = "/api/feedback";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -50,6 +51,9 @@ const authGuestPanel = document.querySelector("#authGuestPanel");
 const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
+const feedbackForm = document.querySelector("#feedbackForm");
+const feedbackMessageInput = document.querySelector("#feedbackMessage");
+const feedbackStatus = document.querySelector("#feedbackStatus");
 
 const navAccount = document.querySelector("#navAccount");
 const navConfig = document.querySelector("#navConfig");
@@ -143,6 +147,11 @@ loginButton.addEventListener("click", async () => {
 
 logoutButton.addEventListener("click", async () => {
   await signOutUser();
+});
+
+feedbackForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitFeedback();
 });
 
 navAccount.addEventListener("click", () => {
@@ -579,6 +588,52 @@ async function signOutUser() {
   }
 
   setStatus(authStatus, "Logged out.", false);
+}
+
+async function submitFeedback() {
+  const message = feedbackMessageInput.value.trim();
+
+  if (!message) {
+    setStatus(feedbackStatus, "Write a little feedback before submitting it.", true);
+    return;
+  }
+
+  setStatus(feedbackStatus, "Sending feedback...", false);
+
+  try {
+    const response = await fetch(feedbackEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        message,
+        userEmail: supabaseUserEmail || "",
+        app: "TeamPro",
+        page: state.page,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "Feedback could not be sent right now.");
+    }
+
+    feedbackForm.reset();
+    setStatus(feedbackStatus, "Thanks. Your feedback has been sent.", false);
+  } catch (error) {
+    console.error("[Feedback] Submit failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(
+      feedbackStatus,
+      error?.message || "Feedback could not be sent right now.",
+      true,
+    );
+  }
 }
 
 function describeSupabaseError(error) {

@@ -11,7 +11,8 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Shows a dedicated management screen with players laid out on a football field
 - Lets you move and swap players between field positions and the bench
 - Lets you change formation while keeping the squad loaded
-- Exports the current lineup as a PNG and also supports clipboard image copy where the browser allows it
+- Supports clipboard image copy where the browser allows it
+- Includes a feedback form that can email thoughts to the TeamPro inbox
 - Saves the latest team setup in local storage so the board persists between refreshes
 
 ## Files
@@ -21,6 +22,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `app.js` contains the team configuration, lineup management, and image export logic
 - `server.js` serves the static app
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
+- `api/feedback.js` sends feedback emails from the Account page
 - `public-config.js` is the generated public runtime config consumed by the browser
 - `build-config.js` writes the public Supabase config file during Vercel builds
 - `supabase-schema.sql` contains the database schema and public RLS policies for Supabase
@@ -52,6 +54,8 @@ Local environment variables:
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your-public-anon-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
 PORT=3000
 ```
 
@@ -101,6 +105,8 @@ Recommended settings:
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your-public-anon-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
 ```
 
 6. Deploy the project.

@@ -93,6 +93,30 @@
               </div>
 
               <p id="authStatus" class="status-text" aria-live="polite"></p>
+
+              <div class="panel-heading">
+                <h2>Feedback</h2>
+                <p>Send your thoughts directly to the TeamPro inbox.</p>
+              </div>
+
+              <div class="info-card">
+                <form id="feedbackForm" class="stack-form">
+                  <label class="field">
+                    <span>Your feedback</span>
+                    <textarea
+                      id="feedbackMessage"
+                      name="feedbackMessage"
+                      rows="6"
+                      placeholder="Tell us what’s working well, what feels clunky, or what you’d love added next."
+                    ></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button id="submitFeedback" type="submit" class="primary-button">Submit Feedback</button>
+                  </div>
+                </form>
+              </div>
+
+              <p id="feedbackStatus" class="status-text" aria-live="polite"></p>
             </section>
 
             <section class="panel side-panel">
