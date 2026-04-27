@@ -362,6 +362,31 @@ async function initialiseSupabaseSync() {
       supabaseUrl,
       config.supabaseAnonKey,
     );
+    window.teamProDebug = {
+      supabase: supabaseClient,
+      getUser: async () => supabaseClient.auth.getUser(),
+      testInsert: async () => {
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+
+        if (userError || !userData.user) {
+          return { userError, user: userData.user };
+        }
+
+        return await supabaseClient
+          .from("teams")
+          .insert({
+            id: window.crypto.randomUUID(),
+            user_id: userData.user.id,
+            team_name: "Browser direct test",
+            players_on_field: 7,
+            players: [],
+            formations: ["2-3-1"],
+            selected_formation: "2-3-1",
+            lineup: {},
+          })
+          .select();
+      },
+    };
     console.info("[Supabase] Client initialised", {
       urlHost: safeSupabaseHost(supabaseUrl),
     });
