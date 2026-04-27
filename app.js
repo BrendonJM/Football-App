@@ -2184,29 +2184,70 @@ function getSaveStatusElement() {
 }
 
 async function deleteTeamFromSupabase(teamId) {
+  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
+    throw new Error("Supabase runtime config or session token is missing for team deletion.");
+  }
+
   console.info("[Supabase] before delete", {
     table: "public.teams",
     userId: supabaseUserId,
     teamId,
   });
 
-  const { error } = await withTimeout(
-    supabaseClient
-      .from("teams")
-      .delete()
-      .eq("id", teamId),
-    8000,
-    "Supabase delete timed out.",
-  );
+  const deleteUrl = new URL(`${supabaseProjectUrl}/rest/v1/teams`);
+  deleteUrl.searchParams.set("id", `eq.${teamId}`);
+  deleteUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
+
+  let response;
+  let responseText = "";
+  let responseData = null;
+
+  try {
+    response = await fetch(deleteUrl.toString(), {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAccessToken}`,
+      },
+    });
+
+    responseText = await response.text();
+    if (responseText) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        responseData = responseText;
+      }
+    }
+  } catch (error) {
+    console.error("[Supabase] delete failed", {
+      teamId,
+      error,
+      message: error?.message || String(error),
+    });
+    throw error;
+  }
 
   console.info("[Supabase] delete result", {
     table: "public.teams",
     userId: supabaseUserId,
     teamId,
-    error: error || null,
+    status: response.status,
+    ok: response.ok,
+    data: responseData,
+    error: response.ok ? null : responseData || responseText || response.statusText,
   });
 
-  if (error) {
+  if (!response.ok) {
+    const error = new Error(
+      responseData?.message ||
+      responseData?.error_description ||
+      responseData?.details ||
+      responseText ||
+      response.statusText ||
+      "Supabase delete failed.",
+    );
     throw error;
   }
 }
