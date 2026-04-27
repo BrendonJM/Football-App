@@ -2450,13 +2450,25 @@ function drawExportBench(context, width, height) {
     const row = Math.floor(index / 2);
     const x = 92 + column * (cardWidth + 24);
     const y = 1700 + row * (cardHeight + 18);
+    const absent = isPlayerAbsent(player.id);
 
     roundRect(context, x, y, cardWidth, cardHeight, 20);
-    context.fillStyle = "#ffffff";
+    context.fillStyle = absent ? "#f4e6e1" : "#ffffff";
     context.fill();
-    context.strokeStyle = "rgba(16,35,21,0.12)";
+    context.strokeStyle = absent ? "rgba(157,76,66,0.38)" : "rgba(16,35,21,0.12)";
     context.lineWidth = 2;
     context.stroke();
+
+    if (absent) {
+      roundRect(context, x + cardWidth - 152, y + 16, 124, 30, 15);
+      context.fillStyle = "#c96b5d";
+      context.fill();
+      context.fillStyle = "#ffffff";
+      context.font = "700 16px 'Barlow', sans-serif";
+      context.textAlign = "center";
+      context.fillText("ABSENT", x + cardWidth - 90, y + 36);
+      context.textAlign = "left";
+    }
 
     context.fillStyle = "#102315";
     context.font = "700 26px 'Space Grotesk', sans-serif";
