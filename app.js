@@ -2408,7 +2408,7 @@ function drawExportPlayers(context, width) {
     const player = findPlayer(slot.occupantId);
     const x = pitchRect.x + slot.x * pitchRect.width;
     const y = pitchRect.y + slot.y * pitchRect.height;
-    const radius = slot.role === "GK" ? 64 : 58;
+    const radius = slot.role === "GK" ? 72 : 66;
 
     context.fillStyle = slot.role === "GK" ? "#f2b84a" : "#ffffff";
     context.strokeStyle = slot.role === "GK" ? "#9d6c10" : "#0f6a3b";
@@ -2418,13 +2418,18 @@ function drawExportPlayers(context, width) {
     context.fill();
     context.stroke();
 
+    context.save();
+    context.beginPath();
+    context.arc(x, y, radius - 6, 0, Math.PI * 2);
+    context.clip();
+
     context.fillStyle = "#102315";
-    context.font = "700 24px 'Space Grotesk', sans-serif";
-    drawCenteredText(context, player.name, x, y - 8, radius * 1.5, 2, 28);
+    drawFittedCircleLabel(context, player.name, x, y - 10, radius);
     context.fillStyle = "#55705f";
     context.font = "700 16px 'Barlow', sans-serif";
     context.textAlign = "center";
-    context.fillText(slot.positionLabel.toUpperCase(), x, y + 34);
+    context.fillText(slot.positionLabel.toUpperCase(), x, y + 39);
+    context.restore();
   });
 }
 
@@ -2527,7 +2532,25 @@ function roundRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-function drawCenteredText(context, text, x, y, maxWidth, maxLines, lineHeight) {
+function drawFittedCircleLabel(context, text, x, y, radius) {
+  const fontSizes = [28, 26, 24, 22, 20, 18];
+
+  for (const fontSize of fontSizes) {
+    context.font = `700 ${fontSize}px 'Space Grotesk', sans-serif`;
+    const lines = measureWrappedLines(context, text, radius * 1.18);
+
+    if (lines.length <= 2) {
+      drawCenteredLines(context, lines, x, y, Math.max(18, fontSize + 2));
+      return;
+    }
+  }
+
+  context.font = "700 16px 'Space Grotesk', sans-serif";
+  const fallbackLines = measureWrappedLines(context, text, radius * 1.1);
+  drawCenteredLines(context, fallbackLines.slice(0, 2), x, y, 18);
+}
+
+function measureWrappedLines(context, text, maxWidth) {
   const words = text.split(" ");
   const lines = [];
   let current = "";
@@ -2546,16 +2569,25 @@ function drawCenteredText(context, text, x, y, maxWidth, maxLines, lineHeight) {
     lines.push(current);
   }
 
-  lines.slice(0, maxLines).forEach((line, index) => {
+  return lines;
+}
+
+function drawCenteredLines(context, lines, x, y, lineHeight) {
+  lines.forEach((line, index) => {
     context.textAlign = "center";
     context.fillText(
       line,
       x,
-      y + index * lineHeight - ((Math.min(lines.length, maxLines) - 1) * lineHeight) / 2,
+      y + index * lineHeight - ((lines.length - 1) * lineHeight) / 2,
     );
   });
 
   context.textAlign = "left";
+}
+
+function drawCenteredText(context, text, x, y, maxWidth, maxLines, lineHeight) {
+  const lines = measureWrappedLines(context, text, maxWidth).slice(0, maxLines);
+  drawCenteredLines(context, lines, x, y, lineHeight);
 }
 
 function slugify(value) {
