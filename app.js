@@ -1861,20 +1861,55 @@ async function saveActiveTeamToSupabase({ userId, singleTeamPayload }) {
     payload: singleTeamPayload,
   });
 
-  let error;
-
   try {
-    ({ error } = await supabaseClient
+    const { data: updateData, error: updateError } = await supabaseClient
       .from("teams")
-      .upsert(singleTeamPayload, { onConflict: "id" }));
-    console.log("[Supabase] upsert completed", {
+      .update(singleTeamPayload)
+      .eq("id", singleTeamPayload.id)
+      .eq("user_id", userId)
+      .select();
+
+    console.log("[Supabase] update completed", {
       table: "public.teams",
       userId,
       teamId: singleTeamPayload.id,
-      error,
+      data: updateData || [],
+      error: updateError || null,
     });
+
+    if (updateError) {
+      console.error("[Supabase] update failed", updateError);
+      throw updateError;
+    }
+
+    if (!updateData || updateData.length === 0) {
+      console.info("[Supabase] no existing team row found, inserting new row", {
+        table: "public.teams",
+        userId,
+        teamId: singleTeamPayload.id,
+        payload: singleTeamPayload,
+      });
+
+      const { data: insertData, error: insertError } = await supabaseClient
+        .from("teams")
+        .insert(singleTeamPayload)
+        .select();
+
+      console.log("[Supabase] insert completed", {
+        table: "public.teams",
+        userId,
+        teamId: singleTeamPayload.id,
+        data: insertData || [],
+        error: insertError || null,
+      });
+
+      if (insertError) {
+        console.error("[Supabase] insert failed", insertError);
+        throw insertError;
+      }
+    }
   } catch (caughtError) {
-    console.error("[Supabase] upsert threw before result", {
+    console.error("[Supabase] save threw before completion", {
       error: caughtError,
       message: caughtError?.message || String(caughtError),
       table: "public.teams",
@@ -1883,11 +1918,6 @@ async function saveActiveTeamToSupabase({ userId, singleTeamPayload }) {
       payload: singleTeamPayload,
     });
     throw caughtError;
-  }
-
-  if (error) {
-    console.error("[Supabase] upsert failed", error);
-    throw error;
   }
 
   console.info("[Supabase] Save complete", {
