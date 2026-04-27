@@ -90,6 +90,7 @@ let supabaseClient = null;
 let supabaseReady = false;
 let supabaseUserId = null;
 let supabaseUserEmail = "";
+let saveNowInFlight = false;
 
 bootstrapApp();
 
@@ -1136,7 +1137,7 @@ function renderManagerControls() {
     )
     .join("");
 
-  saveNowButton.disabled = !supabaseUserId;
+  saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
 }
 
 function renderBench() {
@@ -1791,6 +1792,10 @@ function getLatestRemoteTimestamp(rows) {
 }
 
 async function saveActiveTeamNow() {
+  if (saveNowInFlight) {
+    return;
+  }
+
   const userId = supabaseUserId;
   const activeTeam = state.teams.find((team) => team.id === state.activeTeamId) || null;
   const singleTeamPayload = activeTeam
@@ -1807,6 +1812,8 @@ async function saveActiveTeamNow() {
     return;
   }
 
+  saveNowInFlight = true;
+  renderManagerControls();
   setStatus(getSaveStatusElement(), "Saving now...", false);
 
   try {
@@ -1818,6 +1825,9 @@ async function saveActiveTeamNow() {
       `Supabase save failed: ${describeSupabaseError(error)}`,
       true,
     );
+  } finally {
+    saveNowInFlight = false;
+    renderManagerControls();
   }
 }
 
@@ -1851,20 +1861,16 @@ async function saveActiveTeamToSupabase({ userId, singleTeamPayload }) {
     payload: singleTeamPayload,
   });
 
-  let data;
   let error;
 
   try {
-    ({ data, error } = await supabaseClient
+    ({ error } = await supabaseClient
       .from("teams")
-      .upsert(singleTeamPayload, { onConflict: "id" })
-      .select()
-      .single());
-    console.log("[Supabase] upsert result", {
+      .upsert(singleTeamPayload, { onConflict: "id" }));
+    console.log("[Supabase] upsert completed", {
       table: "public.teams",
       userId,
       teamId: singleTeamPayload.id,
-      data,
       error,
     });
   } catch (caughtError) {
