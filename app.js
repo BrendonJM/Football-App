@@ -2408,8 +2408,8 @@ function drawExportPlayers(context, width) {
     const player = findPlayer(slot.occupantId);
     const x = pitchRect.x + slot.x * pitchRect.width;
     const y = pitchRect.y + slot.y * pitchRect.height;
-    const cardWidth = slot.role === "GK" ? 168 : 152;
-    const cardHeight = slot.role === "GK" ? 116 : 100;
+    const cardWidth = slot.role === "GK" ? 252 : 228;
+    const cardHeight = slot.role === "GK" ? 140 : 120;
     const cardX = x - cardWidth / 2;
     const cardY = y - cardHeight / 2;
     const cardRadius = slot.role === "GK" ? 36 : 32;
