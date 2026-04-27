@@ -90,7 +90,6 @@ let supabaseClient = null;
 let supabaseReady = false;
 let supabaseUserId = null;
 let supabaseUserEmail = "";
-let remoteSaveSequence = 0;
 
 bootstrapApp();
 
@@ -1791,28 +1790,27 @@ function getLatestRemoteTimestamp(rows) {
   }, 0);
 }
 
-function buildActiveTeamSaveSnapshot() {
-  const activeTeam = state.teams.find((team) => team.id === state.activeTeamId);
-
-  return {
-    sequence: ++remoteSaveSequence,
-    userId: supabaseUserId,
-    teamId: state.activeTeamId,
-    payload: activeTeam ? mapTeamRecordToDatabaseRow(activeTeam, supabaseUserId) : null,
-  };
-}
-
 async function saveActiveTeamNow() {
-  const snapshot = buildActiveTeamSaveSnapshot();
+  const userId = supabaseUserId;
+  const activeTeam = state.teams.find((team) => team.id === state.activeTeamId) || null;
+  const singleTeamPayload = activeTeam
+    ? mapTeamRecordToDatabaseRow(activeTeam, userId)
+    : null;
 
-  if (!snapshot.userId) {
+  if (!userId) {
     setStatus(getSaveStatusElement(), "Log in before saving to Supabase.", true);
     return;
   }
+
+  if (!singleTeamPayload) {
+    setStatus(getSaveStatusElement(), "There is no active team to save yet.", true);
+    return;
+  }
+
   setStatus(getSaveStatusElement(), "Saving now...", false);
 
   try {
-    await saveActiveTeamToSupabase(snapshot);
+    await saveActiveTeamToSupabase({ userId, singleTeamPayload });
     setStatus(getSaveStatusElement(), "Saved to Supabase.", false);
   } catch (error) {
     setStatus(
@@ -1823,37 +1821,34 @@ async function saveActiveTeamNow() {
   }
 }
 
-async function saveActiveTeamToSupabase(snapshot = buildActiveTeamSaveSnapshot()) {
-  const userId = snapshot.userId;
-
+async function saveActiveTeamToSupabase({ userId, singleTeamPayload }) {
   if (!userId) {
     console.warn("[Supabase] saveActiveTeamToSupabase skipped because no user is logged in", {
-      snapshot,
+      userId,
     });
     setStatus(getSaveStatusElement(), "Supabase save skipped: no logged-in user.", true);
     return;
   }
 
-  if (!snapshot.payload) {
+  if (!singleTeamPayload) {
     console.warn("[Supabase] saveActiveTeamToSupabase skipped because no active team payload exists", {
-      snapshot,
+      userId,
     });
     return;
   }
 
   console.info("[Supabase] saving to Supabase", {
-    sequence: snapshot.sequence,
     table: `public.${teamsTableName}`,
-    teamId: snapshot.teamId,
     userId,
-    payload: snapshot.payload,
+    teamId: singleTeamPayload.id,
+    payload: singleTeamPayload,
   });
 
   console.info("[Supabase] before upsert", {
     table: "public.teams",
     userId,
-    teamId: snapshot.teamId,
-    payload: snapshot.payload,
+    teamId: singleTeamPayload.id,
+    payload: singleTeamPayload,
   });
 
   let data;
@@ -1862,25 +1857,24 @@ async function saveActiveTeamToSupabase(snapshot = buildActiveTeamSaveSnapshot()
   try {
     ({ data, error } = await supabaseClient
       .from("teams")
-      .upsert(snapshot.payload, { onConflict: "id" })
+      .upsert(singleTeamPayload, { onConflict: "id" })
       .select()
       .single());
     console.log("[Supabase] upsert result", {
       table: "public.teams",
       userId,
-      teamId: snapshot.teamId,
+      teamId: singleTeamPayload.id,
       data,
       error,
     });
   } catch (caughtError) {
     console.error("[Supabase] upsert threw before result", {
-      sequence: snapshot.sequence,
       error: caughtError,
       message: caughtError?.message || String(caughtError),
       table: "public.teams",
       userId,
-      teamId: snapshot.teamId,
-      payload: snapshot.payload,
+      teamId: singleTeamPayload.id,
+      payload: singleTeamPayload,
     });
     throw caughtError;
   }
@@ -1891,9 +1885,8 @@ async function saveActiveTeamToSupabase(snapshot = buildActiveTeamSaveSnapshot()
   }
 
   console.info("[Supabase] Save complete", {
-    sequence: snapshot.sequence,
     userId,
-    teamId: snapshot.teamId,
+    teamId: singleTeamPayload.id,
   });
   clearStatus(getSaveStatusElement());
 }
