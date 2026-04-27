@@ -485,8 +485,22 @@ async function applyAuthSession(session) {
     email: supabaseUserEmail,
   });
   clearStatus(authStatus);
-  await hydrateStateFromSupabase();
-  persistUserScopedState();
+  try {
+    await hydrateStateFromSupabase();
+    persistUserScopedState();
+  } catch (error) {
+    console.error("[Supabase] Failed to hydrate teams after login", {
+      userId: supabaseUserId,
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(
+      authStatus,
+      `Could not load your saved teams from Supabase. ${describeSupabaseError(error)}`,
+      true,
+    );
+    return;
+  }
   console.info("[Supabase] Initial sync complete", {
     teamCount: state.teams.length,
     activeTeamId: state.activeTeamId,
@@ -506,17 +520,17 @@ function renderAuthState() {
 async function hydrateStateFromSupabase() {
   console.info("[Supabase] Fetching teams after login", {
     userId: supabaseUserId,
+    query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
   const teamsResult = await supabaseClient
     .from("teams")
-    .select(
-      "id, user_id, team_name, players_on_field, players, formations, selected_formation, lineup, created_at, updated_at",
-    )
+    .select("*")
     .eq("user_id", supabaseUserId)
     .order("updated_at", { ascending: false });
 
   if (teamsResult.error) {
     console.error("[Supabase] Teams query failed", {
+      userId: supabaseUserId,
       error: teamsResult.error,
       message: teamsResult.error?.message || String(teamsResult.error),
       details: teamsResult.error?.details || null,
@@ -533,33 +547,12 @@ async function hydrateStateFromSupabase() {
   });
 
   const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
-  const cachedUserState = loadUserScopedState(supabaseUserId);
   const cachedState = loadState();
-  const remoteUpdatedAt = getLatestRemoteTimestamp(teamsResult.data || []);
-  const cachedUpdatedAt = Number(cachedUserState?.savedAt || 0);
 
   console.info("[Supabase] Source-of-truth check", {
-    usesCachedUserState: Boolean(cachedUserState?.teams?.length > 0 && cachedUpdatedAt >= remoteUpdatedAt),
-    cachedUpdatedAt,
-    remoteUpdatedAt,
-    cachedTeamCount: cachedUserState?.teams?.length || 0,
+    usesSupabaseSourceOfTruth: true,
     remoteTeamCount: remoteTeams.length,
   });
-
-  if (cachedUserState?.teams?.length > 0 && cachedUpdatedAt >= remoteUpdatedAt) {
-    console.info("[Supabase] Restoring newer cached user state", {
-      cachedUpdatedAt,
-      remoteUpdatedAt,
-      teamCount: cachedUserState.teams.length,
-    });
-    state = createStateFromPersisted(cachedUserState);
-    persistCachedStateOnly();
-    syncFormFromState();
-    renderAll();
-    queueRemoteSave();
-    clearStatus(configStatus);
-    return;
-  }
 
   if (remoteTeams.length === 0) {
     state = createStateFromPersisted({
@@ -583,6 +576,7 @@ async function hydrateStateFromSupabase() {
   });
 
   persistCachedStateOnly();
+  persistUserScopedState();
   syncFormFromState();
   renderAll();
   clearStatus(configStatus);
