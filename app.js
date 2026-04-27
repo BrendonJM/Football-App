@@ -2408,27 +2408,29 @@ function drawExportPlayers(context, width) {
     const player = findPlayer(slot.occupantId);
     const x = pitchRect.x + slot.x * pitchRect.width;
     const y = pitchRect.y + slot.y * pitchRect.height;
-    const radius = slot.role === "GK" ? 72 : 66;
+    const cardWidth = slot.role === "GK" ? 148 : 132;
+    const cardHeight = slot.role === "GK" ? 104 : 88;
+    const cardX = x - cardWidth / 2;
+    const cardY = y - cardHeight / 2;
+    const cardRadius = slot.role === "GK" ? 34 : 30;
 
     context.fillStyle = slot.role === "GK" ? "#f2b84a" : "#ffffff";
     context.strokeStyle = slot.role === "GK" ? "#9d6c10" : "#0f6a3b";
     context.lineWidth = 8;
-    context.beginPath();
-    context.arc(x, y, radius, 0, Math.PI * 2);
+    roundRect(context, cardX, cardY, cardWidth, cardHeight, cardRadius);
     context.fill();
     context.stroke();
 
     context.save();
-    context.beginPath();
-    context.arc(x, y, radius - 6, 0, Math.PI * 2);
+    roundRect(context, cardX + 6, cardY + 6, cardWidth - 12, cardHeight - 12, Math.max(18, cardRadius - 6));
     context.clip();
 
     context.fillStyle = "#102315";
-    drawFittedCircleLabel(context, player.name, x, y - 10, radius);
+    drawFittedCardLabel(context, player.name, x, y - 8, cardWidth - 24, cardHeight - 24);
     context.fillStyle = "#55705f";
-    context.font = "700 16px 'Barlow', sans-serif";
+    context.font = "700 14px 'Barlow', sans-serif";
     context.textAlign = "center";
-    context.fillText(slot.positionLabel.toUpperCase(), x, y + 39);
+    context.fillText(slot.positionLabel.toUpperCase(), x, cardY + cardHeight - 16);
     context.restore();
   });
 }
@@ -2532,22 +2534,24 @@ function roundRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-function drawFittedCircleLabel(context, text, x, y, radius) {
-  const fontSizes = [28, 26, 24, 22, 20, 18];
+function drawFittedCardLabel(context, text, x, y, maxWidth, maxHeight) {
+  const fontSizes = [28, 26, 24, 22, 20, 18, 16, 14];
+  const maxLines = 2;
 
   for (const fontSize of fontSizes) {
     context.font = `700 ${fontSize}px 'Space Grotesk', sans-serif`;
-    const lines = measureWrappedLines(context, text, radius * 1.18);
+    const lineHeight = Math.max(16, fontSize + 2);
+    const lines = measureWrappedLines(context, text, maxWidth);
 
-    if (lines.length <= 2) {
-      drawCenteredLines(context, lines, x, y, Math.max(18, fontSize + 2));
+    if (lines.length <= maxLines && lines.length * lineHeight <= maxHeight) {
+      drawCenteredLines(context, lines, x, y, lineHeight);
       return;
     }
   }
 
-  context.font = "700 16px 'Space Grotesk', sans-serif";
-  const fallbackLines = measureWrappedLines(context, text, radius * 1.1);
-  drawCenteredLines(context, fallbackLines.slice(0, 2), x, y, 18);
+  context.font = "700 14px 'Space Grotesk', sans-serif";
+  const fallbackLines = measureWrappedLines(context, text, maxWidth);
+  drawCenteredLines(context, fallbackLines.slice(0, maxLines), x, y, 16);
 }
 
 function measureWrappedLines(context, text, maxWidth) {
