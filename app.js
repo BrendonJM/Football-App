@@ -2408,11 +2408,11 @@ function drawExportPlayers(context, width) {
     const player = findPlayer(slot.occupantId);
     const x = pitchRect.x + slot.x * pitchRect.width;
     const y = pitchRect.y + slot.y * pitchRect.height;
-    const cardWidth = slot.role === "GK" ? 148 : 132;
-    const cardHeight = slot.role === "GK" ? 104 : 88;
+    const cardWidth = slot.role === "GK" ? 168 : 152;
+    const cardHeight = slot.role === "GK" ? 116 : 100;
     const cardX = x - cardWidth / 2;
     const cardY = y - cardHeight / 2;
-    const cardRadius = slot.role === "GK" ? 34 : 30;
+    const cardRadius = slot.role === "GK" ? 36 : 32;
 
     context.fillStyle = slot.role === "GK" ? "#f2b84a" : "#ffffff";
     context.strokeStyle = slot.role === "GK" ? "#9d6c10" : "#0f6a3b";
@@ -2426,11 +2426,11 @@ function drawExportPlayers(context, width) {
     context.clip();
 
     context.fillStyle = "#102315";
-    drawFittedCardLabel(context, player.name, x, y - 8, cardWidth - 24, cardHeight - 24);
+    drawFittedCardLabel(context, player.name, x, y - 10, cardWidth - 28, cardHeight - 30);
     context.fillStyle = "#55705f";
-    context.font = "700 14px 'Barlow', sans-serif";
+    context.font = "700 15px 'Barlow', sans-serif";
     context.textAlign = "center";
-    context.fillText(slot.positionLabel.toUpperCase(), x, cardY + cardHeight - 16);
+    context.fillText(slot.positionLabel.toUpperCase(), x, cardY + cardHeight - 18);
     context.restore();
   });
 }
