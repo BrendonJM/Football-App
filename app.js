@@ -518,35 +518,76 @@ function renderAuthState() {
 }
 
 async function hydrateStateFromSupabase() {
+  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
+    throw new Error("Supabase runtime config or session token is missing for team loading.");
+  }
+
   console.info("[Supabase] Fetching teams after login", {
     userId: supabaseUserId,
     query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
-  const teamsResult = await supabaseClient
-    .from("teams")
-    .select("*")
-    .eq("user_id", supabaseUserId)
-    .order("updated_at", { ascending: false });
 
-  if (teamsResult.error) {
+  const teamsUrl = new URL(`${supabaseProjectUrl}/rest/v1/teams`);
+  teamsUrl.searchParams.set("select", "*");
+  teamsUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
+  teamsUrl.searchParams.set("order", "updated_at.desc");
+
+  let response;
+  let responseText = "";
+  let responseData = null;
+
+  try {
+    response = await fetch(teamsUrl.toString(), {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAccessToken}`,
+      },
+    });
+
+    responseText = await response.text();
+    if (responseText) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        responseData = responseText;
+      }
+    }
+  } catch (error) {
     console.error("[Supabase] Teams query failed", {
       userId: supabaseUserId,
-      error: teamsResult.error,
-      message: teamsResult.error?.message || String(teamsResult.error),
-      details: teamsResult.error?.details || null,
-      hint: teamsResult.error?.hint || null,
-      code: teamsResult.error?.code || null,
+      error,
+      message: error?.message || String(error),
     });
-    throw teamsResult.error;
+    throw error;
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      responseData?.message ||
+      responseData?.error_description ||
+      responseData?.details ||
+      responseText ||
+      response.statusText ||
+      "Supabase team fetch failed.",
+    );
+    console.error("[Supabase] Teams query failed", {
+      userId: supabaseUserId,
+      error,
+      responseStatus: response.status,
+      responseBody: responseData || responseText || null,
+    });
+    throw error;
   }
 
   console.info("[Supabase] Teams fetched after login", {
     userId: supabaseUserId,
-    rowCount: (teamsResult.data || []).length,
-    rows: teamsResult.data || [],
+    rowCount: Array.isArray(responseData) ? responseData.length : 0,
+    rows: Array.isArray(responseData) ? responseData : [],
   });
 
-  const remoteTeams = (teamsResult.data || []).map(mapDatabaseTeamToRecord);
+  const remoteTeams = (Array.isArray(responseData) ? responseData : []).map(mapDatabaseTeamToRecord);
   const cachedState = loadState();
 
   console.info("[Supabase] Source-of-truth check", {
