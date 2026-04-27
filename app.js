@@ -77,6 +77,7 @@ const fillEmptyPositionsButton = document.querySelector("#fillEmptyPositions");
 const resetLineupButton = document.querySelector("#resetLineup");
 const copyImageButton = document.querySelector("#copyImage");
 const saveNowButton = document.querySelector("#saveNow");
+const toggleAvailabilityButton = document.querySelector("#toggleAvailability");
 const exportStatus = document.querySelector("#exportStatus");
 const selectionHint = document.querySelector("#selectionHint");
 const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench");
@@ -207,6 +208,10 @@ copyImageButton.addEventListener("click", async () => {
 
 saveNowButton.addEventListener("click", async () => {
   await saveActiveTeamNow();
+});
+
+toggleAvailabilityButton.addEventListener("click", () => {
+  toggleSelectedAvailability();
 });
 
 sendSelectedToBenchButton.addEventListener("click", () => {
@@ -946,13 +951,23 @@ function applySavedLineup(runtime, savedLineup) {
   runtime.lineup = buildLineup(runtime.players, runtime.config.playersOnField, savedLineup.formation);
 
   const availablePlayers = new Map(runtime.players.map((player) => [player.name, player.id]));
+  const absentIds = [];
+  (savedLineup.absent || []).forEach((name) => {
+    const playerId = availablePlayers.get(name);
+
+    if (playerId && !absentIds.includes(playerId)) {
+      absentIds.push(playerId);
+    }
+  });
+
+  runtime.lineup.absentIds = absentIds;
   const used = new Set();
 
   runtime.lineup.slots.forEach((slot, index) => {
     const playerName = savedLineup.slotAssignments?.[index];
     const playerId = availablePlayers.get(playerName);
 
-    if (playerId && !used.has(playerId)) {
+    if (playerId && !used.has(playerId) && !absentIds.includes(playerId)) {
       slot.occupantId = playerId;
       used.add(playerId);
     } else {
@@ -964,10 +979,17 @@ function applySavedLineup(runtime, savedLineup) {
   (savedLineup.bench || []).forEach((name) => {
     const playerId = availablePlayers.get(name);
 
-    if (playerId && !used.has(playerId)) {
+    if (playerId && !used.has(playerId) && !absentIds.includes(playerId)) {
       runtime.lineup.benchIds.push(playerId);
       used.add(playerId);
     }
+  });
+
+  absentIds.forEach((playerId) => {
+    if (!runtime.lineup.benchIds.includes(playerId)) {
+      runtime.lineup.benchIds.push(playerId);
+    }
+    used.add(playerId);
   });
 
   runtime.players.forEach((player) => {
@@ -1075,6 +1097,7 @@ function buildLineup(players, playersOnField, formation) {
     formation,
     slots,
     benchIds: players.slice(slots.length).map((player) => player.id),
+    absentIds: [],
   };
 }
 
@@ -1179,6 +1202,23 @@ function renderManagerControls() {
     .join("");
 
   saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
+  renderAvailabilityControl();
+}
+
+function renderAvailabilityControl() {
+  const selectedPlayer = getSelectedPlayer();
+
+  if (!selectedPlayer) {
+    toggleAvailabilityButton.disabled = true;
+    toggleAvailabilityButton.textContent = "Mark selected absent";
+    return;
+  }
+
+  const selectedAbsent = isPlayerAbsent(selectedPlayer.id);
+  toggleAvailabilityButton.disabled = false;
+  toggleAvailabilityButton.textContent = selectedAbsent
+    ? "Mark selected available"
+    : "Mark selected absent";
 }
 
 function renderBench() {
@@ -1191,14 +1231,14 @@ function renderBench() {
     .map(
       ({ player, index }) => `
         <button
-          class="bench-player ${isSelected("bench", index) ? "is-selected" : ""}"
+          class="bench-player ${isSelected("bench", index) ? "is-selected" : ""} ${isPlayerAbsent(player.id) ? "absent-player" : ""}"
           type="button"
           draggable="true"
           data-target-type="bench"
           data-target-index="${index}"
         >
           <span class="player-name">${escapeHtml(player.name)}</span>
-          <span class="player-meta">Bench player</span>
+          <span class="player-meta">${isPlayerAbsent(player.id) ? "Absent" : "Bench player"}</span>
         </button>
       `,
     )
@@ -1495,6 +1535,17 @@ function swapOrMove(source, target) {
     return;
   }
 
+  if (source.type === "bench" && target.type === "slot") {
+    const sourcePlayer = findPlayer(state.lineup.benchIds[source.index]);
+
+    if (sourcePlayer && isPlayerAbsent(sourcePlayer.id)) {
+      setStatus(exportStatus, `${sourcePlayer.name} is marked absent. Mark them available before moving them onto the field.`, true);
+      state.selectedTarget = null;
+      renderAll();
+      return;
+    }
+  }
+
   if (source.type === "slot" && target.type === "slot") {
     const sourceOccupant = state.lineup.slots[source.index].occupantId;
     const targetOccupant = state.lineup.slots[target.index].occupantId;
@@ -1553,8 +1604,14 @@ function fillEmptySlotsFromBench() {
   let changed = false;
 
   state.lineup.slots.forEach((slot) => {
-    if (!slot.occupantId && state.lineup.benchIds.length > 0) {
-      slot.occupantId = state.lineup.benchIds.shift();
+    if (!slot.occupantId) {
+      const availableBenchIndex = state.lineup.benchIds.findIndex((playerId) => !isPlayerAbsent(playerId));
+
+      if (availableBenchIndex === -1) {
+        return;
+      }
+
+      slot.occupantId = state.lineup.benchIds.splice(availableBenchIndex, 1)[0];
       changed = true;
     }
   });
@@ -1569,7 +1626,15 @@ function fillEmptySlotsFromBench() {
 }
 
 function resetLineup() {
-  state.lineup = buildLineup(state.players, state.config.playersOnField, state.lineup.formation);
+  const absentIds = [...(state.lineup.absentIds || [])];
+  const availablePlayers = state.players.filter((player) => !absentIds.includes(player.id));
+  state.lineup = buildLineup(availablePlayers, state.config.playersOnField, state.lineup.formation);
+  state.lineup.absentIds = absentIds;
+  absentIds.forEach((playerId) => {
+    if (!state.lineup.benchIds.includes(playerId)) {
+      state.lineup.benchIds.push(playerId);
+    }
+  });
   state.selectedTarget = null;
   persistState();
   setStatus(exportStatus, "Lineup reset to squad order.", false);
@@ -1581,9 +1646,10 @@ function setFormation(formation) {
     return;
   }
 
+  const absentIds = [...(state.lineup.absentIds || [])];
   const orderedPlayers = [
-    ...state.lineup.slots.map((slot) => slot.occupantId).filter(Boolean),
-    ...state.lineup.benchIds,
+    ...state.lineup.slots.map((slot) => slot.occupantId).filter((playerId) => Boolean(playerId) && !absentIds.includes(playerId)),
+    ...state.lineup.benchIds.filter((playerId) => !absentIds.includes(playerId)),
   ];
   const freshSlots = buildFormationSlots(formation, state.config.playersOnField).map((slot, index) => ({
     ...slot,
@@ -1593,7 +1659,8 @@ function setFormation(formation) {
   state.lineup = {
     formation,
     slots: freshSlots,
-    benchIds: orderedPlayers.slice(freshSlots.length),
+    benchIds: [...orderedPlayers.slice(freshSlots.length), ...absentIds.filter((playerId) => !orderedPlayers.includes(playerId))],
+    absentIds,
   };
   state.config.selectedFormation = formation;
   state.selectedTarget = null;
@@ -1630,9 +1697,85 @@ function describeSelection(target) {
     ? findPlayer(state.lineup.slots[target.index].occupantId)
     : findPlayer(state.lineup.benchIds[target.index]);
 
+  const availabilityText = player && isPlayerAbsent(player.id) ? " They are currently marked absent." : "";
+
   return player
-    ? `${player.name} selected. Choose another player or an open spot to move them.`
+    ? `${player.name} selected. Choose another player or an open spot to move them.${availabilityText}`
     : "Select a player on the field or bench, then select another player or an empty position.";
+}
+
+function getSelectedPlayer() {
+  if (!state.selectedTarget) {
+    return null;
+  }
+
+  if (state.selectedTarget.type === "slot") {
+    return findPlayer(state.lineup.slots[state.selectedTarget.index]?.occupantId);
+  }
+
+  if (state.selectedTarget.type === "bench") {
+    return findPlayer(state.lineup.benchIds[state.selectedTarget.index]);
+  }
+
+  return null;
+}
+
+function isPlayerAbsent(playerId) {
+  return Boolean(playerId && state.lineup.absentIds?.includes(playerId));
+}
+
+function toggleSelectedAvailability() {
+  const selectedPlayer = getSelectedPlayer();
+
+  if (!selectedPlayer) {
+    setStatus(exportStatus, "Select a player first.", true);
+    return;
+  }
+
+  if (isPlayerAbsent(selectedPlayer.id)) {
+    markPlayerAvailable(selectedPlayer.id);
+  } else {
+    markPlayerAbsent(selectedPlayer.id);
+  }
+}
+
+function markPlayerAbsent(playerId) {
+  const player = findPlayer(playerId);
+
+  if (!player) {
+    return;
+  }
+
+  if (!state.lineup.absentIds.includes(playerId)) {
+    state.lineup.absentIds.push(playerId);
+  }
+
+  const slot = state.lineup.slots.find((candidate) => candidate.occupantId === playerId);
+
+  if (slot) {
+    slot.occupantId = null;
+  }
+
+  state.lineup.benchIds = state.lineup.benchIds.filter((id) => id !== playerId);
+  state.lineup.benchIds.unshift(playerId);
+  state.selectedTarget = null;
+  persistState();
+  setStatus(exportStatus, `${player.name} marked absent and moved to the bench.`, false);
+  renderAll();
+}
+
+function markPlayerAvailable(playerId) {
+  const player = findPlayer(playerId);
+
+  if (!player) {
+    return;
+  }
+
+  state.lineup.absentIds = state.lineup.absentIds.filter((id) => id !== playerId);
+  state.selectedTarget = null;
+  persistState();
+  setStatus(exportStatus, `${player.name} marked available.`, false);
+  renderAll();
 }
 
 function findPlayer(playerId) {
@@ -1663,6 +1806,10 @@ function createLineupSnapshot(runtimeState) {
       return player ? player.name : null;
     }),
     bench: runtimeState.lineup.benchIds
+      .map((playerId) => runtimeState.players.find((candidate) => candidate.id === playerId))
+      .filter(Boolean)
+      .map((player) => player.name),
+    absent: (runtimeState.lineup.absentIds || [])
       .map((playerId) => runtimeState.players.find((candidate) => candidate.id === playerId))
       .filter(Boolean)
       .map((player) => player.name),
@@ -2077,6 +2224,7 @@ function mapTeamRecordToDatabaseRow(team, userId) {
       formation: team.config.selectedFormation,
       slotAssignments: [],
       bench: [],
+      absent: [],
     },
   };
 }

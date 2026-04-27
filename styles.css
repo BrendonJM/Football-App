@@ -660,8 +660,17 @@ textarea {
   text-align: left;
 }
 
+.bench-player.absent-player {
+  border-color: rgba(228, 134, 118, 0.56);
+  background: linear-gradient(180deg, #f4e6e1 0%, #e8d5ce 100%);
+}
+
 .bench-player .player-meta {
   color: var(--muted);
+}
+
+.bench-player.absent-player .player-meta {
+  color: #9d4c42;
 }
 
 .bench-dropzone,
