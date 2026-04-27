@@ -2295,7 +2295,7 @@ function drawExportBench(context, width, height) {
   }
 
   const cardWidth = (width - 184 - 24) / 2;
-  const cardHeight = 92;
+  const cardHeight = 96;
 
   benchPlayers.forEach((player, index) => {
     const column = index % 2;
@@ -2311,11 +2311,16 @@ function drawExportBench(context, width, height) {
     context.stroke();
 
     context.fillStyle = "#102315";
-    context.font = "700 28px 'Space Grotesk', sans-serif";
-    context.fillText(player.name, x + 24, y + 38);
-    context.fillStyle = "#55705f";
-    context.font = "600 20px 'Barlow', sans-serif";
-    context.fillText("Bench player", x + 24, y + 68);
+    context.font = "700 26px 'Space Grotesk', sans-serif";
+    drawCenteredText(
+      context,
+      player.name,
+      x + cardWidth / 2,
+      y + cardHeight / 2 + 2,
+      cardWidth - 40,
+      2,
+      28,
+    );
   });
 
   if (benchPlayers.length > 6) {
