@@ -33,6 +33,7 @@ const storageKey = "football-team-board-state";
 const userStateStoragePrefix = "football-team-board-user-state";
 const configEndpoint = "/api/config";
 const feedbackEndpoint = "/api/feedback";
+const trainingPlanEndpoint = "/api/training-plan";
 const teamsTableName = "teams";
 
 const teamNameInput = document.querySelector("#teamName");
@@ -60,9 +61,11 @@ const feedbackStatus = document.querySelector("#feedbackStatus");
 const navAccount = document.querySelector("#navAccount");
 const navConfig = document.querySelector("#navConfig");
 const navManage = document.querySelector("#navManage");
+const navTraining = document.querySelector("#navTraining");
 const accountPage = document.querySelector("#accountPage");
 const configPage = document.querySelector("#configPage");
 const managePage = document.querySelector("#managePage");
+const trainingPage = document.querySelector("#trainingPage");
 const teamSwitcher = document.querySelector("#teamSwitcher");
 const newTeamButton = document.querySelector("#newTeam");
 const deleteTeamButton = document.querySelector("#deleteTeam");
@@ -84,6 +87,16 @@ const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench")
 const benchList = document.querySelector("#benchList");
 const pitch = document.querySelector("#pitch");
 const pitchTitle = document.querySelector("#pitchTitle");
+const trainingFocusSelect = document.querySelector("#trainingFocus");
+const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
+const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
+const acceptTrainingPlanButton = document.querySelector("#acceptTrainingPlan");
+const trainingStatus = document.querySelector("#trainingStatus");
+const trainingTeamLabel = document.querySelector("#trainingTeamLabel");
+const trainingAgeRange = document.querySelector("#trainingAgeRange");
+const trainingPlanTitle = document.querySelector("#trainingPlanTitle");
+const trainingPlanMeta = document.querySelector("#trainingPlanMeta");
+const trainingPlanBody = document.querySelector("#trainingPlanBody");
 
 let formationDraft = [];
 let state = loadState();
@@ -95,6 +108,12 @@ let supabaseProjectUrl = "";
 let supabaseAnonKey = "";
 let supabaseAccessToken = "";
 let saveNowInFlight = false;
+let trainingState = {
+  focusArea: "Passing",
+  plan: null,
+  loading: false,
+  accepted: false,
+};
 
 bootstrapApp();
 
@@ -177,6 +196,12 @@ navManage.addEventListener("click", () => {
   renderAll();
 });
 
+navTraining.addEventListener("click", () => {
+  state.page = "training";
+  persistState();
+  renderAll();
+});
+
 teamSwitcher.addEventListener("change", () => {
   switchTeam(teamSwitcher.value);
 });
@@ -212,6 +237,25 @@ saveNowButton.addEventListener("click", async () => {
 
 toggleAvailabilityButton.addEventListener("click", () => {
   toggleSelectedAvailability();
+});
+
+trainingFocusSelect.addEventListener("change", () => {
+  trainingState.focusArea = trainingFocusSelect.value;
+  trainingState.accepted = false;
+  clearStatus(trainingStatus);
+  renderTrainingView();
+});
+
+generateTrainingPlanButton.addEventListener("click", async () => {
+  await generateTrainingPlan();
+});
+
+refreshTrainingPlanButton.addEventListener("click", async () => {
+  await generateTrainingPlan({ regenerate: true });
+});
+
+acceptTrainingPlanButton.addEventListener("click", () => {
+  acceptTrainingPlan();
 });
 
 sendSelectedToBenchButton.addEventListener("click", () => {
@@ -804,6 +848,73 @@ async function submitFeedback() {
   }
 }
 
+async function generateTrainingPlan(options = {}) {
+  trainingState.loading = true;
+  trainingState.accepted = false;
+  renderTrainingView();
+  setStatus(
+    trainingStatus,
+    options.regenerate ? "Generating another training plan..." : "Generating training plan...",
+    false,
+  );
+
+  try {
+    const response = await fetch(trainingPlanEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        teamName: state.config.teamName || "Untitled team",
+        playersOnField: state.config.playersOnField,
+        ageRange: getAgeRangeForPlayersOnField(state.config.playersOnField),
+        focusArea: trainingState.focusArea,
+        formation: state.lineup.formation,
+        squadSize: state.players.length,
+        variationSeed:
+          window.crypto && typeof window.crypto.randomUUID === "function"
+            ? window.crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        previousPlanTitle: options.regenerate ? trainingState.plan?.title || "" : "",
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "Training plan generation failed.");
+    }
+
+    trainingState.plan = result;
+    clearStatus(trainingStatus);
+  } catch (error) {
+    console.error("[Training] Plan generation failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(
+      trainingStatus,
+      error?.message || "Training plan generation failed.",
+      true,
+    );
+  } finally {
+    trainingState.loading = false;
+    renderTrainingView();
+  }
+}
+
+function acceptTrainingPlan() {
+  if (!trainingState.plan) {
+    setStatus(trainingStatus, "Generate a plan first.", true);
+    return;
+  }
+
+  trainingState.accepted = true;
+  renderTrainingView();
+  setStatus(trainingStatus, "Training plan accepted for this session.", false);
+}
+
 function describeSupabaseError(error) {
   const message = String(error?.message || error || "");
 
@@ -918,7 +1029,7 @@ function createStateFromPersisted(saved) {
   const runtime = hydrateTeamRuntime(activeTeam);
 
   return {
-    page: ["account", "config", "manage"].includes(saved.page) ? saved.page : "config",
+    page: ["account", "config", "manage", "training"].includes(saved.page) ? saved.page : "config",
     teams: teams.length > 0 ? teams : [fallbackTeam],
     activeTeamId: activeTeam.id,
     config: runtime.config,
@@ -1154,6 +1265,7 @@ function renderAll() {
   renderManagerControls();
   renderBench();
   renderPitch();
+  renderTrainingView();
 }
 
 function renderTeamSwitcher() {
@@ -1172,13 +1284,16 @@ function renderPage() {
   const accountActive = state.page === "account";
   const configActive = state.page === "config";
   const manageActive = state.page === "manage";
+  const trainingActive = state.page === "training";
 
   accountPage.classList.toggle("hidden", !accountActive);
   configPage.classList.toggle("hidden", !configActive);
   managePage.classList.toggle("hidden", !manageActive);
+  trainingPage.classList.toggle("hidden", !trainingActive);
   navAccount.classList.toggle("is-active", accountActive);
   navConfig.classList.toggle("is-active", configActive);
   navManage.classList.toggle("is-active", manageActive);
+  navTraining.classList.toggle("is-active", trainingActive);
 }
 
 function renderStats() {
@@ -1219,6 +1334,84 @@ function renderAvailabilityControl() {
   toggleAvailabilityButton.textContent = selectedAbsent
     ? "Mark selected available"
     : "Mark selected absent";
+}
+
+function renderTrainingView() {
+  if (!trainingFocusSelect) {
+    return;
+  }
+
+  const focusArea = trainingState.focusArea || "Passing";
+  const ageRange = getAgeRangeForPlayersOnField(state.config.playersOnField);
+  const teamName = state.config.teamName || "Untitled team";
+
+  trainingFocusSelect.value = focusArea;
+  trainingTeamLabel.textContent = `${teamName} training`;
+  trainingAgeRange.textContent = `${ageRange} | ${state.config.playersOnField} on field | Focus: ${focusArea}`;
+  generateTrainingPlanButton.disabled = trainingState.loading;
+  refreshTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
+  acceptTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
+
+  if (!trainingState.plan) {
+    trainingPlanTitle.textContent = "Training Plan";
+    trainingPlanMeta.textContent = "Generate a plan to see a one-hour session tailored to this team format and focus area.";
+    trainingPlanBody.innerHTML = `
+      <div class="info-card">
+        <strong>Ready when you are</strong>
+        <p>Choose a focus area and generate a fresh session plan. If the first one is not quite right, ask TeamPro for another option.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const plan = trainingState.plan;
+  trainingPlanTitle.textContent = plan.title;
+  trainingPlanMeta.textContent = `${plan.focusArea} focus | ${plan.ageRange} | ${plan.totalMinutes} minutes${trainingState.accepted ? " | Accepted" : ""}`;
+  trainingPlanBody.innerHTML = `
+    <div class="info-card">
+      <strong>Overview</strong>
+      <p>${escapeHtml(plan.summary)}</p>
+      <p><strong>Session goals:</strong> ${plan.sessionGoals.map(escapeHtml).join(" | ")}</p>
+      <p><strong>Equipment:</strong> ${plan.equipment.map(escapeHtml).join(", ")}</p>
+    </div>
+    ${plan.blocks
+      .map(
+        (block) => `
+          <div class="training-plan-block">
+            <div class="training-plan-block-header">
+              <strong>${escapeHtml(block.title)}</strong>
+              <span>${escapeHtml(String(block.durationMinutes))} mins</span>
+            </div>
+            <p>${escapeHtml(block.purpose)}</p>
+            <p><strong>Setup:</strong> ${escapeHtml(block.setup)}</p>
+            <ul class="training-plan-points">
+              ${block.coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+            </ul>
+          </div>
+        `,
+      )
+      .join("")}
+    <div class="info-card">
+      <strong>Coach reminder</strong>
+      <p>${escapeHtml(plan.coachReminder)}</p>
+    </div>
+  `;
+}
+
+function getAgeRangeForPlayersOnField(playersOnField) {
+  if (playersOnField <= 6) {
+    return "Ages 7-9";
+  }
+
+  if (playersOnField <= 8) {
+    return "Ages 9-11";
+  }
+
+  if (playersOnField <= 10) {
+    return "Ages 11-13";
+  }
+
+  return "Ages 14 to adult";
 }
 
 function renderBench() {

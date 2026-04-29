@@ -248,7 +248,8 @@ p {
 .formation-builder,
 .side-panel,
 .control-panel,
-.bench-section {
+.bench-section,
+.training-plan-body {
   display: grid;
   gap: 16px;
 }
@@ -684,6 +685,41 @@ textarea {
   font-weight: 700;
 }
 
+.training-plan-block {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(24, 33, 43, 0.9);
+}
+
+.training-plan-block-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.training-plan-block-header strong {
+  font-size: 1.04rem;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.training-plan-block-header span {
+  color: var(--brand-strong);
+  font-weight: 800;
+}
+
+.training-plan-points {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.training-plan-points li + li {
+  margin-top: 8px;
+}
+
 .status-text {
   min-height: 24px;
   margin-bottom: 0;
@@ -719,7 +755,7 @@ textarea {
 
   .page-nav {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     width: 100%;
   }
 

@@ -56,6 +56,7 @@
         <button id="navAccount" class="nav-button is-active" type="button">Account</button>
         <button id="navConfig" class="nav-button" type="button">Team Set Up</button>
         <button id="navManage" class="nav-button" type="button">Manage Team</button>
+        <button id="navTraining" class="nav-button" type="button">Training</button>
       </nav>
 
       <main>
@@ -261,6 +262,57 @@
               </div>
 
               <div id="pitch" class="pitch" aria-label="Football field"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="trainingPage" class="page-section hidden">
+          <div class="layout-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Training</h2>
+                <p>Build a one-hour session plan for your squad with an AI-generated structure based on best practice.</p>
+              </div>
+
+              <div class="info-card">
+                <strong id="trainingTeamLabel">Team</strong>
+                <p id="trainingAgeRange">Age range</p>
+              </div>
+
+              <div class="stack-form">
+                <label class="field">
+                  <span>Focus area</span>
+                  <select id="trainingFocus">
+                    <option value="Passing">Passing</option>
+                    <option value="Positioning">Positioning</option>
+                    <option value="Defence">Defence</option>
+                    <option value="Finishing">Finishing</option>
+                    <option value="Pressing">Pressing</option>
+                  </select>
+                </label>
+
+                <div class="button-row">
+                  <button id="generateTrainingPlan" type="button" class="primary-button">Generate Plan</button>
+                  <button id="refreshTrainingPlan" type="button" class="secondary-button">Show Another Plan</button>
+                  <button id="acceptTrainingPlan" type="button" class="secondary-button">Accept Plan</button>
+                </div>
+              </div>
+
+              <p id="trainingStatus" class="status-text" aria-live="polite"></p>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-heading">
+                <h2 id="trainingPlanTitle">Training Plan</h2>
+                <p id="trainingPlanMeta">Generate a plan to see a one-hour session tailored to this team format and focus area.</p>
+              </div>
+
+              <div id="trainingPlanBody" class="training-plan-body">
+                <div class="info-card">
+                  <strong>Ready when you are</strong>
+                  <p>Choose a focus area and generate a fresh session plan. If the first one is not quite right, ask TeamPro for another option.</p>
+                </div>
+              </div>
             </section>
           </div>
         </section>
