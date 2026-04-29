@@ -29,6 +29,77 @@ const trainingPlanSchema = {
             type: "array",
             items: { type: "string" },
           },
+          diagram: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              caption: { type: "string" },
+              players: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    x: { type: "number" },
+                    y: { type: "number" },
+                    label: { type: "string" },
+                    role: {
+                      type: "string",
+                      enum: ["attacker", "defender", "neutral", "goalkeeper", "player"],
+                    },
+                  },
+                  required: ["x", "y", "label", "role"],
+                },
+              },
+              cones: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    x: { type: "number" },
+                    y: { type: "number" },
+                  },
+                  required: ["x", "y"],
+                },
+              },
+              movements: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    fromX: { type: "number" },
+                    fromY: { type: "number" },
+                    toX: { type: "number" },
+                    toY: { type: "number" },
+                    label: { type: "string" },
+                    type: {
+                      type: "string",
+                      enum: ["run", "pass", "dribble"],
+                    },
+                  },
+                  required: ["fromX", "fromY", "toX", "toY", "label", "type"],
+                },
+              },
+              zones: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    x: { type: "number" },
+                    y: { type: "number" },
+                    width: { type: "number" },
+                    height: { type: "number" },
+                    label: { type: "string" },
+                  },
+                  required: ["x", "y", "width", "height", "label"],
+                },
+              },
+            },
+            required: ["caption", "players", "cones", "movements", "zones"],
+          },
         },
         required: [
           "title",
@@ -36,6 +107,7 @@ const trainingPlanSchema = {
           "purpose",
           "setup",
           "coachingPoints",
+          "diagram",
         ],
       },
     },
@@ -126,9 +198,13 @@ module.exports = async (request, response) => {
                       "Create a football training plan that totals exactly 60 minutes.",
                       "Include a warm-up inside that 60-minute total.",
                       "Theme the session clearly around the chosen focus area.",
+                      "If the focus area is Mixed, blend 2 or 3 complementary themes across the session rather than sticking to one narrow topic.",
                       "Make the practices age-appropriate for the supplied age range.",
                       "Return 4 or 5 session blocks with exact durationMinutes values.",
                       "Vary the plan when a previous title is provided so the coach gets a fresh option.",
+                      "For every session block, include a clear diagram object using a 0-100 x-axis and 0-70 y-axis.",
+                      "Use the diagram to show player starting spots, cones, movement arrows, and any grid or channel zones.",
+                      "Keep diagram labels short and practical so they render cleanly in a coach-facing drill card.",
                     ],
                   },
                   null,
