@@ -91,6 +91,7 @@ const trainingFocusSelect = document.querySelector("#trainingFocus");
 const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
 const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
 const acceptTrainingPlanButton = document.querySelector("#acceptTrainingPlan");
+const copyTrainingPlanButton = document.querySelector("#copyTrainingPlan");
 const trainingStatus = document.querySelector("#trainingStatus");
 const trainingTeamLabel = document.querySelector("#trainingTeamLabel");
 const trainingAgeRange = document.querySelector("#trainingAgeRange");
@@ -256,6 +257,10 @@ refreshTrainingPlanButton.addEventListener("click", async () => {
 
 acceptTrainingPlanButton.addEventListener("click", () => {
   acceptTrainingPlan();
+});
+
+copyTrainingPlanButton.addEventListener("click", async () => {
+  await copyTrainingPlan();
 });
 
 sendSelectedToBenchButton.addEventListener("click", () => {
@@ -886,7 +891,7 @@ async function generateTrainingPlan(options = {}) {
       throw new Error(result.error || "Training plan generation failed.");
     }
 
-    trainingState.plan = result;
+    trainingState.plan = normaliseTrainingPlan(result);
     clearStatus(trainingStatus);
   } catch (error) {
     console.error("[Training] Plan generation failed", {
@@ -913,6 +918,27 @@ function acceptTrainingPlan() {
   trainingState.accepted = true;
   renderTrainingView();
   setStatus(trainingStatus, "Training plan accepted for this session.", false);
+}
+
+async function copyTrainingPlan() {
+  if (!trainingState.plan) {
+    setStatus(trainingStatus, "Generate a plan first.", true);
+    return;
+  }
+
+  const text = formatTrainingPlanAsText(trainingState.plan);
+
+  if (!navigator.clipboard?.writeText) {
+    setStatus(trainingStatus, "Clipboard copy is not supported here.", true);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus(trainingStatus, "Training plan copied to the clipboard.", false);
+  } catch (error) {
+    setStatus(trainingStatus, "Could not copy the training plan right now.", true);
+  }
 }
 
 function describeSupabaseError(error) {
@@ -1351,6 +1377,7 @@ function renderTrainingView() {
   generateTrainingPlanButton.disabled = trainingState.loading;
   refreshTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
   acceptTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
+  copyTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
 
   if (!trainingState.plan) {
     trainingPlanTitle.textContent = "Training Plan";
@@ -1384,7 +1411,6 @@ function renderTrainingView() {
             </div>
             <p>${escapeHtml(block.purpose)}</p>
             <p><strong>Setup:</strong> ${escapeHtml(block.setup)}</p>
-            ${renderTrainingDiagram(block.diagram)}
             <ul class="training-plan-points">
               ${block.coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
             </ul>
@@ -1415,132 +1441,72 @@ function getAgeRangeForPlayersOnField(playersOnField) {
   return "Ages 14 to adult";
 }
 
-function renderTrainingDiagram(diagram) {
-  if (!diagram) {
-    return "";
+function normaliseTrainingPlan(plan) {
+  if (!plan || typeof plan !== "object") {
+    return plan;
   }
 
-  const players = Array.isArray(diagram.players) ? diagram.players : [];
-  const cones = Array.isArray(diagram.cones) ? diagram.cones : [];
-  const movements = Array.isArray(diagram.movements) ? diagram.movements : [];
-  const zones = Array.isArray(diagram.zones) ? diagram.zones : [];
-  const caption = diagram.caption ? `<p class="training-diagram-caption">${escapeHtml(diagram.caption)}</p>` : "";
-
-  return `
-    <div class="training-diagram-shell">
-      ${caption}
-      <svg class="training-diagram" viewBox="0 0 100 70" role="img" aria-label="${escapeHtml(diagram.caption || "Training drill diagram")}">
-        <defs>
-          <marker id="arrow-run" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 z" fill="#f0f5f9"></path>
-          </marker>
-          <marker id="arrow-pass" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 z" fill="#e2c58e"></path>
-          </marker>
-          <marker id="arrow-dribble" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6 z" fill="#80d4a7"></path>
-          </marker>
-        </defs>
-        <rect x="1.5" y="1.5" width="97" height="67" rx="7" fill="#1f8b4d" stroke="#eff6f1" stroke-width="1.4"></rect>
-        <line x1="50" y1="2.5" x2="50" y2="67.5" stroke="rgba(255,255,255,0.78)" stroke-width="1"></line>
-        <circle cx="50" cy="35" r="8" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="1"></circle>
-        ${zones
-          .map(
-            (zone) => `
-              <rect
-                x="${clampDiagramValue(zone.x)}"
-                y="${clampDiagramValue(zone.y)}"
-                width="${clampDiagramSize(zone.width)}"
-                height="${clampDiagramSize(zone.height)}"
-                rx="3"
-                fill="rgba(255,255,255,0.08)"
-                stroke="rgba(255,255,255,0.4)"
-                stroke-dasharray="2.5 2.5"
-              ></rect>
-              ${zone.label ? `<text x="${clampDiagramValue(zone.x) + 2}" y="${clampDiagramValue(zone.y) + 5}" fill="#edf2f7" font-size="3.1" font-weight="700">${escapeHtml(zone.label)}</text>` : ""}
-            `,
-          )
-          .join("")}
-        ${cones
-          .map(
-            (cone) => `
-              <polygon
-                points="${clampDiagramValue(cone.x)},${clampDiagramValue(cone.y) - 2.6} ${clampDiagramValue(cone.x) - 2.2},${clampDiagramValue(cone.y) + 2} ${clampDiagramValue(cone.x) + 2.2},${clampDiagramValue(cone.y) + 2}"
-                fill="#f0b35b"
-                stroke="#7f4c10"
-                stroke-width="0.5"
-              ></polygon>
-            `,
-          )
-          .join("")}
-        ${movements
-          .map((movement) => renderTrainingMovement(movement))
-          .join("")}
-        ${players
-          .map((player) => renderTrainingDiagramPlayer(player))
-          .join("")}
-      </svg>
-    </div>
-  `;
-}
-
-function renderTrainingMovement(movement) {
-  const fromX = clampDiagramValue(movement.fromX);
-  const fromY = clampDiagramValue(movement.fromY);
-  const toX = clampDiagramValue(movement.toX);
-  const toY = clampDiagramValue(movement.toY);
-  const type = movement.type || "run";
-  const styles = {
-    run: { color: "#f0f5f9", dash: "0", marker: "url(#arrow-run)" },
-    pass: { color: "#e2c58e", dash: "2.5 1.5", marker: "url(#arrow-pass)" },
-    dribble: { color: "#80d4a7", dash: "1.2 1.2", marker: "url(#arrow-dribble)" },
+  return {
+    ...plan,
+    title: normaliseMetricText(plan.title || ""),
+    summary: normaliseMetricText(plan.summary || ""),
+    focusArea: normaliseMetricText(plan.focusArea || ""),
+    ageRange: normaliseMetricText(plan.ageRange || ""),
+    coachReminder: normaliseMetricText(plan.coachReminder || ""),
+    sessionGoals: Array.isArray(plan.sessionGoals)
+      ? plan.sessionGoals.map((goal) => normaliseMetricText(goal))
+      : [],
+    equipment: Array.isArray(plan.equipment)
+      ? plan.equipment.map((item) => normaliseMetricText(item))
+      : [],
+    blocks: Array.isArray(plan.blocks)
+      ? plan.blocks.map((block) => ({
+          ...block,
+          title: normaliseMetricText(block.title || ""),
+          purpose: normaliseMetricText(block.purpose || ""),
+          setup: normaliseMetricText(block.setup || ""),
+          coachingPoints: Array.isArray(block.coachingPoints)
+            ? block.coachingPoints.map((point) => normaliseMetricText(point))
+            : [],
+        }))
+      : [],
   };
-  const style = styles[type] || styles.run;
-  const labelX = ((fromX + toX) / 2).toFixed(2);
-  const labelY = ((fromY + toY) / 2 - 2.4).toFixed(2);
-
-  return `
-    <line
-      x1="${fromX}"
-      y1="${fromY}"
-      x2="${toX}"
-      y2="${toY}"
-      stroke="${style.color}"
-      stroke-width="1.4"
-      stroke-dasharray="${style.dash}"
-      marker-end="${style.marker}"
-    ></line>
-    ${movement.label ? `<text x="${labelX}" y="${labelY}" fill="${style.color}" font-size="2.8" font-weight="700" text-anchor="middle">${escapeHtml(movement.label)}</text>` : ""}
-  `;
 }
 
-function renderTrainingDiagramPlayer(player) {
-  const x = clampDiagramValue(player.x);
-  const y = clampDiagramValue(player.y);
-  const role = player.role || "player";
-  const fills = {
-    attacker: "#ffffff",
-    defender: "#d9e7f4",
-    neutral: "#f7efcf",
-    goalkeeper: "#f4c25b",
-    player: "#ffffff",
-  };
-  const fill = fills[role] || fills.player;
-
-  return `
-    <circle cx="${x}" cy="${y}" r="3.5" fill="${fill}" stroke="#173526" stroke-width="0.8"></circle>
-    <text x="${x}" y="${(y + 0.9).toFixed(2)}" fill="#102315" font-size="2.8" font-weight="800" text-anchor="middle">${escapeHtml(player.label || "P")}</text>
-  `;
+function normaliseMetricText(text) {
+  return String(text || "")
+    .replace(/\byards\b/gi, "metres")
+    .replace(/\byard\b/gi, "metre")
+    .replace(/\bmeters\b/gi, "metres")
+    .replace(/\bmeter\b/gi, "metre");
 }
 
-function clampDiagramValue(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? Math.min(96, Math.max(4, numeric)) : 50;
-}
+function formatTrainingPlanAsText(plan) {
+  const blocksText = plan.blocks
+    .map((block, index) => {
+      const coachingPoints = block.coachingPoints.map((point) => `- ${point}`).join("\n");
+      return [
+        `${index + 1}. ${block.title} (${block.durationMinutes} mins)`,
+        `Purpose: ${block.purpose}`,
+        `Setup: ${block.setup}`,
+        `Coaching points:`,
+        coachingPoints,
+      ].join("\n");
+    })
+    .join("\n\n");
 
-function clampDiagramSize(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? Math.min(80, Math.max(6, numeric)) : 16;
+  return [
+    plan.title,
+    `${plan.focusArea} focus | ${plan.ageRange} | ${plan.totalMinutes} minutes`,
+    "",
+    `Overview: ${plan.summary}`,
+    `Session goals: ${plan.sessionGoals.join(" | ")}`,
+    `Equipment: ${plan.equipment.join(", ")}`,
+    "",
+    blocksText,
+    "",
+    `Coach reminder: ${plan.coachReminder}`,
+  ].join("\n");
 }
 
 function renderBench() {
