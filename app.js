@@ -1,2948 +1,769 @@
-const formationLibrary = {
-  5: ["2-1-1", "1-2-1", "1-1-2"],
-  6: ["2-2-1", "3-1-1", "1-3-1"],
-  7: ["2-3-1", "3-2-1", "2-2-2"],
-  8: ["3-3-1", "2-3-2", "3-2-2"],
-  9: ["3-4-1", "3-3-2", "2-5-1", "2-4-2"],
-  10: ["3-4-2", "4-3-2", "3-3-3"],
-  11: ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1"],
+const countMeasure = "__count";
+const noBreakdown = "__none";
+const defaultSeries = "All rows";
+const palette = [
+  "#51cbd1",
+  "#c6735e",
+  "#f7c784",
+  "#e98cab",
+  "#84bff0",
+  "#9bc98a",
+  "#b7a2e8",
+  "#fb9a86",
+  "#70a0af",
+  "#d6a957",
+  "#8aa7df",
+  "#d47f9d",
+];
+
+const state = {
+  rawRows: [],
+  groupedRows: [],
+  xValues: [],
+  series: [],
+  activeSeries: new Set(),
+  selectedXValue: "",
+  fileName: "",
+  headers: [],
+  mapping: {
+    xAxis: "",
+    yAxis: countMeasure,
+    breakdown: noBreakdown,
+  },
 };
 
-const sampleConfig = {
-  teamName: "Harbour United U12",
-  playersOnField: 9,
-  players: [
-    "Aria",
-    "Mia",
-    "Noah",
-    "Luca",
-    "Zoe",
-    "Theo",
-    "Sienna",
-    "Finn",
-    "Ruby",
-    "Leo",
-    "Poppy",
-    "Jack",
-  ],
-  formations: ["3-4-1", "3-3-2", "2-5-1"],
-  selectedFormation: "3-4-1",
+const elements = {
+  dropZone: document.querySelector("#dropZone"),
+  fileInput: document.querySelector("#fileInput"),
+  browseButton: document.querySelector("#browseButton"),
+  mappingPanel: document.querySelector("#mappingPanel"),
+  fieldCount: document.querySelector("#fieldCount"),
+  xAxisColumn: document.querySelector("#xAxisColumn"),
+  yAxisColumn: document.querySelector("#yAxisColumn"),
+  breakdownColumn: document.querySelector("#breakdownColumn"),
+  applyMapping: document.querySelector("#applyMapping"),
+  filterCount: document.querySelector("#filterCount"),
+  ownerLegend: document.querySelector("#ownerLegend"),
+  chartGrid: document.querySelector("#chartGrid"),
+  barChart: document.querySelector("#barChart"),
+  chartTooltip: document.querySelector("#chartTooltip"),
+  chartTitle: document.querySelector("#chartTitle"),
+  yAxisTitle: document.querySelector("#yAxisTitle"),
+  xAxisTitle: document.querySelector("#xAxisTitle"),
+  selectedPipelineTitle: document.querySelector("#selectedPipelineTitle"),
+  selectedPipelineMeta: document.querySelector("#selectedPipelineMeta"),
+  pipelineBreakdown: document.querySelector("#pipelineBreakdown"),
+  dataRows: document.querySelector("#dataRows"),
+  sourceMeta: document.querySelector("#sourceMeta"),
+  tableXHeader: document.querySelector("#tableXHeader"),
+  tableBreakdownHeader: document.querySelector("#tableBreakdownHeader"),
+  tableValueHeader: document.querySelector("#tableValueHeader"),
+  copyShareLink: document.querySelector("#copyShareLink"),
+  clearData: document.querySelector("#clearData"),
+  resetFilters: document.querySelector("#resetFilters"),
+  statusMessage: document.querySelector("#statusMessage"),
 };
 
-const storageKey = "football-team-board-state";
-const userStateStoragePrefix = "football-team-board-user-state";
-const configEndpoint = "/api/config";
-const feedbackEndpoint = "/api/feedback";
-const trainingPlanEndpoint = "/api/training-plan";
-const teamsTableName = "teams";
+populateMappingControls();
+initialiseFromUrl();
+renderDashboard();
 
-const teamNameInput = document.querySelector("#teamName");
-const playersOnFieldInput = document.querySelector("#playersOnField");
-const playerNamesInput = document.querySelector("#playerNames");
-const formationSuggestions = document.querySelector("#formationSuggestions");
-const formationHelp = document.querySelector("#formationHelp");
-const customFormationInput = document.querySelector("#customFormation");
-const configStatus = document.querySelector("#configStatus");
-const configForm = document.querySelector("#configForm");
-const addFormationButton = document.querySelector("#addFormation");
-const signupForm = document.querySelector("#signupForm");
-const authEmailInput = document.querySelector("#authEmail");
-const authPasswordInput = document.querySelector("#authPassword");
-const loginButton = document.querySelector("#loginButton");
-const logoutButton = document.querySelector("#logoutButton");
-const authGuestPanel = document.querySelector("#authGuestPanel");
-const authUserPanel = document.querySelector("#authUserPanel");
-const authUserEmail = document.querySelector("#authUserEmail");
-const authStatus = document.querySelector("#authStatus");
-const feedbackForm = document.querySelector("#feedbackForm");
-const feedbackMessageInput = document.querySelector("#feedbackMessage");
-const feedbackStatus = document.querySelector("#feedbackStatus");
-
-const navAccount = document.querySelector("#navAccount");
-const navConfig = document.querySelector("#navConfig");
-const navManage = document.querySelector("#navManage");
-const navTraining = document.querySelector("#navTraining");
-const accountPage = document.querySelector("#accountPage");
-const configPage = document.querySelector("#configPage");
-const managePage = document.querySelector("#managePage");
-const trainingPage = document.querySelector("#trainingPage");
-const teamSwitcher = document.querySelector("#teamSwitcher");
-const newTeamButton = document.querySelector("#newTeam");
-const deleteTeamButton = document.querySelector("#deleteTeam");
-
-const statPlayers = document.querySelector("#statPlayers");
-const statOnField = document.querySelector("#statOnField");
-const statFormationCount = document.querySelector("#statFormationCount");
-
-const teamNameSummary = document.querySelector("#teamNameSummary");
-const formationSelect = document.querySelector("#formationSelect");
-const fillEmptyPositionsButton = document.querySelector("#fillEmptyPositions");
-const resetLineupButton = document.querySelector("#resetLineup");
-const copyImageButton = document.querySelector("#copyImage");
-const saveNowButton = document.querySelector("#saveNow");
-const toggleAvailabilityButton = document.querySelector("#toggleAvailability");
-const exportStatus = document.querySelector("#exportStatus");
-const selectionHint = document.querySelector("#selectionHint");
-const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench");
-const benchList = document.querySelector("#benchList");
-const pitch = document.querySelector("#pitch");
-const pitchTitle = document.querySelector("#pitchTitle");
-const trainingFocusSelect = document.querySelector("#trainingFocus");
-const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
-const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
-const acceptTrainingPlanButton = document.querySelector("#acceptTrainingPlan");
-const copyTrainingPlanButton = document.querySelector("#copyTrainingPlan");
-const trainingStatus = document.querySelector("#trainingStatus");
-const trainingTeamLabel = document.querySelector("#trainingTeamLabel");
-const trainingAgeRange = document.querySelector("#trainingAgeRange");
-const trainingPlanTitle = document.querySelector("#trainingPlanTitle");
-const trainingPlanMeta = document.querySelector("#trainingPlanMeta");
-const trainingPlanBody = document.querySelector("#trainingPlanBody");
-
-let formationDraft = [];
-let state = loadState();
-let supabaseClient = null;
-let supabaseReady = false;
-let supabaseUserId = null;
-let supabaseUserEmail = "";
-let supabaseProjectUrl = "";
-let supabaseAnonKey = "";
-let supabaseAccessToken = "";
-let saveNowInFlight = false;
-let trainingState = {
-  focusArea: "Passing",
-  plan: null,
-  loading: false,
-  accepted: false,
-};
-
-bootstrapApp();
-
-configForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await saveConfigFromForm();
+elements.browseButton.addEventListener("click", () => elements.fileInput.click());
+elements.fileInput.addEventListener("change", () => {
+  const file = elements.fileInput.files?.[0];
+  if (file) handleFile(file);
+  elements.fileInput.value = "";
 });
 
-playersOnFieldInput.addEventListener("change", () => {
-  const playersOnField = Number(playersOnFieldInput.value);
-  const validExisting = formationDraft.filter((formation) =>
-    isValidFormation(formation, playersOnField),
-  );
-  formationDraft = validExisting.length > 0
-    ? validExisting
-    : getSuggestedFormations(playersOnField).slice(0, 3);
-  renderFormationChoices();
-});
-
-addFormationButton.addEventListener("click", () => {
-  const playersOnField = Number(playersOnFieldInput.value);
-  const formation = normaliseFormation(customFormationInput.value);
-
-  if (!formation) {
-    setStatus(configStatus, "Enter a formation before adding it.", true);
-    return;
-  }
-
-  if (!isValidFormation(formation, playersOnField)) {
-    setStatus(
-      configStatus,
-      `Formation ${formation} is not valid for ${playersOnField} players on the field.`,
-      true,
-    );
-    return;
-  }
-
-  if (!formationDraft.includes(formation)) {
-    formationDraft = [...formationDraft, formation];
-  }
-
-  customFormationInput.value = "";
-  renderFormationChoices();
-  setStatus(configStatus, `${formation} added to your formation list.`, false);
-});
-
-signupForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await signUpWithEmail();
-});
-
-loginButton.addEventListener("click", async () => {
-  await signInWithEmail();
-});
-
-logoutButton.addEventListener("click", async () => {
-  await signOutUser();
-});
-
-feedbackForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await submitFeedback();
-});
-
-navAccount.addEventListener("click", () => {
-  state.page = "account";
-  persistState();
-  renderAll();
-});
-
-navConfig.addEventListener("click", () => {
-  state.page = "config";
-  persistState();
-  renderAll();
-});
-
-navManage.addEventListener("click", () => {
-  state.page = "manage";
-  persistState();
-  renderAll();
-});
-
-navTraining.addEventListener("click", () => {
-  state.page = "training";
-  persistState();
-  renderAll();
-});
-
-teamSwitcher.addEventListener("change", () => {
-  switchTeam(teamSwitcher.value);
-});
-
-newTeamButton.addEventListener("click", () => {
-  createNewTeamDraft();
-});
-
-deleteTeamButton.addEventListener("click", () => {
-  deleteCurrentTeam();
-});
-
-formationSelect.addEventListener("change", () => {
-  const formation = formationSelect.value;
-  setFormation(formation);
-});
-
-fillEmptyPositionsButton.addEventListener("click", () => {
-  fillEmptySlotsFromBench();
-});
-
-resetLineupButton.addEventListener("click", () => {
-  resetLineup();
-});
-
-copyImageButton.addEventListener("click", async () => {
-  await copyLineupImage();
-});
-
-saveNowButton.addEventListener("click", async () => {
-  await saveActiveTeamNow();
-});
-
-toggleAvailabilityButton.addEventListener("click", () => {
-  toggleSelectedAvailability();
-});
-
-trainingFocusSelect.addEventListener("change", () => {
-  trainingState.focusArea = trainingFocusSelect.value;
-  trainingState.accepted = false;
-  clearStatus(trainingStatus);
-  renderTrainingView();
-});
-
-generateTrainingPlanButton.addEventListener("click", async () => {
-  await generateTrainingPlan();
-});
-
-refreshTrainingPlanButton.addEventListener("click", async () => {
-  await generateTrainingPlan({ regenerate: true });
-});
-
-acceptTrainingPlanButton.addEventListener("click", () => {
-  acceptTrainingPlan();
-});
-
-copyTrainingPlanButton.addEventListener("click", async () => {
-  await copyTrainingPlan();
-});
-
-sendSelectedToBenchButton.addEventListener("click", () => {
-  if (!state.selectedTarget) {
-    setStatus(exportStatus, "Select a player on the field first.", true);
-    return;
-  }
-
-  if (state.selectedTarget.type !== "slot") {
-    setStatus(exportStatus, "Only players on the field can be sent to the bench.", true);
-    return;
-  }
-
-  moveSelectedToBench();
-});
-
-pitch.addEventListener("click", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (!trigger) {
-    return;
-  }
-
-  handleTargetSelection({
-    type: trigger.dataset.targetType,
-    index: Number(trigger.dataset.targetIndex),
+["dragenter", "dragover"].forEach((eventName) => {
+  elements.dropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    elements.dropZone.classList.add("is-dragging");
   });
 });
 
-benchList.addEventListener("click", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (!trigger) {
-    return;
-  }
-
-  if (trigger.dataset.targetType === "bench-dropzone") {
-    moveSelectedToBench();
-    return;
-  }
-
-  handleTargetSelection({
-    type: trigger.dataset.targetType,
-    index: Number(trigger.dataset.targetIndex),
+["dragleave", "drop"].forEach((eventName) => {
+  elements.dropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    elements.dropZone.classList.remove("is-dragging");
   });
 });
 
-document.addEventListener("dragstart", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (!trigger || trigger.dataset.empty === "true") {
-    return;
-  }
-
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData(
-    "text/plain",
-    JSON.stringify({
-      type: trigger.dataset.targetType,
-      index: Number(trigger.dataset.targetIndex),
-    }),
-  );
+elements.dropZone.addEventListener("drop", (event) => {
+  const file = event.dataTransfer?.files?.[0];
+  if (file) handleFile(file);
 });
 
-document.addEventListener("dragover", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (!trigger) {
-    return;
-  }
-
-  event.preventDefault();
-  trigger.classList.add("drop-target");
-});
-
-document.addEventListener("dragleave", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (trigger) {
-    trigger.classList.remove("drop-target");
+elements.dropZone.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    elements.fileInput.click();
   }
 });
 
-document.addEventListener("drop", (event) => {
-  const trigger = event.target.closest("[data-target-type]");
-
-  if (!trigger) {
-    return;
-  }
-
-  event.preventDefault();
-  trigger.classList.remove("drop-target");
-
-  const source = safeJsonParse(event.dataTransfer.getData("text/plain"));
-
-  if (!source) {
-    return;
-  }
-
-  if (trigger.dataset.targetType === "bench-dropzone") {
-    movePlayerToBench(source);
-    return;
-  }
-
-  swapOrMove(source, {
-    type: trigger.dataset.targetType,
-    index: Number(trigger.dataset.targetIndex),
-  });
+elements.applyMapping.addEventListener("click", () => {
+  state.mapping.xAxis = elements.xAxisColumn.value;
+  state.mapping.yAxis = elements.yAxisColumn.value;
+  state.mapping.breakdown = elements.breakdownColumn.value;
+  applyRawRows();
 });
 
-function initialisePlayersOnFieldOptions() {
-  const options = Array.from({ length: 7 }, (_, offset) => offset + 5)
-    .map(
-      (value) =>
-        `<option value="${value}">${value} players</option>`,
-    )
-    .join("");
+elements.resetFilters.addEventListener("click", () => {
+  state.activeSeries = new Set(state.series.map((item) => item.name));
+  state.selectedXValue = state.xValues[0] || "";
+  updateUrl();
+  renderDashboard();
+  showStatus("Filters reset.");
+});
 
-  playersOnFieldInput.innerHTML = options;
-}
+elements.clearData.addEventListener("click", () => {
+  clearAllData();
+  clearUrlState();
+  renderDashboard();
+  showStatus("Data cleared.");
+});
 
-async function bootstrapApp() {
-  initialisePlayersOnFieldOptions();
-  syncFormFromState();
-  renderAll();
-  await initialiseSupabaseSync();
-}
+elements.copyShareLink.addEventListener("click", async () => {
+  if (!state.groupedRows.length) {
+    showStatus("Load data before copying a share link.");
+    return;
+  }
 
-async function initialiseSupabaseSync() {
+  const url = buildShareUrl();
+
   try {
-    const config = await fetchRuntimeConfig();
-    const supabaseUrl = normaliseSupabaseProjectUrl(config.supabaseUrl);
-    console.info("[Supabase] Runtime config loaded", {
-      hasUrl: Boolean(supabaseUrl),
-      hasAnonKey: Boolean(config.supabaseAnonKey),
-      configSource:
-        window.__APP_CONFIG__?.supabaseUrl && window.__APP_CONFIG__?.supabaseAnonKey
-          ? "public-config.js"
-          : "api/config",
-    });
+    await navigator.clipboard.writeText(url);
+    showStatus("Share link copied.");
+  } catch {
+    showStatus(url);
+  }
+});
 
-    if (!supabaseUrl || !config.supabaseAnonKey) {
-      setStatus(
-        configStatus,
-        "Supabase is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy.",
-        true,
-      );
-      return;
+async function handleFile(file) {
+  const extension = file.name.split(".").pop().toLowerCase();
+
+  try {
+    let rows;
+    let label = file.name;
+    if (extension === "csv") {
+      rows = parseCsv(await file.text());
+    } else if (["xlsx", "xls"].includes(extension)) {
+      const workbookData = await parseWorkbook(file);
+      rows = workbookData.rows;
+      label = workbookData.label;
+    } else {
+      throw new Error("Use an Excel or CSV file.");
     }
 
-    if (!window.supabase || typeof window.supabase.createClient !== "function") {
-      throw new Error("Supabase client library did not load in the browser.");
-    }
+    if (!rows.length) throw new Error("No rows were found in that file.");
 
-    supabaseClient = window.supabase.createClient(
-      supabaseUrl,
-      config.supabaseAnonKey,
-    );
-    supabaseProjectUrl = supabaseUrl;
-    supabaseAnonKey = config.supabaseAnonKey;
-    window.teamProDebug = {
-      supabase: supabaseClient,
-      getUser: async () => supabaseClient.auth.getUser(),
-      testInsert: async () => {
-        const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-
-        if (userError || !userData.user) {
-          return { userError, user: userData.user };
-        }
-
-        return await supabaseClient
-          .from("teams")
-          .insert({
-            id: window.crypto.randomUUID(),
-            user_id: userData.user.id,
-            team_name: "Browser direct test",
-            players_on_field: 7,
-            players: [],
-            formations: ["2-3-1"],
-            selected_formation: "2-3-1",
-            lineup: {},
-          })
-          .select();
-      },
-    };
-    console.info("[Supabase] Client initialised", {
-      urlHost: safeSupabaseHost(supabaseUrl),
-    });
-
-    supabaseReady = true;
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-      console.info("[Supabase] Auth state changed", {
-        event: _event,
-        hasSession: Boolean(session),
-      });
-      await applyAuthSession(session);
-    });
-
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabaseClient.auth.getSession();
-
-    if (sessionError) {
-      throw sessionError;
-    }
-
-    await applyAuthSession(session);
+    startFreshUpload(label, rows);
+    clearUrlState();
+    renderDashboard();
+    populateMappingControls();
+    applyRawRows();
   } catch (error) {
-    console.error("[Supabase] Initialisation failed", {
-      error,
-      message: error?.message || String(error),
-      stack: error?.stack || null,
-    });
-    setStatus(
-      configStatus,
-      `Could not connect to Supabase. ${describeSupabaseError(error)} The app will keep using the current browser copy for now.`,
-      true,
-    );
+    showStatus(error.message || "The file could not be read.");
   }
 }
 
-async function fetchRuntimeConfig() {
-  const inlineConfig = window.__APP_CONFIG__ || {};
-
-  if (inlineConfig.supabaseUrl && inlineConfig.supabaseAnonKey) {
-    console.info("[Supabase] Using public-config.js runtime config");
-    return inlineConfig;
+async function parseWorkbook(file) {
+  if (!window.XLSX) {
+    throw new Error("Excel parsing is still loading. Try again in a moment.");
   }
 
-  console.warn("[Supabase] public-config.js did not contain Supabase values, falling back to /api/config");
-  const response = await fetch(configEndpoint, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Config endpoint unavailable or missing environment variables.");
-  }
-
-  return response.json();
-}
-
-async function applyAuthSession(session) {
-  supabaseUserId = session?.user?.id || null;
-  supabaseUserEmail = session?.user?.email || "";
-  supabaseAccessToken = session?.access_token || "";
-  console.info("[Supabase] applyAuthSession", {
-    userId: supabaseUserId,
-    email: supabaseUserEmail,
-    hasSession: Boolean(session),
-  });
-  renderAuthState();
-
-  if (!supabaseUserId) {
-    console.info("[Supabase] No authenticated user session");
-    state = createStateFromPersisted({
-      page: "account",
-      activeTeamId: null,
-      teams: [],
-    });
-    persistCachedStateOnly();
-    syncFormFromState();
-    renderAll();
-    setStatus(
-      authStatus,
-      "Sign in to load and save your private teams.",
-      false,
-    );
-    return;
-  }
-
-  console.info("[Supabase] Authenticated user session ready", {
-    userId: supabaseUserId,
-    email: supabaseUserEmail,
-  });
-  clearStatus(authStatus);
-  try {
-    await hydrateStateFromSupabase();
-    persistUserScopedState();
-  } catch (error) {
-    console.error("[Supabase] Failed to hydrate teams after login", {
-      userId: supabaseUserId,
-      error,
-      message: error?.message || String(error),
-    });
-    setStatus(
-      authStatus,
-      `Could not load your saved teams from Supabase. ${describeSupabaseError(error)}`,
-      true,
-    );
-    return;
-  }
-  console.info("[Supabase] Initial sync complete", {
-    teamCount: state.teams.length,
-    activeTeamId: state.activeTeamId,
-  });
-}
-
-function renderAuthState() {
-  const isLoggedIn = Boolean(supabaseUserId);
-  authGuestPanel.classList.toggle("hidden", isLoggedIn);
-  authUserPanel.classList.toggle("hidden", !isLoggedIn);
-  authUserEmail.textContent = supabaseUserEmail || "Signed in";
-  teamSwitcher.disabled = !isLoggedIn;
-  newTeamButton.disabled = !isLoggedIn;
-  deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
-}
-
-async function hydrateStateFromSupabase() {
-  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
-    throw new Error("Supabase runtime config or session token is missing for team loading.");
-  }
-
-  console.info("[Supabase] Fetching teams after login", {
-    userId: supabaseUserId,
-    query: "supabase.from('teams').select('*').eq('user_id', user.id)",
-  });
-
-  const teamsUrl = new URL(`${supabaseProjectUrl}/rest/v1/teams`);
-  teamsUrl.searchParams.set("select", "*");
-  teamsUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
-  teamsUrl.searchParams.set("order", "updated_at.desc");
-
-  let response;
-  let responseText = "";
-  let responseData = null;
-
-  try {
-    response = await fetch(teamsUrl.toString(), {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAccessToken}`,
-      },
-    });
-
-    responseText = await response.text();
-    if (responseText) {
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        responseData = responseText;
-      }
-    }
-  } catch (error) {
-    console.error("[Supabase] Teams query failed", {
-      userId: supabaseUserId,
-      error,
-      message: error?.message || String(error),
-    });
-    throw error;
-  }
-
-  if (!response.ok) {
-    const error = new Error(
-      responseData?.message ||
-      responseData?.error_description ||
-      responseData?.details ||
-      responseText ||
-      response.statusText ||
-      "Supabase team fetch failed.",
-    );
-    console.error("[Supabase] Teams query failed", {
-      userId: supabaseUserId,
-      error,
-      responseStatus: response.status,
-      responseBody: responseData || responseText || null,
-    });
-    throw error;
-  }
-
-  console.info("[Supabase] Teams fetched after login", {
-    userId: supabaseUserId,
-    rowCount: Array.isArray(responseData) ? responseData.length : 0,
-    rows: Array.isArray(responseData) ? responseData : [],
-  });
-
-  const remoteTeams = (Array.isArray(responseData) ? responseData : []).map(mapDatabaseTeamToRecord);
-  const cachedState = loadState();
-
-  console.info("[Supabase] Source-of-truth check", {
-    usesSupabaseSourceOfTruth: true,
-    remoteTeamCount: remoteTeams.length,
-  });
-
-  if (remoteTeams.length === 0) {
-    state = createStateFromPersisted({
-      page: cachedState.page,
-      activeTeamId: cachedState.activeTeamId,
-      teams: [],
-    });
-    persistCachedStateOnly();
-    syncFormFromState();
-    renderAll();
-    return;
-  }
-
-  state = createStateFromPersisted({
-    page: cachedState.page,
-    activeTeamId:
-      cachedState.activeTeamId && remoteTeams.some((team) => team.id === cachedState.activeTeamId)
-        ? cachedState.activeTeamId
-        : remoteTeams[0].id,
-    teams: remoteTeams,
-  });
-
-  persistCachedStateOnly();
-  persistUserScopedState();
-  syncFormFromState();
-  renderAll();
-  clearStatus(configStatus);
-}
-
-async function signUpWithEmail() {
-  if (!supabaseClient) {
-    setStatus(authStatus, "Supabase is not ready yet.", true);
-    return;
-  }
-
-  const email = authEmailInput.value.trim();
-  const password = authPasswordInput.value;
-
-  if (!email || !password) {
-    setStatus(authStatus, "Enter an email and password first.", true);
-    return;
-  }
-
-  const { data, error } = await supabaseClient.auth.signUp({
-    email,
-    password,
-  });
-
-  if (error) {
-    setStatus(authStatus, error.message || "Could not create account.", true);
-    return;
-  }
-
-  if (!data.session) {
-    setStatus(
-      authStatus,
-      "Account created. Check your email if confirmation is enabled, then log in.",
-      false,
-    );
-    return;
-  }
-
-  setStatus(authStatus, "Account created and signed in.", false);
-}
-
-async function signInWithEmail() {
-  if (!supabaseClient) {
-    setStatus(authStatus, "Supabase is not ready yet.", true);
-    return;
-  }
-
-  const email = authEmailInput.value.trim();
-  const password = authPasswordInput.value;
-
-  if (!email || !password) {
-    setStatus(authStatus, "Enter your email and password first.", true);
-    return;
-  }
-
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    setStatus(authStatus, error.message || "Could not log in.", true);
-    return;
-  }
-
-  setStatus(authStatus, "Logged in.", false);
-}
-
-async function signOutUser() {
-  if (!supabaseClient) {
-    return;
-  }
-
-  persistUserScopedState();
-
-  setStatus(authStatus, "Logging out...", false);
-
-  let error = null;
-
-  try {
-    const result = await Promise.race([
-      supabaseClient.auth.signOut({ scope: "local" }),
-      timeoutAfter(4000),
-    ]);
-    error = result?.error || null;
-  } catch (caughtError) {
-    error = caughtError;
-  }
-
-  if (error) {
-    console.warn("[Supabase] Local sign-out did not complete cleanly, forcing local session clear", {
-      error,
-      message: error?.message || String(error),
-    });
-    clearSupabaseBrowserSession();
-  }
-
-  console.info("[Supabase] Sign-out succeeded, clearing local auth state");
-  await applyAuthSession(null);
-  setStatus(authStatus, "Logged out.", false);
-}
-
-function timeoutAfter(milliseconds) {
-  return new Promise((_, reject) => {
-    window.setTimeout(() => {
-      reject(new Error("Supabase sign-out timed out."));
-    }, milliseconds);
-  });
-}
-
-function clearSupabaseBrowserSession() {
-  clearSupabaseStorageArea(window.localStorage);
-  clearSupabaseStorageArea(window.sessionStorage);
-}
-
-function clearSupabaseStorageArea(storage) {
-  if (!storage) {
-    return;
-  }
-
-  const keysToRemove = [];
-
-  for (let index = 0; index < storage.length; index += 1) {
-    const key = storage.key(index);
-
-    if (key && /^sb-.*-(auth-token|code-verifier)$/.test(key)) {
-      keysToRemove.push(key);
-    }
-  }
-
-  keysToRemove.forEach((key) => {
-    storage.removeItem(key);
-  });
-}
-
-async function submitFeedback() {
-  const message = feedbackMessageInput.value.trim();
-
-  if (!message) {
-    setStatus(feedbackStatus, "Write a little feedback before submitting it.", true);
-    return;
-  }
-
-  setStatus(feedbackStatus, "Sending feedback...", false);
-
-  try {
-    const response = await fetch(feedbackEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        message,
-        userEmail: supabaseUserEmail || "",
-        app: "TeamPro",
-        page: state.page,
-      }),
-    });
-
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(result.error || "Feedback could not be sent right now.");
-    }
-
-    feedbackForm.reset();
-    setStatus(feedbackStatus, "Thanks. Your feedback has been sent.", false);
-  } catch (error) {
-    console.error("[Feedback] Submit failed", {
-      error,
-      message: error?.message || String(error),
-    });
-    setStatus(
-      feedbackStatus,
-      error?.message || "Feedback could not be sent right now.",
-      true,
-    );
-  }
-}
-
-async function generateTrainingPlan(options = {}) {
-  trainingState.loading = true;
-  trainingState.accepted = false;
-  renderTrainingView();
-  setStatus(
-    trainingStatus,
-    options.regenerate ? "Generating another training plan..." : "Generating training plan...",
-    false,
-  );
-
-  try {
-    const response = await fetch(trainingPlanEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        teamName: state.config.teamName || "Untitled team",
-        playersOnField: state.config.playersOnField,
-        ageRange: getAgeRangeForPlayersOnField(state.config.playersOnField),
-        focusArea: trainingState.focusArea,
-        formation: state.lineup.formation,
-        squadSize: state.players.length,
-        variationSeed:
-          window.crypto && typeof window.crypto.randomUUID === "function"
-            ? window.crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-        previousPlanTitle: options.regenerate ? trainingState.plan?.title || "" : "",
-      }),
-    });
-
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(result.error || "Training plan generation failed.");
-    }
-
-    trainingState.plan = normaliseTrainingPlan(result);
-    clearStatus(trainingStatus);
-  } catch (error) {
-    console.error("[Training] Plan generation failed", {
-      error,
-      message: error?.message || String(error),
-    });
-    setStatus(
-      trainingStatus,
-      error?.message || "Training plan generation failed.",
-      true,
-    );
-  } finally {
-    trainingState.loading = false;
-    renderTrainingView();
-  }
-}
-
-function acceptTrainingPlan() {
-  if (!trainingState.plan) {
-    setStatus(trainingStatus, "Generate a plan first.", true);
-    return;
-  }
-
-  trainingState.accepted = true;
-  renderTrainingView();
-  setStatus(trainingStatus, "Training plan accepted for this session.", false);
-}
-
-async function copyTrainingPlan() {
-  if (!trainingState.plan) {
-    setStatus(trainingStatus, "Generate a plan first.", true);
-    return;
-  }
-
-  const text = formatTrainingPlanAsText(trainingState.plan);
-
-  if (!navigator.clipboard?.writeText) {
-    setStatus(trainingStatus, "Clipboard copy is not supported here.", true);
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(text);
-    setStatus(trainingStatus, "Training plan copied to the clipboard.", false);
-  } catch (error) {
-    setStatus(trainingStatus, "Could not copy the training plan right now.", true);
-  }
-}
-
-function describeSupabaseError(error) {
-  const message = String(error?.message || error || "");
-
-  if (message.includes("Invalid API key") || message.includes("JWT")) {
-    return "Check that SUPABASE_URL and SUPABASE_ANON_KEY are correct.";
-  }
-
-  if (message.includes("relation") || message.includes("column")) {
-    return "The database schema does not match the app yet. Run the latest supabase-schema.sql in Supabase.";
-  }
-
-  if (message.includes("row-level security") || message.includes("permission denied")) {
-    return "Supabase RLS is blocking this request. Update your policies to allow anon access for this public app.";
-  }
-
-  if (message.includes("Config endpoint unavailable")) {
-    return "The frontend could not read runtime config. Confirm the Vercel build ran and /api/config or public-config.js is available.";
-  }
-
-  return message || "Check the browser console and Supabase settings.";
-}
-
-function safeSupabaseHost(url) {
-  try {
-    return new URL(url).host;
-  } catch (error) {
-    return url;
-  }
-}
-
-function normaliseSupabaseProjectUrl(url) {
-  if (!url) {
-    return "";
-  }
-
-  try {
-    const parsed = new URL(url);
-    parsed.pathname = parsed.pathname
-      .replace(/\/rest\/v1\/?$/i, "/")
-      .replace(/\/auth\/v1\/?$/i, "/");
-    parsed.search = "";
-    parsed.hash = "";
-    return parsed.toString().replace(/\/$/, "");
-  } catch (error) {
-    return String(url)
-      .replace(/\/rest\/v1\/?$/i, "")
-      .replace(/\/auth\/v1\/?$/i, "")
-      .replace(/\/$/, "");
-  }
-}
-
-function loadState() {
-  const fallbackTeam = createTeamRecordFromConfig(sampleConfig);
-
-  try {
-    const raw = localStorage.getItem(storageKey);
-
-    if (!raw) {
-      return createStateFromPersisted({
-        page: "config",
-        activeTeamId: fallbackTeam.id,
-        teams: [fallbackTeam],
-      });
-    }
-
-    const parsed = JSON.parse(raw);
-
-    if (!parsed) {
-      return createStateFromPersisted({
-        page: "config",
-        activeTeamId: fallbackTeam.id,
-        teams: [fallbackTeam],
-      });
-    }
-
-    if (Array.isArray(parsed.teams) && parsed.teams.length > 0) {
-      return createStateFromPersisted(parsed);
-    }
-
-    if (parsed.config) {
-      const migratedTeam = createTeamRecordFromLegacyState(parsed);
-      return createStateFromPersisted({
-        page: parsed.page === "manage" ? "manage" : "config",
-        activeTeamId: migratedTeam.id,
-        teams: [migratedTeam],
-      });
-    }
-
-    return createStateFromPersisted({
-      page: "config",
-      activeTeamId: fallbackTeam.id,
-      teams: [fallbackTeam],
-    });
-  } catch (error) {
-    return createStateFromPersisted({
-      page: "config",
-      activeTeamId: fallbackTeam.id,
-      teams: [fallbackTeam],
-    });
-  }
-}
-
-function createStateFromPersisted(saved) {
-  const fallbackTeam = createTeamRecordFromConfig(sampleConfig);
-  const teams = (saved.teams || [])
-    .map(sanitiseTeamRecord)
-    .filter(Boolean);
-  const activeTeamId = teams.some((team) => team.id === saved.activeTeamId)
-    ? saved.activeTeamId
-    : (teams[0] || fallbackTeam).id;
-  const activeTeam = teams.find((team) => team.id === activeTeamId) || fallbackTeam;
-  const runtime = hydrateTeamRuntime(activeTeam);
+  const buffer = await file.arrayBuffer();
+  const workbook = window.XLSX.read(buffer, { type: "array" });
+  const sheets = workbook.SheetNames
+    .map((sheetName) => {
+      const sheet = workbook.Sheets[sheetName];
+      const rows = window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      return { sheetName, rows };
+    })
+    .filter((sheet) => sheet.rows.length > 0);
+
+  const bestSheet = sheets.find((sheet) => {
+    const headers = Object.keys(sheet.rows[0] || {});
+    const mapping = detectMapping(headers);
+    return mapping.xAxis;
+  }) || sheets[0];
+
+  if (!bestSheet) return { rows: [], label: file.name };
 
   return {
-    page: ["account", "config", "manage", "training"].includes(saved.page) ? saved.page : "config",
-    teams: teams.length > 0 ? teams : [fallbackTeam],
-    activeTeamId: activeTeam.id,
-    config: runtime.config,
-    players: runtime.players,
-    lineup: runtime.lineup,
-    selectedTarget: null,
+    rows: bestSheet.rows,
+    label: `${file.name} / ${bestSheet.sheetName}`,
   };
 }
 
-function hydrateTeamRuntime(teamRecord) {
-  const config = normaliseConfig(teamRecord.config);
-  const players = config.players.map((name, index) => ({
-    id: createId(index),
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  rows.push(row);
+
+  const [headers = [], ...body] = rows.filter((item) => item.some((value) => value.trim() !== ""));
+  const cleanHeaders = headers.map((header, index) => header.trim() || `Column ${index + 1}`);
+  return body.map((values) =>
+    cleanHeaders.reduce((record, header, index) => {
+      record[header] = values[index] || "";
+      return record;
+    }, {}),
+  );
+}
+
+function populateMappingControls() {
+  const yOptions = [countMeasure, ...state.headers];
+  const breakdownOptions = [noBreakdown, ...state.headers];
+
+  fillSelect(elements.xAxisColumn, state.headers, state.mapping.xAxis);
+  fillSelect(elements.yAxisColumn, yOptions, state.mapping.yAxis, "Count of rows");
+  fillSelect(elements.breakdownColumn, breakdownOptions, state.mapping.breakdown || noBreakdown, "None");
+  elements.fieldCount.textContent = `${state.headers.length} field${state.headers.length === 1 ? "" : "s"}`;
+  elements.mappingPanel.classList.toggle("hidden", state.headers.length === 0);
+}
+
+function fillSelect(select, options, selectedValue, specialLabel) {
+  select.replaceChildren();
+  options.forEach((option) => {
+    const item = document.createElement("option");
+    item.value = option;
+    item.textContent = option === countMeasure || option === noBreakdown ? specialLabel : option;
+    item.selected = option === selectedValue;
+    select.append(item);
+  });
+}
+
+function detectMapping(headers) {
+  const xAxis = findHeader(headers, ["pipeline", "stage", "status", "category", "type"]) || headers[0] || "";
+  const breakdown = findHeader(headers, ["deal owner", "owner", "hubspot owner", "assignee", "rep"]) || noBreakdown;
+  const yAxis = findHeader(headers, ["(count) deals", "count deals", "deal count", "count", "amount", "value"]) || countMeasure;
+  return { xAxis, yAxis, breakdown };
+}
+
+function findHeader(headers, candidates) {
+  const normalised = headers.map((header) => ({
+    raw: header,
+    key: normaliseHeader(header),
+  }));
+
+  for (const candidate of candidates) {
+    const match = normalised.find((header) => header.key === normaliseHeader(candidate));
+    if (match) return match.raw;
+  }
+
+  return "";
+}
+
+function normaliseHeader(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function applyRawRows(options = {}) {
+  if (!state.mapping.xAxis) {
+    clearReportRows();
+    renderDashboard();
+    showStatus("Choose an X-axis field to build the report.");
+    return;
+  }
+
+  const grouped = new Map();
+  state.rawRows.forEach((row) => {
+    const xValue = normaliseDimensionValue(row[state.mapping.xAxis]);
+    const seriesName = state.mapping.breakdown && state.mapping.breakdown !== noBreakdown
+      ? normaliseDimensionValue(row[state.mapping.breakdown])
+      : defaultSeries;
+    const value = getMeasureValue(row, state.mapping.yAxis);
+
+    if (!xValue || !seriesName) return;
+
+    const key = `${xValue}|||${seriesName}`;
+    grouped.set(key, (grouped.get(key) || 0) + value);
+  });
+
+  const groupedRows = [...grouped.entries()].map(([key, value]) => {
+    const [xValue, seriesName] = key.split("|||");
+    return { xValue, seriesName, value };
+  });
+
+  if (!groupedRows.length) {
+    clearReportRows();
+    renderDashboard();
+    showStatus("No usable values were found for this configuration.");
+    return;
+  }
+
+  initialiseData(groupedRows);
+  updateUrl();
+  renderDashboard();
+  if (!options.silent) showStatus(`Loaded ${state.fileName}.`);
+}
+
+function getMeasureValue(row, yAxis) {
+  if (!yAxis || yAxis === countMeasure) return 1;
+  const rawValue = row[yAxis];
+  const numeric = parseNumber(rawValue);
+  if (Number.isFinite(numeric)) return numeric;
+  return String(rawValue ?? "").trim() ? 1 : 0;
+}
+
+function initialiseData(rows) {
+  state.groupedRows = rows;
+  state.xValues = unique(rows.map((row) => row.xValue));
+  const seriesNames = unique(rows.map((row) => row.seriesName));
+  state.series = seriesNames.map((name, index) => ({
     name,
+    color: palette[index % palette.length],
   }));
-  const runtime = {
-    config,
-    players,
-    lineup: buildLineup(players, config.playersOnField, config.selectedFormation),
-  };
-
-  return applySavedLineup(runtime, teamRecord.lineup);
+  state.activeSeries = new Set(seriesNames);
+  state.selectedXValue = state.xValues[0] || "";
 }
 
-function applySavedLineup(runtime, savedLineup) {
-  if (!savedLineup?.formation || !runtime.config.formations.includes(savedLineup.formation)) {
-    return runtime;
-  }
+function startFreshUpload(fileName, rows) {
+  state.fileName = fileName;
+  state.rawRows = rows;
+  state.headers = Object.keys(rows[0] || {});
+  state.mapping = detectMapping(state.headers);
+  hideTooltip();
+  clearReportRows();
+}
 
-  runtime.lineup = buildLineup(runtime.players, runtime.config.playersOnField, savedLineup.formation);
+function clearReportRows() {
+  state.groupedRows = [];
+  state.xValues = [];
+  state.series = [];
+  state.activeSeries = new Set();
+  state.selectedXValue = "";
+}
 
-  const availablePlayers = new Map(runtime.players.map((player) => [player.name, player.id]));
-  const absentIds = [];
-  (savedLineup.absent || []).forEach((name) => {
-    const playerId = availablePlayers.get(name);
+function clearAllData() {
+  state.rawRows = [];
+  state.groupedRows = [];
+  state.xValues = [];
+  state.series = [];
+  state.activeSeries = new Set();
+  state.selectedXValue = "";
+  state.fileName = "";
+  state.headers = [];
+  state.mapping = {
+    xAxis: "",
+    yAxis: countMeasure,
+    breakdown: noBreakdown,
+  };
+  hideTooltip();
+  populateMappingControls();
+}
 
-    if (playerId && !absentIds.includes(playerId)) {
-      absentIds.push(playerId);
-    }
-  });
+function initialiseFromUrl() {
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const encodedData = hashParams.get("data");
 
-  runtime.lineup.absentIds = absentIds;
-  const used = new Set();
-
-  runtime.lineup.slots.forEach((slot, index) => {
-    const playerName = savedLineup.slotAssignments?.[index];
-    const playerId = availablePlayers.get(playerName);
-
-    if (playerId && !used.has(playerId) && !absentIds.includes(playerId)) {
-      slot.occupantId = playerId;
-      used.add(playerId);
-    } else {
-      slot.occupantId = null;
-    }
-  });
-
-  runtime.lineup.benchIds = [];
-  (savedLineup.bench || []).forEach((name) => {
-    const playerId = availablePlayers.get(name);
-
-    if (playerId && !used.has(playerId) && !absentIds.includes(playerId)) {
-      runtime.lineup.benchIds.push(playerId);
-      used.add(playerId);
-    }
-  });
-
-  absentIds.forEach((playerId) => {
-    if (!runtime.lineup.benchIds.includes(playerId)) {
-      runtime.lineup.benchIds.push(playerId);
-    }
-    used.add(playerId);
-  });
-
-  runtime.players.forEach((player) => {
-    if (!used.has(player.id)) {
-      const emptySlot = runtime.lineup.slots.find((slot) => !slot.occupantId);
-
-      if (emptySlot) {
-        emptySlot.occupantId = player.id;
-      } else {
-        runtime.lineup.benchIds.push(player.id);
+  if (encodedData) {
+    try {
+      const shared = JSON.parse(decodeURIComponent(escape(window.atob(encodedData))));
+      if (Array.isArray(shared.rows) && shared.rows.length > 0) {
+        state.fileName = shared.fileName || "Shared data";
+        state.mapping = shared.mapping || state.mapping;
+        initialiseData(shared.rows);
       }
+    } catch {
+      showStatus("The shared dashboard data could not be loaded.");
     }
-  });
-
-  return runtime;
-}
-
-function createTeamRecordFromLegacyState(saved) {
-  return {
-    id: createTeamStorageId(),
-    config: normaliseConfig(saved.config),
-    lineup: saved.lineup || null,
-  };
-}
-
-function createTeamRecordFromConfig(config) {
-  const teamId = createTeamStorageId();
-  const normalised = normaliseConfig(config);
-  const runtime = hydrateTeamRuntime({
-    id: teamId,
-    config: normalised,
-    lineup: null,
-  });
-
-  return {
-    id: teamId,
-    config: runtime.config,
-    lineup: createLineupSnapshot(runtime),
-  };
-}
-
-function sanitiseTeamRecord(team) {
-  if (!team?.config) {
-    return null;
   }
 
-  return {
-    id: team.id || createTeamStorageId(),
-    config: normaliseConfig(team.config),
-    lineup: team.lineup || null,
-  };
-}
+  const params = new URLSearchParams(window.location.search || window.location.hash.slice(1));
+  const seriesParam = params.get("series");
+  const xParam = params.get("x");
 
-function normaliseConfig(config) {
-  const playersOnField = Number(config.playersOnField) || 9;
-  const players = Array.isArray(config.players) ? dedupeNames(config.players) : [];
-  const formations = Array.from(
-    new Set((config.formations || []).map(normaliseFormation)),
-  ).filter((formation) => isValidFormation(formation, playersOnField));
-  const safeFormations = formations.length > 0
-    ? formations
-    : getSuggestedFormations(playersOnField).slice(0, 1);
+  if (seriesParam) {
+    const allowed = new Set(state.series.map((item) => item.name));
+    const selected = seriesParam
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => allowed.has(item));
 
-  return {
-    ...config,
-    teamName: (config.teamName || "").trim(),
-    playersOnField,
-    players,
-    formations: safeFormations,
-    selectedFormation: safeFormations.includes(config.selectedFormation)
-      ? config.selectedFormation
-      : safeFormations[0],
-  };
-}
-
-function createTeamStorageId() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
+    if (selected.length > 0) state.activeSeries = new Set(selected);
   }
 
-  return `team-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  if (state.xValues.includes(xParam)) state.selectedXValue = xParam;
 }
 
-function createId(index) {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
+function renderDashboard() {
+  renderLabels();
+  renderLegend();
+  renderBars();
+  renderBreakdown(state.selectedXValue);
+  renderTable();
+}
+
+function renderLabels() {
+  const yLabel = getMeasureLabel();
+  const xLabel = state.mapping.xAxis || "X-axis";
+  const breakdownLabel = getBreakdownLabel();
+
+  elements.chartTitle.textContent = yLabel;
+  elements.yAxisTitle.textContent = yLabel;
+  elements.xAxisTitle.textContent = xLabel;
+  elements.tableXHeader.textContent = xLabel;
+  elements.tableBreakdownHeader.textContent = breakdownLabel;
+  elements.tableValueHeader.textContent = yLabel;
+  elements.barChart.setAttribute("aria-label", `Vertical bar chart of ${yLabel} by ${xLabel}`);
+}
+
+function renderLegend() {
+  elements.ownerLegend.replaceChildren();
+
+  if (state.series.length <= 1 && state.series[0]?.name === defaultSeries) {
+    elements.filterCount.textContent = "0";
+    return;
   }
 
-  return `player-${Date.now()}-${index}`;
-}
-
-function buildLineup(players, playersOnField, formation) {
-  const slots = buildFormationSlots(formation, playersOnField).map((slot) => ({
-    ...slot,
-    occupantId: null,
-  }));
-
-  players.forEach((player, index) => {
-    if (slots[index]) {
-      slots[index].occupantId = player.id;
-    }
+  state.series.forEach((series) => {
+    const isActive = state.activeSeries.has(series.name);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `legend-item${isActive ? " is-active" : ""}`;
+    button.setAttribute("aria-pressed", String(isActive));
+    button.innerHTML = `<span style="background:${series.color}"></span>${escapeHtml(series.name)}`;
+    button.addEventListener("click", () => toggleSeries(series.name));
+    elements.ownerLegend.append(button);
   });
 
-  return {
-    formation,
-    slots,
-    benchIds: players.slice(slots.length).map((player) => player.id),
-    absentIds: [],
-  };
+  elements.filterCount.textContent = state.series.length - state.activeSeries.size;
 }
 
-function syncFormFromState() {
-  applyConfigToForm(state.config);
-}
+function renderBars() {
+  elements.barChart.replaceChildren();
 
-function applyConfigToForm(config) {
-  teamNameInput.value = config.teamName;
-  playersOnFieldInput.value = String(config.playersOnField);
-  playerNamesInput.value = config.players.join("\n");
-  formationDraft = [...config.formations];
-  renderFormationChoices();
-}
+  if (!state.xValues.length) {
+    elements.chartGrid.style.setProperty("--tick-count", 1);
+    elements.chartGrid.dataset.labels = "0";
+    elements.chartGrid.style.width = "100%";
+    elements.barChart.style.setProperty("--pipeline-count", 1);
+    const empty = document.createElement("p");
+    empty.className = "chart-empty";
+    empty.textContent = "Load a spreadsheet to build a chart.";
+    elements.barChart.append(empty);
+    return;
+  }
 
-function renderFormationChoices() {
-  const playersOnField = Number(playersOnFieldInput.value);
-  const suggestions = getSuggestedFormations(playersOnField);
-  const combined = Array.from(new Set([...formationDraft, ...suggestions]))
-    .filter((formation) => isValidFormation(formation, playersOnField))
-    .sort(compareFormationStrings);
+  const xTotals = getXTotals();
+  const maxTotal = Math.max(1, ...Object.values(xTotals));
+  const step = niceStep(maxTotal);
+  const yMax = Math.max(step, Math.ceil(maxTotal / step) * step);
+  const tickCount = Math.max(1, yMax / step);
+  const plotHeight = 300;
+  const barWidth = getDynamicBarWidth(state.xValues.length);
 
-  formationSuggestions.innerHTML = combined
-    .map(
-      (formation) => `
-        <label class="formation-choice">
-          <input
-            type="checkbox"
-            value="${formation}"
-            ${formationDraft.includes(formation) ? "checked" : ""}
-          />
-          <span>${formation}</span>
-        </label>
-      `,
-    )
-    .join("");
+  elements.chartGrid.style.setProperty("--tick-count", tickCount);
+  elements.chartGrid.dataset.labels = Array.from({ length: tickCount + 1 }, (_, index) => formatNumber(yMax - index * step)).join("\n");
+  elements.chartGrid.style.width = "100%";
+  elements.barChart.style.setProperty("--pipeline-count", Math.max(1, state.xValues.length));
+  elements.barChart.style.setProperty("--bar-width", `${barWidth}px`);
 
-  formationHelp.textContent = `Every formation must add up to ${playersOnField - 1} outfield players, plus 1 goalkeeper.`;
-
-  Array.from(formationSuggestions.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
-    input.addEventListener("change", () => {
-      formationDraft = Array.from(
-        formationSuggestions.querySelectorAll('input[type="checkbox"]:checked'),
-        (checkbox) => checkbox.value,
-      ).sort(compareFormationStrings);
+  state.xValues.forEach((xValue) => {
+    const total = xTotals[xValue] || 0;
+    const barGroup = document.createElement("button");
+    barGroup.type = "button";
+    barGroup.className = `bar-group${state.selectedXValue === xValue ? " is-selected" : ""}`;
+    barGroup.addEventListener("click", () => {
+      state.selectedXValue = xValue;
+      updateUrl();
+      renderDashboard();
     });
+    barGroup.addEventListener("pointerenter", (event) => showTooltip(event, xValue));
+    barGroup.addEventListener("pointermove", (event) => positionTooltip(event));
+    barGroup.addEventListener("pointerleave", hideTooltip);
+
+    const valueLabel = document.createElement("strong");
+    valueLabel.className = "bar-total";
+    valueLabel.textContent = formatNumber(total);
+    valueLabel.style.bottom = `${(total / yMax) * plotHeight + 7}px`;
+
+    const stack = document.createElement("div");
+    stack.className = "bar-stack";
+
+    state.series
+      .filter((series) => state.activeSeries.has(series.name))
+      .reverse()
+      .forEach((series) => {
+        const value = getValue(xValue, series.name);
+        if (value === 0 || total === 0) return;
+
+        const segment = document.createElement("span");
+        segment.className = "bar-segment";
+        segment.title = `${series.name}: ${formatNumber(value)}`;
+        segment.style.background = series.color;
+        segment.style.height = `${(value / yMax) * 100}%`;
+        stack.append(segment);
+      });
+
+    const label = document.createElement("span");
+    label.className = "bar-label";
+    label.textContent = xValue;
+
+    barGroup.append(valueLabel, stack, label);
+    elements.barChart.append(barGroup);
   });
 }
 
-function renderAll() {
-  renderTeamSwitcher();
-  renderPage();
-  renderStats();
-  renderManagerControls();
-  renderBench();
-  renderPitch();
-  renderTrainingView();
-}
+function renderBreakdown(xValue) {
+  const rows = state.series
+    .map((series) => ({ ...series, value: getValue(xValue, series.name) }))
+    .filter((row) => row.value > 0 && state.activeSeries.has(row.name))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
 
-function renderTeamSwitcher() {
-  teamSwitcher.innerHTML = state.teams
-    .map((team) => {
-      const selected = team.id === state.activeTeamId ? "selected" : "";
-      const label = team.config.teamName || "Untitled team";
-      return `<option value="${team.id}" ${selected}>${escapeHtml(label)}</option>`;
-    })
-    .join("");
+  const total = sum(rows.map((row) => row.value));
+  elements.selectedPipelineTitle.textContent = xValue || "Selection details";
+  elements.selectedPipelineMeta.textContent = `${formatNumber(total)} visible ${getMeasureLabel().toLowerCase()} across ${rows.length} ${getBreakdownLabel().toLowerCase()} value${rows.length === 1 ? "" : "s"}.`;
+  elements.pipelineBreakdown.replaceChildren();
 
-  deleteTeamButton.disabled = !supabaseUserId || state.teams.length === 0;
-}
-
-function renderPage() {
-  const accountActive = state.page === "account";
-  const configActive = state.page === "config";
-  const manageActive = state.page === "manage";
-  const trainingActive = state.page === "training";
-
-  accountPage.classList.toggle("hidden", !accountActive);
-  configPage.classList.toggle("hidden", !configActive);
-  managePage.classList.toggle("hidden", !manageActive);
-  trainingPage.classList.toggle("hidden", !trainingActive);
-  navAccount.classList.toggle("is-active", accountActive);
-  navConfig.classList.toggle("is-active", configActive);
-  navManage.classList.toggle("is-active", manageActive);
-  navTraining.classList.toggle("is-active", trainingActive);
-}
-
-function renderStats() {
-  statPlayers.textContent = String(state.players.length);
-  statOnField.textContent = String(state.config.playersOnField);
-  statFormationCount.textContent = String(state.config.formations.length);
-}
-
-function renderManagerControls() {
-  teamNameSummary.textContent = state.config.teamName || "Untitled team";
-  pitchTitle.textContent = `${state.config.teamName || "Football"} | ${state.lineup.formation}`;
-  selectionHint.textContent = state.selectedTarget
-    ? describeSelection(state.selectedTarget)
-    : "Select a player on the field or bench, then select another player or an empty position.";
-
-  formationSelect.innerHTML = state.config.formations
-    .map(
-      (formation) =>
-        `<option value="${formation}" ${formation === state.lineup.formation ? "selected" : ""}>${formation}</option>`,
-    )
-    .join("");
-
-  saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
-  renderAvailabilityControl();
-}
-
-function renderAvailabilityControl() {
-  const selectedPlayer = getSelectedPlayer();
-
-  if (!selectedPlayer) {
-    toggleAvailabilityButton.disabled = true;
-    toggleAvailabilityButton.textContent = "Mark selected absent";
+  if (rows.length === 0) {
+    elements.pipelineBreakdown.innerHTML = `<p class="empty-state">No rows match the current configuration.</p>`;
     return;
   }
 
-  const selectedAbsent = isPlayerAbsent(selectedPlayer.id);
-  toggleAvailabilityButton.disabled = false;
-  toggleAvailabilityButton.textContent = selectedAbsent
-    ? "Mark selected available"
-    : "Mark selected absent";
-}
-
-function renderTrainingView() {
-  if (!trainingFocusSelect) {
-    return;
-  }
-
-  const focusArea = trainingState.focusArea || "Passing";
-  const ageRange = getAgeRangeForPlayersOnField(state.config.playersOnField);
-  const teamName = state.config.teamName || "Untitled team";
-
-  trainingFocusSelect.value = focusArea;
-  trainingTeamLabel.textContent = `${teamName} training`;
-  trainingAgeRange.textContent = `${ageRange} | ${state.config.playersOnField} on field | Focus: ${focusArea}`;
-  generateTrainingPlanButton.disabled = trainingState.loading;
-  refreshTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
-  acceptTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
-  copyTrainingPlanButton.disabled = trainingState.loading || !trainingState.plan;
-
-  if (!trainingState.plan) {
-    trainingPlanTitle.textContent = "Training Plan";
-    trainingPlanMeta.textContent = "Generate a plan to see a one-hour session tailored to this team format and focus area.";
-    trainingPlanBody.innerHTML = `
-      <div class="info-card">
-        <strong>Ready when you are</strong>
-        <p>Choose a focus area and generate a fresh session plan. If the first one is not quite right, ask TeamPro for another option.</p>
+  rows.forEach((row) => {
+    const percent = total ? Math.round((row.value / total) * 100) : 0;
+    const item = document.createElement("div");
+    item.className = "breakdown-item";
+    item.innerHTML = `
+      <div class="breakdown-label">
+        <span style="background:${row.color}"></span>
+        <strong>${escapeHtml(row.name)}</strong>
       </div>
+      <div class="breakdown-value">
+        <strong>${formatNumber(row.value)}</strong>
+        <span>${percent}%</span>
+      </div>
+      <div class="meter"><span style="width:${percent}%; background:${row.color}"></span></div>
     `;
-    return;
+    elements.pipelineBreakdown.append(item);
+  });
+}
+
+function renderTable() {
+  const rows = state.groupedRows
+    .filter((row) => state.activeSeries.has(row.seriesName))
+    .sort((a, b) => state.xValues.indexOf(a.xValue) - state.xValues.indexOf(b.xValue) || b.value - a.value);
+  const visibleTotal = sum(rows.map((row) => row.value));
+
+  elements.sourceMeta.textContent = state.groupedRows.length
+    ? `${state.fileName}: ${state.groupedRows.length} grouped rows.`
+    : "No data loaded.";
+  elements.dataRows.replaceChildren();
+
+  rows.forEach((row) => {
+    const series = state.series.find((item) => item.name === row.seriesName);
+    const share = visibleTotal ? Math.round((row.value / visibleTotal) * 100) : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(row.xValue)}</td>
+      <td><span class="table-dot" style="background:${series?.color || palette[0]}"></span>${escapeHtml(row.seriesName)}</td>
+      <td>${formatNumber(row.value)}</td>
+      <td>${share}%</td>
+    `;
+    elements.dataRows.append(tr);
+  });
+}
+
+function toggleSeries(seriesName) {
+  if (state.activeSeries.has(seriesName) && state.activeSeries.size > 1) {
+    state.activeSeries.delete(seriesName);
+  } else {
+    state.activeSeries.add(seriesName);
   }
 
-  const plan = trainingState.plan;
-  trainingPlanTitle.textContent = plan.title;
-  trainingPlanMeta.textContent = `${plan.focusArea} focus | ${plan.ageRange} | ${plan.totalMinutes} minutes${trainingState.accepted ? " | Accepted" : ""}`;
-  trainingPlanBody.innerHTML = `
-    <div class="info-card">
-      <strong>Overview</strong>
-      <p>${escapeHtml(plan.summary)}</p>
-      <p><strong>Session goals:</strong> ${plan.sessionGoals.map(escapeHtml).join(" | ")}</p>
-      <p><strong>Equipment:</strong> ${plan.equipment.map(escapeHtml).join(", ")}</p>
-    </div>
-    ${plan.blocks
-      .map(
-        (block) => `
-          <div class="training-plan-block">
-            <div class="training-plan-block-header">
-              <strong>${escapeHtml(block.title)}</strong>
-              <span>${escapeHtml(String(block.durationMinutes))} mins</span>
-            </div>
-            <p>${escapeHtml(block.purpose)}</p>
-            <p><strong>Setup:</strong> ${escapeHtml(block.setup)}</p>
-            <ul class="training-plan-points">
-              ${block.coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
-            </ul>
-          </div>
-        `,
-      )
+  updateUrl();
+  renderDashboard();
+}
+
+function showTooltip(event, xValue) {
+  renderTooltip(xValue);
+  elements.chartTooltip.classList.remove("hidden");
+  positionTooltip(event);
+}
+
+function renderTooltip(xValue) {
+  const rows = state.series
+    .map((series) => ({ ...series, value: getValue(xValue, series.name) }))
+    .filter((row) => row.value > 0 && state.activeSeries.has(row.name));
+  const total = sum(rows.map((row) => row.value));
+
+  elements.chartTooltip.innerHTML = `
+    <strong>${escapeHtml(xValue)}</strong>
+    <span>${escapeHtml(getMeasureLabel())}</span>
+    ${rows
+      .map((row) => {
+        const percent = total ? Math.round((row.value / total) * 100) : 0;
+        return `<div><i style="background:${row.color}"></i>${escapeHtml(row.name)}<b>${formatNumber(row.value)}</b><em>(${percent}%)</em></div>`;
+      })
       .join("")}
-    <div class="info-card">
-      <strong>Coach reminder</strong>
-      <p>${escapeHtml(plan.coachReminder)}</p>
-    </div>
+    <footer>Totals: <b>${formatNumber(total)}</b></footer>
   `;
 }
 
-function getAgeRangeForPlayersOnField(playersOnField) {
-  if (playersOnField <= 6) {
-    return "Ages 7-9";
-  }
-
-  if (playersOnField <= 8) {
-    return "Ages 9-11";
-  }
-
-  if (playersOnField <= 10) {
-    return "Ages 11-13";
-  }
-
-  return "Ages 14 to adult";
+function positionTooltip(event) {
+  const offset = 18;
+  elements.chartTooltip.style.left = `${event.clientX + offset}px`;
+  elements.chartTooltip.style.top = `${event.clientY + offset}px`;
 }
 
-function normaliseTrainingPlan(plan) {
-  if (!plan || typeof plan !== "object") {
-    return plan;
+function hideTooltip() {
+  elements.chartTooltip.classList.add("hidden");
+}
+
+function getValue(xValue, seriesName) {
+  return state.groupedRows.find((row) => row.xValue === xValue && row.seriesName === seriesName)?.value || 0;
+}
+
+function getXTotals() {
+  return state.xValues.reduce((totals, xValue) => {
+    totals[xValue] = state.groupedRows
+      .filter((row) => row.xValue === xValue && state.activeSeries.has(row.seriesName))
+      .reduce((total, row) => total + row.value, 0);
+    return totals;
+  }, {});
+}
+
+function getSeriesTotals() {
+  return state.series.reduce((totals, series) => {
+    if (!state.activeSeries.has(series.name)) return totals;
+    totals[series.name] = state.groupedRows
+      .filter((row) => row.seriesName === series.name)
+      .reduce((total, row) => total + row.value, 0);
+    return totals;
+  }, {});
+}
+
+function getLargestEntry(values) {
+  return Object.entries(values)
+    .filter((entry) => entry[1] > 0)
+    .sort((a, b) => b[1] - a[1])[0];
+}
+
+function getDynamicBarWidth(count) {
+  if (count <= 6) return 150;
+  if (count <= 10) return 110;
+  if (count <= 16) return 78;
+  if (count <= 24) return 52;
+  return 34;
+}
+
+function updateUrl() {
+  const params = new URLSearchParams();
+  if (state.selectedXValue) params.set("x", state.selectedXValue);
+  if (state.activeSeries.size !== state.series.length) {
+    params.set("series", [...state.activeSeries].join(","));
+  }
+  window.history.replaceState({}, "", params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname);
+}
+
+function clearUrlState() {
+  window.history.replaceState({}, "", window.location.pathname);
+}
+
+function buildShareUrl() {
+  const params = new URLSearchParams();
+  if (state.selectedXValue) params.set("x", state.selectedXValue);
+  if (state.activeSeries.size !== state.series.length) {
+    params.set("series", [...state.activeSeries].join(","));
   }
 
-  return {
-    ...plan,
-    title: normaliseMetricText(plan.title || ""),
-    summary: normaliseMetricText(plan.summary || ""),
-    focusArea: normaliseMetricText(plan.focusArea || ""),
-    ageRange: normaliseMetricText(plan.ageRange || ""),
-    coachReminder: normaliseMetricText(plan.coachReminder || ""),
-    sessionGoals: Array.isArray(plan.sessionGoals)
-      ? plan.sessionGoals.map((goal) => normaliseMetricText(goal))
-      : [],
-    equipment: Array.isArray(plan.equipment)
-      ? plan.equipment.map((item) => normaliseMetricText(item))
-      : [],
-    blocks: Array.isArray(plan.blocks)
-      ? plan.blocks.map((block) => ({
-          ...block,
-          title: normaliseMetricText(block.title || ""),
-          purpose: normaliseMetricText(block.purpose || ""),
-          setup: normaliseMetricText(block.setup || ""),
-          coachingPoints: Array.isArray(block.coachingPoints)
-            ? block.coachingPoints.map((point) => normaliseMetricText(point))
-            : [],
-        }))
-      : [],
+  const payload = {
+    fileName: state.fileName,
+    mapping: state.mapping,
+    rows: state.groupedRows,
   };
-}
-
-function normaliseMetricText(text) {
-  return String(text || "")
-    .replace(/\byards\b/gi, "metres")
-    .replace(/\byard\b/gi, "metre")
-    .replace(/\bmeters\b/gi, "metres")
-    .replace(/\bmeter\b/gi, "metre");
-}
-
-function formatTrainingPlanAsText(plan) {
-  const blocksText = plan.blocks
-    .map((block, index) => {
-      const coachingPoints = block.coachingPoints.map((point) => `- ${point}`).join("\n");
-      return [
-        `${index + 1}. ${block.title} (${block.durationMinutes} mins)`,
-        `Purpose: ${block.purpose}`,
-        `Setup: ${block.setup}`,
-        `Coaching points:`,
-        coachingPoints,
-      ].join("\n");
-    })
-    .join("\n\n");
-
-  return [
-    plan.title,
-    `${plan.focusArea} focus | ${plan.ageRange} | ${plan.totalMinutes} minutes`,
-    "",
-    `Overview: ${plan.summary}`,
-    `Session goals: ${plan.sessionGoals.join(" | ")}`,
-    `Equipment: ${plan.equipment.join(", ")}`,
-    "",
-    blocksText,
-    "",
-    `Coach reminder: ${plan.coachReminder}`,
-  ].join("\n");
-}
-
-function renderBench() {
-  const benchPlayers = state.lineup.benchIds.map((playerId, index) => ({
-    player: findPlayer(playerId),
-    index,
-  }));
-
-  const cards = benchPlayers
-    .map(
-      ({ player, index }) => `
-        <button
-          class="bench-player ${isSelected("bench", index) ? "is-selected" : ""} ${isPlayerAbsent(player.id) ? "absent-player" : ""}"
-          type="button"
-          draggable="true"
-          data-target-type="bench"
-          data-target-index="${index}"
-        >
-          <span class="player-name">${escapeHtml(player.name)}</span>
-          <span class="player-meta">${isPlayerAbsent(player.id) ? "Absent" : "Bench player"}</span>
-        </button>
-      `,
-    )
-    .join("");
-
-  benchList.innerHTML = `
-    <button class="bench-dropzone" type="button" data-target-type="bench-dropzone" data-target-index="-1">
-      Drop here or use "Send selected to bench"
-    </button>
-    ${
-      cards ||
-      '<div class="bench-empty">No players on the bench right now.</div>'
-    }
-  `;
-}
-
-function renderPitch() {
-  const markings = `
-    <div class="pitch-circle" aria-hidden="true"></div>
-    <div class="pitch-box top-box" aria-hidden="true"></div>
-    <div class="pitch-box bottom-box" aria-hidden="true"></div>
-    <div class="pitch-goal-box top-goal-box" aria-hidden="true"></div>
-    <div class="pitch-goal-box bottom-goal-box" aria-hidden="true"></div>
-    <div class="pitch-centre-spot" aria-hidden="true"></div>
-    <div class="pitch-penalty-spot top-spot" aria-hidden="true"></div>
-    <div class="pitch-penalty-spot bottom-spot" aria-hidden="true"></div>
-  `;
-
-  const slotMarkup = state.lineup.slots
-    .map((slot, index) => {
-      const player = slot.occupantId ? findPlayer(slot.occupantId) : null;
-      const isGoalkeeper = slot.role === "GK";
-      const selectedClass = isSelected("slot", index) ? "is-selected" : "";
-      const emptyClass = player ? "" : "empty";
-
-      return `
-        <div
-          class="slot"
-          style="left: ${slot.x * 100}%; top: ${slot.y * 100}%"
-        >
-          <div class="slot-role">${escapeHtml(slot.roleLabel)}</div>
-          <button
-            class="player-token ${isGoalkeeper ? "goalkeeper" : ""} ${selectedClass} ${emptyClass}"
-            type="button"
-            draggable="${player ? "true" : "false"}"
-            data-target-type="slot"
-            data-target-index="${index}"
-            data-empty="${player ? "false" : "true"}"
-          >
-            <span class="player-name">${player ? escapeHtml(player.name) : "Open Slot"}</span>
-            <span class="player-meta">${player ? escapeHtml(slot.positionLabel) : "Tap to place"}</span>
-          </button>
-        </div>
-      `;
-    })
-    .join("");
-
-  pitch.innerHTML = markings + slotMarkup;
-}
-
-async function saveConfigFromForm() {
-  if (!supabaseUserId) {
-    setStatus(configStatus, "Log in before saving teams.", true);
-    return;
-  }
-
-  const config = buildConfigFromForm();
-
-  if (!config.ok) {
-    setStatus(configStatus, config.message, true);
-    return;
-  }
-
-  const existingId = state.activeTeamId;
-  const teamId = existingId || createTeamStorageId();
-  const nextRuntime = hydrateTeamRuntime({
-    id: teamId,
-    config: config.value,
-    lineup: existingId === state.activeTeamId ? createLineupSnapshot(state) : null,
-  });
-
-  state.config = nextRuntime.config;
-  state.players = nextRuntime.players;
-  state.lineup = nextRuntime.lineup;
-  state.activeTeamId = teamId;
-  upsertCurrentTeam();
-  state.selectedTarget = null;
-  persistState();
-
-  const currentTeam = state.teams.find((team) => team.id === state.activeTeamId) || null;
-
-  if (!currentTeam) {
-    setStatus(configStatus, "The team could not be prepared for saving.", true);
-    return;
-  }
-
-  setStatus(configStatus, "Saving and opening Team Board...", false);
-
-  try {
-    await saveTeamRecordToSupabase(currentTeam, {
-      statusElement: configStatus,
-      pendingMessage: "Saving and opening Team Board...",
-      successMessage: "Team saved to Supabase.",
-    });
-  } catch (error) {
-    setStatus(
-      configStatus,
-      `Supabase save failed: ${describeSupabaseError(error)}`,
-      true,
-    );
-    return;
-  }
-
-  state.page = "manage";
-  persistCachedStateOnly();
-  persistUserScopedState();
-  clearStatus(configStatus);
-  renderAll();
-  setStatus(exportStatus, "Team saved to Supabase.", false);
-}
-
-function buildConfigFromForm() {
-  const teamName = teamNameInput.value.trim();
-  const playersOnField = Number(playersOnFieldInput.value);
-  const players = dedupeNames(parsePlayerNames(playerNamesInput.value));
-  const formations = formationDraft.filter((formation) =>
-    isValidFormation(formation, playersOnField),
-  );
-
-  if (!teamName) {
-    return { ok: false, message: "Add a team name first." };
-  }
-
-  if (players.length < playersOnField) {
-    return {
-      ok: false,
-      message: `You need at least ${playersOnField} players to fill the field.`,
-    };
-  }
-
-  if (formations.length === 0) {
-    return {
-      ok: false,
-      message: "Choose at least one valid formation.",
-    };
-  }
-
-  return {
-    ok: true,
-    value: {
-      teamName,
-      playersOnField,
-      players,
-      formations,
-      selectedFormation: formations[0],
-    },
-  };
-}
-
-function parsePlayerNames(value) {
-  return value
-    .split(/\n|,/)
-    .map((name) => name.trim().replace(/\s+/g, " "))
-    .filter(Boolean);
-}
-
-function dedupeNames(names) {
-  const counts = new Map();
-
-  return names.map((name) => {
-    const total = counts.get(name) || 0;
-    counts.set(name, total + 1);
-    return total === 0 ? name : `${name} ${total + 1}`;
-  });
-}
-
-function getSuggestedFormations(playersOnField) {
-  return formationLibrary[playersOnField] || [];
-}
-
-function normaliseFormation(value) {
-  return value
-    .trim()
-    .replace(/[–—−\s]+/g, "-")
-    .split("-")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join("-");
-}
-
-function compareFormationStrings(left, right) {
-  return left.localeCompare(right, undefined, { numeric: true });
-}
-
-function isValidFormation(formation, playersOnField) {
-  const parts = formation
-    .split("-")
-    .map((part) => Number(part))
-    .filter((value) => Number.isInteger(value) && value > 0);
-
-  if (parts.length === 0) {
-    return false;
-  }
-
-  return parts.reduce((sum, value) => sum + value, 0) === playersOnField - 1;
-}
-
-function buildFormationSlots(formation, playersOnField) {
-  if (!isValidFormation(formation, playersOnField)) {
-    return buildFormationSlots(getSuggestedFormations(playersOnField)[0], playersOnField);
-  }
-
-  const lines = formation.split("-").map(Number);
-  const prefixes = linePrefixes(lines.length);
-  const slots = [
-    {
-      role: "GK",
-      roleLabel: "Goalkeeper",
-      positionLabel: "GK",
-      x: 0.5,
-      y: 0.88,
-    },
-  ];
-
-  lines.forEach((count, lineIndex) => {
-    const y = 0.76 - (lineIndex * 0.58) / Math.max(lines.length - 1, 1);
-    const positions = spreadAcross(count);
-
-    positions.forEach((x, playerIndex) => {
-      const positionLabel = `${prefixes[lineIndex]} ${playerIndex + 1}`;
-      slots.push({
-        role: positionLabel,
-        roleLabel: prefixes[lineIndex],
-        positionLabel,
-        x,
-        y,
-      });
-    });
-  });
-
-  return slots.slice(0, playersOnField);
-}
-
-function linePrefixes(lineCount) {
-  if (lineCount === 1) {
-    return ["Outfield"];
-  }
-
-  if (lineCount === 2) {
-    return ["Defence", "Attack"];
-  }
-
-  if (lineCount === 3) {
-    return ["Defence", "Midfield", "Attack"];
-  }
-
-  if (lineCount === 4) {
-    return ["Defence", "Midfield", "Midfield", "Attack"];
-  }
-
-  return Array.from({ length: lineCount }, (_, index) => `Line ${index + 1}`);
-}
-
-function spreadAcross(count) {
-  return Array.from({ length: count }, (_, index) => (index + 1) / (count + 1));
-}
-
-function handleTargetSelection(target) {
-  clearStatus(exportStatus);
-
-  if (!state.selectedTarget) {
-    if (!targetHasPlayer(target)) {
-      return;
-    }
-
-    state.selectedTarget = target;
-    persistState();
-    renderAll();
-    return;
-  }
-
-  if (targetsMatch(state.selectedTarget, target)) {
-    state.selectedTarget = null;
-    persistState();
-    renderAll();
-    return;
-  }
-
-  swapOrMove(state.selectedTarget, target);
-}
-
-function swapOrMove(source, target) {
-  if (!target) {
-    return;
-  }
-
-  if (source.type === "bench" && target.type === "slot") {
-    const sourcePlayer = findPlayer(state.lineup.benchIds[source.index]);
-
-    if (sourcePlayer && isPlayerAbsent(sourcePlayer.id)) {
-      setStatus(exportStatus, `${sourcePlayer.name} is marked absent. Mark them available before moving them onto the field.`, true);
-      state.selectedTarget = null;
-      renderAll();
-      return;
-    }
-  }
-
-  if (source.type === "slot" && target.type === "slot") {
-    const sourceOccupant = state.lineup.slots[source.index].occupantId;
-    const targetOccupant = state.lineup.slots[target.index].occupantId;
-    state.lineup.slots[source.index].occupantId = targetOccupant || null;
-    state.lineup.slots[target.index].occupantId = sourceOccupant || null;
-  } else if (source.type === "bench" && target.type === "bench") {
-    const sourcePlayer = state.lineup.benchIds[source.index];
-    state.lineup.benchIds[source.index] = state.lineup.benchIds[target.index];
-    state.lineup.benchIds[target.index] = sourcePlayer;
-  } else if (source.type === "slot" && target.type === "bench") {
-    const sourcePlayer = state.lineup.slots[source.index].occupantId;
-    const benchPlayer = state.lineup.benchIds[target.index];
-    state.lineup.slots[source.index].occupantId = benchPlayer || null;
-    state.lineup.benchIds[target.index] = sourcePlayer;
-  } else if (source.type === "bench" && target.type === "slot") {
-    const sourcePlayer = state.lineup.benchIds[source.index];
-    const slotPlayer = state.lineup.slots[target.index].occupantId;
-    state.lineup.benchIds[source.index] = slotPlayer || null;
-    state.lineup.slots[target.index].occupantId = sourcePlayer;
-    state.lineup.benchIds = state.lineup.benchIds.filter(Boolean);
-  }
-
-  state.selectedTarget = null;
-  persistState();
-  renderAll();
-}
-
-function moveSelectedToBench() {
-  if (!state.selectedTarget) {
-    return;
-  }
-
-  movePlayerToBench(state.selectedTarget);
-}
-
-function movePlayerToBench(target) {
-  if (!target || target.type !== "slot") {
-    setStatus(exportStatus, "Select a player on the field to send them to the bench.", true);
-    return;
-  }
-
-  const playerId = state.lineup.slots[target.index].occupantId;
-
-  if (!playerId) {
-    return;
-  }
-
-  state.lineup.slots[target.index].occupantId = null;
-  state.lineup.benchIds.unshift(playerId);
-  state.selectedTarget = null;
-  persistState();
-  renderAll();
-}
-
-function fillEmptySlotsFromBench() {
-  let changed = false;
-
-  state.lineup.slots.forEach((slot) => {
-    if (!slot.occupantId) {
-      const availableBenchIndex = state.lineup.benchIds.findIndex((playerId) => !isPlayerAbsent(playerId));
-
-      if (availableBenchIndex === -1) {
-        return;
-      }
-
-      slot.occupantId = state.lineup.benchIds.splice(availableBenchIndex, 1)[0];
-      changed = true;
-    }
-  });
-
-  setStatus(
-    exportStatus,
-    changed ? "Empty positions filled from the bench." : "There are no empty field positions to fill.",
-    !changed,
-  );
-  persistState();
-  renderAll();
-}
-
-function resetLineup() {
-  const absentIds = [...(state.lineup.absentIds || [])];
-  const availablePlayers = state.players.filter((player) => !absentIds.includes(player.id));
-  state.lineup = buildLineup(availablePlayers, state.config.playersOnField, state.lineup.formation);
-  state.lineup.absentIds = absentIds;
-  absentIds.forEach((playerId) => {
-    if (!state.lineup.benchIds.includes(playerId)) {
-      state.lineup.benchIds.push(playerId);
-    }
-  });
-  state.selectedTarget = null;
-  persistState();
-  setStatus(exportStatus, "Lineup reset to squad order.", false);
-  renderAll();
-}
-
-function setFormation(formation) {
-  if (!state.config.formations.includes(formation)) {
-    return;
-  }
-
-  const absentIds = [...(state.lineup.absentIds || [])];
-  const orderedPlayers = [
-    ...state.lineup.slots.map((slot) => slot.occupantId).filter((playerId) => Boolean(playerId) && !absentIds.includes(playerId)),
-    ...state.lineup.benchIds.filter((playerId) => !absentIds.includes(playerId)),
-  ];
-  const freshSlots = buildFormationSlots(formation, state.config.playersOnField).map((slot, index) => ({
-    ...slot,
-    occupantId: orderedPlayers[index] || null,
-  }));
-
-  state.lineup = {
-    formation,
-    slots: freshSlots,
-    benchIds: [...orderedPlayers.slice(freshSlots.length), ...absentIds.filter((playerId) => !orderedPlayers.includes(playerId))],
-    absentIds,
-  };
-  state.config.selectedFormation = formation;
-  state.selectedTarget = null;
-  persistState();
-  renderAll();
-}
-
-function targetHasPlayer(target) {
-  if (target.type === "slot") {
-    return Boolean(state.lineup.slots[target.index]?.occupantId);
-  }
-
-  if (target.type === "bench") {
-    return Boolean(state.lineup.benchIds[target.index]);
-  }
-
-  return false;
-}
-
-function targetsMatch(left, right) {
-  return left.type === right.type && left.index === right.index;
-}
-
-function isSelected(type, index) {
-  return Boolean(
-    state.selectedTarget &&
-      state.selectedTarget.type === type &&
-      state.selectedTarget.index === index,
-  );
-}
-
-function describeSelection(target) {
-  const player = target.type === "slot"
-    ? findPlayer(state.lineup.slots[target.index].occupantId)
-    : findPlayer(state.lineup.benchIds[target.index]);
-
-  const availabilityText = player && isPlayerAbsent(player.id) ? " They are currently marked absent." : "";
-
-  return player
-    ? `${player.name} selected. Choose another player or an open spot to move them.${availabilityText}`
-    : "Select a player on the field or bench, then select another player or an empty position.";
-}
-
-function getSelectedPlayer() {
-  if (!state.selectedTarget) {
-    return null;
-  }
-
-  if (state.selectedTarget.type === "slot") {
-    return findPlayer(state.lineup.slots[state.selectedTarget.index]?.occupantId);
-  }
-
-  if (state.selectedTarget.type === "bench") {
-    return findPlayer(state.lineup.benchIds[state.selectedTarget.index]);
-  }
-
-  return null;
-}
-
-function isPlayerAbsent(playerId) {
-  return Boolean(playerId && state.lineup.absentIds?.includes(playerId));
-}
-
-function toggleSelectedAvailability() {
-  const selectedPlayer = getSelectedPlayer();
-
-  if (!selectedPlayer) {
-    setStatus(exportStatus, "Select a player first.", true);
-    return;
-  }
-
-  if (isPlayerAbsent(selectedPlayer.id)) {
-    markPlayerAvailable(selectedPlayer.id);
-  } else {
-    markPlayerAbsent(selectedPlayer.id);
-  }
-}
-
-function markPlayerAbsent(playerId) {
-  const player = findPlayer(playerId);
-
-  if (!player) {
-    return;
-  }
-
-  if (!state.lineup.absentIds.includes(playerId)) {
-    state.lineup.absentIds.push(playerId);
-  }
-
-  const slot = state.lineup.slots.find((candidate) => candidate.occupantId === playerId);
-
-  if (slot) {
-    slot.occupantId = null;
-  }
-
-  state.lineup.benchIds = state.lineup.benchIds.filter((id) => id !== playerId);
-  state.lineup.benchIds.unshift(playerId);
-  state.selectedTarget = null;
-  persistState();
-  setStatus(exportStatus, `${player.name} marked absent and moved to the bench.`, false);
-  renderAll();
-}
-
-function markPlayerAvailable(playerId) {
-  const player = findPlayer(playerId);
-
-  if (!player) {
-    return;
-  }
-
-  state.lineup.absentIds = state.lineup.absentIds.filter((id) => id !== playerId);
-  state.selectedTarget = null;
-  persistState();
-  setStatus(exportStatus, `${player.name} marked available.`, false);
-  renderAll();
-}
-
-function findPlayer(playerId) {
-  return state.players.find((player) => player.id === playerId);
-}
-
-function upsertCurrentTeam() {
-  const record = {
-    id: state.activeTeamId,
-    config: normaliseConfig(state.config),
-    lineup: createLineupSnapshot(state),
-  };
-
-  const index = state.teams.findIndex((team) => team.id === record.id);
-
-  if (index >= 0) {
-    state.teams[index] = record;
-  } else {
-    state.teams.push(record);
-  }
-}
-
-function createLineupSnapshot(runtimeState) {
-  return {
-    formation: runtimeState.lineup.formation,
-    slotAssignments: runtimeState.lineup.slots.map((slot) => {
-      const player = slot.occupantId ? runtimeState.players.find((candidate) => candidate.id === slot.occupantId) : null;
-      return player ? player.name : null;
-    }),
-    bench: runtimeState.lineup.benchIds
-      .map((playerId) => runtimeState.players.find((candidate) => candidate.id === playerId))
-      .filter(Boolean)
-      .map((player) => player.name),
-    absent: (runtimeState.lineup.absentIds || [])
-      .map((playerId) => runtimeState.players.find((candidate) => candidate.id === playerId))
-      .filter(Boolean)
-      .map((player) => player.name),
-  };
-}
-
-function switchTeam(teamId) {
-  if (!supabaseUserId) {
-    setStatus(configStatus, "Log in before loading teams.", true);
-    return;
-  }
-
-  if (!teamId || teamId === state.activeTeamId) {
-    return;
-  }
-
-  upsertCurrentTeam();
-  const record = state.teams.find((team) => team.id === teamId);
-
-  if (!record) {
-    return;
-  }
-
-  const runtime = hydrateTeamRuntime(record);
-  state.activeTeamId = record.id;
-  state.config = runtime.config;
-  state.players = runtime.players;
-  state.lineup = runtime.lineup;
-  state.selectedTarget = null;
-  persistState();
-  syncFormFromState();
-  renderAll();
-}
-
-function createNewTeamDraft() {
-  if (!supabaseUserId) {
-    setStatus(configStatus, "Log in before creating teams.", true);
-    return;
-  }
-
-  upsertCurrentTeam();
-  const playersOnField = Number(playersOnFieldInput.value) || 9;
-  const blankConfig = {
-    teamName: "",
-    playersOnField,
-    players: [],
-    formations: getSuggestedFormations(playersOnField).slice(0, 3),
-    selectedFormation: getSuggestedFormations(playersOnField)[0],
-  };
-
-  state.activeTeamId = createTeamStorageId();
-  state.config = normaliseConfig(blankConfig);
-  state.players = [];
-  state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
-  state.selectedTarget = null;
-  state.page = "config";
-  formationDraft = [...state.config.formations];
-  syncFormFromState();
-  persistState();
-  renderAll();
-  setStatus(configStatus, "New team draft ready. Add the squad and save it when you’re ready.", false);
-}
-
-function deleteCurrentTeam() {
-  if (!supabaseUserId) {
-    setStatus(configStatus, "Log in before deleting teams.", true);
-    return;
-  }
-
-  const currentTeam = state.teams.find((team) => team.id === state.activeTeamId);
-
-  if (!currentTeam) {
-    setStatus(configStatus, "There isn’t a saved team to delete.", true);
-    return;
-  }
-
-  const label = currentTeam.config.teamName || "this team";
-  const confirmed = window.confirm(`Delete ${label}? This will remove the saved team from this browser.`);
-
-  if (!confirmed) {
-    return;
-  }
-
-  if (supabaseReady && supabaseClient && supabaseUserId) {
-    void deleteTeamFromSupabase(currentTeam.id).catch((error) => {
-      console.error("[Supabase] delete failed", {
-        teamId: currentTeam.id,
-        error,
-        message: error?.message || String(error),
-      });
-      setStatus(
-        getSaveStatusElement(),
-        `Supabase delete failed: ${describeSupabaseError(error)}`,
-        true,
-      );
-    });
-  }
-
-  const remainingTeams = state.teams.filter((team) => team.id !== state.activeTeamId);
-
-  if (remainingTeams.length === 0) {
-    const playersOnField = 9;
-    state.teams = [];
-    state.activeTeamId = createTeamStorageId();
-    state.config = normaliseConfig({
-      teamName: "",
-      playersOnField,
-      players: [],
-      formations: getSuggestedFormations(playersOnField).slice(0, 3),
-      selectedFormation: getSuggestedFormations(playersOnField)[0],
-    });
-    state.players = [];
-    state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
-    state.selectedTarget = null;
-    state.page = "config";
-    formationDraft = [...state.config.formations];
-    syncFormFromState();
-    persistState();
-    renderAll();
-    setStatus(configStatus, `${label} deleted. A new blank team draft is ready.`, false);
-    return;
-  }
-
-  state.teams = remainingTeams;
-  const nextTeam = remainingTeams[0];
-  const runtime = hydrateTeamRuntime(nextTeam);
-  state.activeTeamId = nextTeam.id;
-  state.config = runtime.config;
-  state.players = runtime.players;
-  state.lineup = runtime.lineup;
-  state.selectedTarget = null;
-  syncFormFromState();
-  persistState();
-  renderAll();
-  setStatus(configStatus, `${label} deleted.`, false);
-}
-
-function persistState() {
-  upsertCurrentTeam();
-  console.info("[Supabase] persistState invoked", {
-    userId: supabaseUserId,
-    activeTeamId: state.activeTeamId,
-    teamIds: state.teams.map((team) => team.id),
-    selectedFormation: state.lineup?.formation || null,
-  });
-  persistCachedStateOnly();
-  persistUserScopedState();
-}
-
-function persistCachedStateOnly() {
-  const saved = {
-    page: state.page,
-    activeTeamId: state.activeTeamId,
-    teams: state.teams,
-  };
-
-  localStorage.setItem(storageKey, JSON.stringify(saved));
-}
-
-function persistUserScopedState() {
-  if (!supabaseUserId) {
-    return;
-  }
-
-  const userState = {
-    page: state.page,
-    activeTeamId: state.activeTeamId,
-    teams: state.teams,
-    savedAt: Date.now(),
-  };
-
-  localStorage.setItem(getUserStateStorageKey(supabaseUserId), JSON.stringify(userState));
-}
-
-function loadUserScopedState(userId) {
-  if (!userId) {
-    return null;
-  }
-
-  try {
-    const raw = localStorage.getItem(getUserStateStorageKey(userId));
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function getUserStateStorageKey(userId) {
-  return `${userStateStoragePrefix}:${userId}`;
-}
-
-function getLatestRemoteTimestamp(rows) {
-  return rows.reduce((latest, row) => {
-    const candidate = Date.parse(row.updated_at || row.created_at || "");
-    return Number.isFinite(candidate) ? Math.max(latest, candidate) : latest;
-  }, 0);
-}
-
-async function saveActiveTeamNow() {
-  if (saveNowInFlight) {
-    return;
-  }
-
-  if (!supabaseUserId) {
-    setStatus(getSaveStatusElement(), "Log in before saving to Supabase.", true);
-    return;
-  }
-
-  const activeTeam = state.teams.find((team) => team.id === state.activeTeamId) || null;
-
-  if (!activeTeam) {
-    setStatus(getSaveStatusElement(), "There is no active team to save yet.", true);
-    return;
-  }
-
-  saveNowInFlight = true;
-  renderManagerControls();
-  setStatus(getSaveStatusElement(), "Saving now...", false);
-
-  try {
-    await saveTeamRecordToSupabase(activeTeam, {
-      statusElement: getSaveStatusElement(),
-      pendingMessage: "Saving now...",
-      successMessage: "Saved to Supabase.",
-    });
-    setStatus(getSaveStatusElement(), "Saved to Supabase.", false);
-  } catch (error) {
-    setStatus(
-      getSaveStatusElement(),
-      `Supabase save failed: ${describeSupabaseError(error)}`,
-      true,
-    );
-  } finally {
-    saveNowInFlight = false;
-    renderManagerControls();
-  }
-}
-
-async function saveTeamRecordToSupabase(teamRecord, options = {}) {
-  const userId = supabaseUserId;
-  const statusElement = options.statusElement || getSaveStatusElement();
-  const pendingMessage = options.pendingMessage || "Saving now...";
-  const successMessage = options.successMessage || "Saved to Supabase.";
-
-  if (!userId) {
-    const error = new Error("No logged-in Supabase user is available for saving.");
-    console.warn("[Supabase] saveTeamRecordToSupabase skipped because no user is logged in", {
-      userId,
-      teamId: teamRecord?.id || null,
-    });
-    setStatus(statusElement, error.message, true);
-    throw error;
-  }
-
-  if (!teamRecord) {
-    const error = new Error("No active team is available for saving.");
-    console.warn("[Supabase] saveTeamRecordToSupabase skipped because no team record exists", {
-      userId,
-    });
-    setStatus(statusElement, error.message, true);
-    throw error;
-  }
-
-  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
-    const error = new Error("Supabase runtime config or session token is missing.");
-    console.warn("[Supabase] saveTeamRecordToSupabase missing runtime config", {
-      hasProjectUrl: Boolean(supabaseProjectUrl),
-      hasAnonKey: Boolean(supabaseAnonKey),
-      hasAccessToken: Boolean(supabaseAccessToken),
-    });
-    setStatus(statusElement, error.message, true);
-    throw error;
-  }
-
-  const singleTeamPayload = mapTeamRecordToDatabaseRow(teamRecord, userId);
-  setStatus(statusElement, pendingMessage, false);
-
-  console.info("[Supabase] saving to Supabase", {
-    table: `public.${teamsTableName}`,
-    userId,
-    teamId: singleTeamPayload.id,
-    payload: singleTeamPayload,
-  });
-
-  console.info("[Supabase] before upsert", {
-    table: "public.teams",
-    userId,
-    teamId: singleTeamPayload.id,
-    payload: singleTeamPayload,
-  });
-
-  let response;
-  let parsedBody = null;
-  let rawBody = "";
-
-  try {
-    response = await fetch(`${supabaseProjectUrl}/rest/v1/teams?on_conflict=id`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAccessToken}`,
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify(singleTeamPayload),
-    });
-
-    rawBody = await response.text();
-    if (rawBody) {
-      try {
-        parsedBody = JSON.parse(rawBody);
-      } catch (parseError) {
-        parsedBody = rawBody;
-      }
-    }
-  } catch (caughtError) {
-    console.error("[Supabase] save threw before completion", {
-      error: caughtError,
-      message: caughtError?.message || String(caughtError),
-      table: "public.teams",
-      userId,
-      teamId: singleTeamPayload.id,
-      payload: singleTeamPayload,
-    });
-    setStatus(
-      statusElement,
-      `Supabase save failed: ${describeSupabaseError(caughtError)}`,
-      true,
-    );
-    throw caughtError;
-  }
-
-  console.log("[Supabase] upsert completed", {
-    table: "public.teams",
-    userId,
-    teamId: singleTeamPayload.id,
-    status: response.status,
-    ok: response.ok,
-    data: parsedBody,
-    error: response.ok ? null : parsedBody || rawBody || response.statusText,
-  });
-
-  if (!response.ok) {
-    const errorMessage =
-      parsedBody?.message ||
-      parsedBody?.error_description ||
-      parsedBody?.details ||
-      rawBody ||
-      response.statusText ||
-      "Supabase save failed.";
-    const error = new Error(errorMessage);
-    console.error("[Supabase] upsert failed", {
-      error,
-      responseStatus: response.status,
-      responseBody: parsedBody || rawBody || null,
-      payload: singleTeamPayload,
-    });
-    setStatus(statusElement, `Supabase save failed: ${describeSupabaseError(error)}`, true);
-    throw error;
-  }
-
-  console.info("[Supabase] Save complete", {
-    userId,
-    teamId: singleTeamPayload.id,
-  });
-  setStatus(statusElement, successMessage, false);
-}
+  const encoded = window.btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  params.set("data", encoded);
 
-function getSaveStatusElement() {
-  return state.page === "manage" ? exportStatus : configStatus;
+  return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
 }
 
-async function deleteTeamFromSupabase(teamId) {
-  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
-    throw new Error("Supabase runtime config or session token is missing for team deletion.");
-  }
-
-  console.info("[Supabase] before delete", {
-    table: "public.teams",
-    userId: supabaseUserId,
-    teamId,
-  });
-
-  const deleteUrl = new URL(`${supabaseProjectUrl}/rest/v1/teams`);
-  deleteUrl.searchParams.set("id", `eq.${teamId}`);
-  deleteUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
-
-  let response;
-  let responseText = "";
-  let responseData = null;
-
-  try {
-    response = await fetch(deleteUrl.toString(), {
-      method: "DELETE",
-      headers: {
-        Accept: "application/json",
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAccessToken}`,
-      },
-    });
-
-    responseText = await response.text();
-    if (responseText) {
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        responseData = responseText;
-      }
-    }
-  } catch (error) {
-    console.error("[Supabase] delete failed", {
-      teamId,
-      error,
-      message: error?.message || String(error),
-    });
-    throw error;
-  }
-
-  console.info("[Supabase] delete result", {
-    table: "public.teams",
-    userId: supabaseUserId,
-    teamId,
-    status: response.status,
-    ok: response.ok,
-    data: responseData,
-    error: response.ok ? null : responseData || responseText || response.statusText,
-  });
-
-  if (!response.ok) {
-    const error = new Error(
-      responseData?.message ||
-      responseData?.error_description ||
-      responseData?.details ||
-      responseText ||
-      response.statusText ||
-      "Supabase delete failed.",
-    );
-    throw error;
-  }
-}
-
-function mapTeamRecordToDatabaseRow(team, userId) {
-  return {
-    id: team.id,
-    user_id: userId,
-    team_name: team.config.teamName || "Untitled team",
-    players_on_field: team.config.playersOnField,
-    players: team.config.players,
-    formations: team.config.formations,
-    selected_formation: team.lineup?.formation || team.config.selectedFormation,
-    lineup: team.lineup || {
-      formation: team.config.selectedFormation,
-      slotAssignments: [],
-      bench: [],
-      absent: [],
-    },
-  };
-}
-
-function mapDatabaseTeamToRecord(row) {
-  return {
-    id: row.id,
-    config: normaliseConfig({
-      teamName: row.team_name,
-      playersOnField: row.players_on_field,
-      players: Array.isArray(row.players) ? row.players : [],
-      formations: Array.isArray(row.formations) ? row.formations : [],
-      selectedFormation: row.selected_formation,
-    }),
-    lineup: row.lineup || null,
-  };
-}
-
-function setStatus(element, message, isError) {
-  element.textContent = message;
-  element.classList.toggle("is-error", Boolean(isError));
-}
-
-function clearStatus(element) {
-  element.textContent = "";
-  element.classList.remove("is-error");
-}
-
-async function copyLineupImage() {
-  clearStatus(exportStatus);
-
-  if (!window.ClipboardItem || !navigator.clipboard?.write) {
-    setStatus(exportStatus, "Clipboard image copy is not supported here. Use Download PNG instead.", true);
-    return;
-  }
-
-  try {
-    const blob = await createLineupBlob();
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        "image/png": blob,
-      }),
-    ]);
-    setStatus(exportStatus, "Lineup image copied to the clipboard.", false);
-  } catch (error) {
-    setStatus(exportStatus, "Unable to copy the image right now.", true);
-  }
-}
-
-async function downloadLineupImage() {
-  clearStatus(exportStatus);
-
-  try {
-    const blob = await createLineupBlob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slugify(state.config.teamName || "team-board")}-${state.lineup.formation}.png`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    setStatus(exportStatus, "PNG downloaded.", false);
-  } catch (error) {
-    setStatus(exportStatus, "Unable to create the PNG right now.", true);
-  }
-}
-
-async function createLineupBlob() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1400;
-  canvas.height = 2000;
-  const context = canvas.getContext("2d");
-
-  drawExportBackground(context, canvas.width, canvas.height);
-  drawExportPitch(context, canvas.width, canvas.height);
-  drawExportHeader(context, canvas.width);
-  drawExportPlayers(context, canvas.width, canvas.height);
-  drawExportBench(context, canvas.width, canvas.height);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-      } else {
-        reject(new Error("PNG export failed"));
-      }
-    }, "image/png");
-  });
-}
-
-function drawExportBackground(context, width, height) {
-  const gradient = context.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "#f6fbf4");
-  gradient.addColorStop(1, "#dcebd8");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
-}
-
-function drawExportHeader(context, width) {
-  context.fillStyle = "#102315";
-  context.font = "700 68px 'Space Grotesk', sans-serif";
-  context.fillText(state.config.teamName || "Football Team", 92, 110);
-
-  context.fillStyle = "#55705f";
-  context.font = "600 32px 'Barlow', sans-serif";
-  context.fillText(
-    `${state.lineup.formation} formation | ${state.config.playersOnField} on field`,
-    92,
-    158,
-  );
-}
-
-function drawExportPitch(context, width, height) {
-  const pitchRect = {
-    x: 90,
-    y: 220,
-    width: width - 180,
-    height: 1360,
-    radius: 42,
-  };
-
-  const pitchGradient = context.createLinearGradient(0, pitchRect.y, 0, pitchRect.y + pitchRect.height);
-  pitchGradient.addColorStop(0, "#15733f");
-  pitchGradient.addColorStop(1, "#1a874b");
-
-  roundRect(context, pitchRect.x, pitchRect.y, pitchRect.width, pitchRect.height, pitchRect.radius);
-  context.fillStyle = pitchGradient;
-  context.fill();
-
-  const stripeHeight = pitchRect.height / 10;
-  for (let stripe = 0; stripe < 10; stripe += 1) {
-    context.fillStyle = stripe % 2 === 0 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)";
-    context.fillRect(pitchRect.x, pitchRect.y + stripe * stripeHeight, pitchRect.width, stripeHeight);
-  }
-
-  context.strokeStyle = "rgba(255,255,255,0.94)";
-  context.lineWidth = 8;
-  roundRect(
-    context,
-    pitchRect.x + 24,
-    pitchRect.y + 24,
-    pitchRect.width - 48,
-    pitchRect.height - 48,
-    28,
-  );
-  context.stroke();
-
-  context.beginPath();
-  context.moveTo(pitchRect.x + 24, pitchRect.y + pitchRect.height / 2);
-  context.lineTo(pitchRect.x + pitchRect.width - 24, pitchRect.y + pitchRect.height / 2);
-  context.stroke();
-
-  context.beginPath();
-  context.arc(width / 2, pitchRect.y + pitchRect.height / 2, 92, 0, Math.PI * 2);
-  context.stroke();
-
-  drawBox(context, width / 2 - 250, pitchRect.y + 24, 500, 180, false);
-  drawBox(context, width / 2 - 250, pitchRect.y + pitchRect.height - 204, 500, 180, true);
-  drawBox(context, width / 2 - 120, pitchRect.y + 24, 240, 88, false);
-  drawBox(context, width / 2 - 120, pitchRect.y + pitchRect.height - 112, 240, 88, true);
-
-  drawSpot(context, width / 2, pitchRect.y + pitchRect.height / 2);
-  drawSpot(context, width / 2, pitchRect.y + 210);
-  drawSpot(context, width / 2, pitchRect.y + pitchRect.height - 210);
-}
-
-function drawExportPlayers(context, width) {
-  const pitchRect = {
-    x: 90,
-    y: 220,
-    width: width - 180,
-    height: 1360,
-  };
-
-  state.lineup.slots.forEach((slot) => {
-    if (!slot.occupantId) {
-      return;
-    }
-
-    const player = findPlayer(slot.occupantId);
-    const x = pitchRect.x + slot.x * pitchRect.width;
-    const y = pitchRect.y + slot.y * pitchRect.height;
-    const cardWidth = slot.role === "GK" ? 252 : 228;
-    const cardHeight = slot.role === "GK" ? 140 : 120;
-    const cardX = x - cardWidth / 2;
-    const cardY = y - cardHeight / 2;
-    const cardRadius = slot.role === "GK" ? 36 : 32;
-
-    context.fillStyle = slot.role === "GK" ? "#f2b84a" : "#ffffff";
-    context.strokeStyle = slot.role === "GK" ? "#9d6c10" : "#0f6a3b";
-    context.lineWidth = 8;
-    roundRect(context, cardX, cardY, cardWidth, cardHeight, cardRadius);
-    context.fill();
-    context.stroke();
-
-    context.save();
-    roundRect(context, cardX + 6, cardY + 6, cardWidth - 12, cardHeight - 12, Math.max(18, cardRadius - 6));
-    context.clip();
-
-    context.fillStyle = "#102315";
-    drawFittedCardLabel(context, player.name, x, y - 10, cardWidth - 28, cardHeight - 30);
-    context.fillStyle = "#55705f";
-    context.font = "700 15px 'Barlow', sans-serif";
-    context.textAlign = "center";
-    context.fillText(slot.positionLabel.toUpperCase(), x, cardY + cardHeight - 18);
-    context.restore();
-  });
+function getMeasureLabel() {
+  if (!state.mapping.yAxis || state.mapping.yAxis === countMeasure) return "Count of rows";
+  return `Sum/count of ${state.mapping.yAxis}`;
 }
 
-function drawExportBench(context, width, height) {
-  const benchPlayers = state.lineup.benchIds.map((playerId) => findPlayer(playerId)).filter(Boolean);
-
-  context.fillStyle = "#102315";
-  context.font = "700 34px 'Space Grotesk', sans-serif";
-  context.fillText("Bench", 92, 1675);
-
-  if (benchPlayers.length === 0) {
-    context.fillStyle = "#55705f";
-    context.font = "600 26px 'Barlow', sans-serif";
-    context.fillText("No players on the bench", 92, 1720);
-    return;
-  }
-
-  const cardWidth = (width - 184 - 24) / 2;
-  const cardHeight = 96;
-
-  benchPlayers.forEach((player, index) => {
-    const column = index % 2;
-    const row = Math.floor(index / 2);
-    const x = 92 + column * (cardWidth + 24);
-    const y = 1700 + row * (cardHeight + 18);
-    const absent = isPlayerAbsent(player.id);
-
-    roundRect(context, x, y, cardWidth, cardHeight, 20);
-    context.fillStyle = absent ? "#f4e6e1" : "#ffffff";
-    context.fill();
-    context.strokeStyle = absent ? "rgba(157,76,66,0.38)" : "rgba(16,35,21,0.12)";
-    context.lineWidth = 2;
-    context.stroke();
-
-    if (absent) {
-      roundRect(context, x + cardWidth - 152, y + 16, 124, 30, 15);
-      context.fillStyle = "#c96b5d";
-      context.fill();
-      context.fillStyle = "#ffffff";
-      context.font = "700 16px 'Barlow', sans-serif";
-      context.textAlign = "center";
-      context.fillText("ABSENT", x + cardWidth - 90, y + 36);
-      context.textAlign = "left";
-    }
-
-    context.fillStyle = "#102315";
-    context.font = "700 26px 'Space Grotesk', sans-serif";
-    drawCenteredText(
-      context,
-      player.name,
-      x + cardWidth / 2,
-      y + cardHeight / 2 + 2,
-      cardWidth - 40,
-      2,
-      28,
-    );
-  });
-
-  if (benchPlayers.length > 6) {
-    context.fillStyle = "#55705f";
-    context.font = "600 22px 'Barlow', sans-serif";
-    context.fillText("Tip: use Download PNG for a full-size copy.", 92, height - 44);
-  }
+function getBreakdownLabel() {
+  return state.mapping.breakdown && state.mapping.breakdown !== noBreakdown
+    ? state.mapping.breakdown
+    : "Series";
 }
 
-function drawBox(context, x, y, width, height, anchoredBottom) {
-  context.beginPath();
-  if (!anchoredBottom) {
-    context.moveTo(x, y + height);
-    context.lineTo(x, y);
-    context.lineTo(x + width, y);
-    context.lineTo(x + width, y + height);
-  } else {
-    context.moveTo(x, y);
-    context.lineTo(x, y + height);
-    context.lineTo(x + width, y + height);
-    context.lineTo(x + width, y);
-  }
-  context.stroke();
+function normaliseDimensionValue(value) {
+  const text = String(value ?? "").trim();
+  return text || "Blank";
 }
 
-function drawSpot(context, x, y) {
-  context.fillStyle = "rgba(255,255,255,0.94)";
-  context.beginPath();
-  context.arc(x, y, 7, 0, Math.PI * 2);
-  context.fill();
+function showStatus(message) {
+  elements.statusMessage.textContent = message;
+  window.clearTimeout(showStatus.timeout);
+  showStatus.timeout = window.setTimeout(() => {
+    elements.statusMessage.textContent = "";
+  }, 6000);
 }
 
-function roundRect(context, x, y, width, height, radius) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
-  context.closePath();
-}
-
-function drawFittedCardLabel(context, text, x, y, maxWidth, maxHeight) {
-  const fontSizes = [28, 26, 24, 22, 20, 18, 16, 14];
-  const maxLines = 2;
-
-  for (const fontSize of fontSizes) {
-    context.font = `700 ${fontSize}px 'Space Grotesk', sans-serif`;
-    const lineHeight = Math.max(16, fontSize + 2);
-    const lines = measureWrappedLines(context, text, maxWidth);
-
-    if (lines.length <= maxLines && lines.length * lineHeight <= maxHeight) {
-      drawCenteredLines(context, lines, x, y, lineHeight);
-      return;
-    }
-  }
+function niceStep(maxValue) {
+  const roughStep = maxValue / 6;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep || 1));
+  const residual = roughStep / magnitude;
 
-  context.font = "700 14px 'Space Grotesk', sans-serif";
-  const fallbackLines = measureWrappedLines(context, text, maxWidth);
-  drawCenteredLines(context, fallbackLines.slice(0, maxLines), x, y, 16);
+  if (residual > 5) return 10 * magnitude;
+  if (residual > 2) return 5 * magnitude;
+  if (residual > 1) return 2 * magnitude;
+  return magnitude;
 }
 
-function measureWrappedLines(context, text, maxWidth) {
-  const words = text.split(" ");
-  const lines = [];
-  let current = "";
-
-  words.forEach((word) => {
-    const test = current ? `${current} ${word}` : word;
-    if (context.measureText(test).width <= maxWidth || !current) {
-      current = test;
-    } else {
-      lines.push(current);
-      current = word;
-    }
-  });
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines;
+function unique(values) {
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
 }
-
-function drawCenteredLines(context, lines, x, y, lineHeight) {
-  lines.forEach((line, index) => {
-    context.textAlign = "center";
-    context.fillText(
-      line,
-      x,
-      y + index * lineHeight - ((lines.length - 1) * lineHeight) / 2,
-    );
-  });
 
-  context.textAlign = "left";
+function sum(values) {
+  return values.reduce((total, value) => total + value, 0);
 }
 
-function drawCenteredText(context, text, x, y, maxWidth, maxLines, lineHeight) {
-  const lines = measureWrappedLines(context, text, maxWidth).slice(0, maxLines);
-  drawCenteredLines(context, lines, x, y, lineHeight);
+function formatNumber(value) {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
 }
 
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function parseNumber(value) {
+  if (typeof value === "number") return value;
+  return Number(String(value).replaceAll(",", "").replace(/[$£€%]/g, "").trim());
 }
 
 function escapeHtml(value) {
-  return value
+  return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function safeJsonParse(value) {
-  try {
-    return JSON.parse(value);
-  } catch (error) {
-    return null;
-  }
+    .replaceAll("'", "&#039;");
 }

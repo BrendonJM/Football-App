@@ -16,7 +16,7 @@ module.exports = async (request, response) => {
   }
 
   const resendApiKey = process.env.RESEND_API_KEY || "";
-  const resendFromEmail = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL || "Spreadsheet Report Builder <onboarding@resend.dev>";
 
   if (!resendApiKey) {
     response.status(500).json({
@@ -29,7 +29,7 @@ module.exports = async (request, response) => {
   const message = String(payload.message || "").trim();
   const userEmail = String(payload.userEmail || "").trim();
   const page = String(payload.page || "").trim();
-  const appName = String(payload.app || "TeamPro").trim();
+  const appName = String(payload.app || "Spreadsheet Report Builder").trim();
 
   if (!message) {
     response.status(400).json({ error: "Feedback message is required." });

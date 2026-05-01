@@ -103,7 +103,7 @@ module.exports = async (request, response) => {
               {
                 type: "input_text",
                 text:
-                  "You are an experienced grassroots football coach educator. Create safe, age-appropriate one-hour football training plans that follow best practice, include a warm-up, and are practical for volunteer coaches. Return JSON only.",
+                  "Create structured planning content and return JSON only.",
               },
             ],
           },
@@ -123,7 +123,7 @@ module.exports = async (request, response) => {
                     variationSeed: String(payload.variationSeed || ""),
                     previousPlanTitle: String(payload.previousPlanTitle || ""),
                     requirements: [
-                      "Create a football training plan that totals exactly 60 minutes.",
+                      "Create a structured plan that totals exactly 60 minutes.",
                       "Include a warm-up inside that 60-minute total.",
                       "Theme the session clearly around the chosen focus area.",
                       "If the focus area is Mixed, blend 2 or 3 complementary themes across the session rather than sticking to one narrow topic.",

@@ -9,7 +9,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Spreadsheet Report Builder <onboarding@resend.dev>";
 const FEEDBACK_TO_EMAIL = "brendonjmoore@gmail.com";
 const rootDir = __dirname;
 
@@ -221,7 +221,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Football Team Board running at http://localhost:${PORT}`);
+  console.log(`Spreadsheet Report Builder running at http://localhost:${PORT}`);
 });
 
 async function handleAssessmentRequest(request, response) {
@@ -316,7 +316,7 @@ async function handleFeedbackRequest(request, response) {
     const message = String(payload.message || "").trim();
     const userEmail = String(payload.userEmail || "").trim();
     const page = String(payload.page || "").trim();
-    const appName = String(payload.app || "TeamPro").trim();
+    const appName = String(payload.app || "Spreadsheet Report Builder").trim();
 
     if (!message) {
       sendJson(response, 400, {
@@ -579,7 +579,7 @@ async function requestTrainingPlan({
             {
               type: "input_text",
               text:
-                "You are an experienced grassroots football coach educator. Create safe, age-appropriate one-hour football training plans that follow best practice, include a warm-up, and are practical for volunteer coaches. Return JSON only.",
+                "Create structured planning content and return JSON only.",
             },
           ],
         },
@@ -599,7 +599,7 @@ async function requestTrainingPlan({
                   variationSeed,
                   previousPlanTitle: previousPlanTitle || "None",
                   requirements: [
-                    "Create a football training plan that totals exactly 60 minutes.",
+                    "Create a structured plan that totals exactly 60 minutes.",
                     "Include a warm-up inside that 60-minute total.",
                     "Theme the session clearly around the chosen focus area.",
                     "If the focus area is Mixed, blend 2 or 3 complementary themes across the session rather than sticking to one narrow topic.",

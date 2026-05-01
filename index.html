@@ -3,326 +3,110 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Football Manager Pro</title>
-    <link rel="icon" type="image/png" href="./favicon.png" />
-    <link rel="apple-touch-icon" href="./favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>Spreadsheet Report Builder</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="./app.js" defer></script>
   </head>
   <body>
-    <div class="app-shell">
-      <header class="topbar">
+    <aside class="brand-rail" aria-label="Folio Reports">
+      <div class="brand-logo"><span>Folio</span><em>CRM</em></div>
+      <div class="rail-active">Reports</div>
+    </aside>
+    <main class="dashboard-shell">
+      <header class="dashboard-header">
         <div>
-          <div class="brandmark" aria-label="TeamPro">
-            <span class="brandmark-team">Team</span><span class="brandmark-pro">Pro</span>
-          </div>
-          <h1>Build your squad, manage your team.</h1>
+          <h1>Folio Reports</h1>
+          <p class="lede">Drop an Excel or CSV file, then choose the fields for your chart axes.</p>
         </div>
-        <div class="topbar-side">
-          <div class="team-switcher">
-            <label class="field">
-              <span>Saved team</span>
-              <select id="teamSwitcher"></select>
-            </label>
-            <div class="team-switcher-actions">
-              <button id="newTeam" type="button" class="secondary-button">New Team</button>
-              <button id="deleteTeam" type="button" class="danger-button">Delete Team</button>
-            </div>
-          </div>
-
-          <div class="topbar-stats" aria-label="Squad summary">
-            <div>
-              <span id="statPlayers">0</span>
-              <p>Players</p>
-            </div>
-            <div>
-              <span id="statOnField">0</span>
-              <p>On field</p>
-            </div>
-            <div>
-              <span id="statFormationCount">0</span>
-              <p>Formations</p>
-            </div>
-          </div>
+        <div class="header-actions">
+          <button id="clearData" class="ghost-button" type="button">Clear data</button>
+          <button id="resetFilters" class="ghost-button" type="button">Reset filters</button>
+          <button id="copyShareLink" class="primary-button" type="button">Copy share link</button>
         </div>
       </header>
 
-      <nav class="page-nav" aria-label="Pages">
-        <button id="navAccount" class="nav-button is-active" type="button">Account</button>
-        <button id="navConfig" class="nav-button" type="button">Team Set Up</button>
-        <button id="navManage" class="nav-button" type="button">Manage Team</button>
-        <button id="navTraining" class="nav-button" type="button">Training</button>
-      </nav>
+      <section id="dropZone" class="upload-panel" tabindex="0" aria-label="Upload Excel or CSV report">
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv,text/csv" />
+        <div>
+          <strong>Drop Excel or CSV here</strong>
+          <p>Column names from the uploaded file become report fields for the X-axis, Y-axis, and optional breakdown.</p>
+        </div>
+        <button id="browseButton" class="ghost-button" type="button">Browse file</button>
+      </section>
 
-      <main>
-        <section id="accountPage" class="page-section">
-          <div class="layout-grid">
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Account</h2>
-                <p>Sign in to keep your teams private to your own account.</p>
-              </div>
+      <section id="mappingPanel" class="mapping-panel hidden" aria-label="Report builder">
+        <div class="builder-heading">
+          <strong>Configure report</strong>
+          <span id="fieldCount">0 fields</span>
+        </div>
+        <label>
+          <span>X-axis</span>
+          <select id="xAxisColumn"></select>
+        </label>
+        <label>
+          <span>Y-axis</span>
+          <select id="yAxisColumn"></select>
+        </label>
+        <label>
+          <span>Break down by</span>
+          <select id="breakdownColumn"></select>
+        </label>
+        <button id="applyMapping" class="primary-button" type="button">Update chart</button>
+      </section>
 
-              <div id="authGuestPanel" class="info-card">
-                <form id="signupForm" class="stack-form">
-                  <label class="field">
-                    <span>Email</span>
-                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
-                  </label>
-                  <label class="field">
-                    <span>Password</span>
-                    <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
-                  </label>
-                  <div class="button-row">
-                    <button type="submit" class="primary-button">Create Account</button>
-                    <button id="loginButton" type="button" class="secondary-button">Log In</button>
-                  </div>
-                </form>
-              </div>
-
-              <div id="authUserPanel" class="info-card hidden">
-                <strong id="authUserEmail">Signed in</strong>
-                <p>Your teams are saved privately to your account.</p>
-                <div class="button-row">
-                  <button id="logoutButton" type="button" class="secondary-button">Log Out</button>
-                </div>
-              </div>
-
-              <p id="authStatus" class="status-text" aria-live="polite"></p>
-
-              <div class="panel-heading">
-                <h2>Feedback</h2>
-                <p>Send your thoughts directly to the TeamPro inbox.</p>
-              </div>
-
-              <div class="info-card">
-                <form id="feedbackForm" class="stack-form">
-                  <label class="field">
-                    <span>Your feedback</span>
-                    <textarea
-                      id="feedbackMessage"
-                      name="feedbackMessage"
-                      rows="6"
-                      placeholder="Tell us what’s working well, what feels clunky, or what you’d love added next."
-                    ></textarea>
-                  </label>
-                  <div class="button-row">
-                    <button id="submitFeedback" type="submit" class="primary-button">Submit Feedback</button>
-                  </div>
-                </form>
-              </div>
-
-              <p id="feedbackStatus" class="status-text" aria-live="polite"></p>
-            </section>
-
-            <section class="panel side-panel">
-              <div class="panel-heading">
-                <h2>How It Works</h2>
-                <p>Built for quick team-sheet changes from the sideline.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>1. Build you squad</strong>
-                <p>Add your squad, set the game format, and choose the formations you use most.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>2. Set your lineup</strong>
-                <p>Click a player and then another player or an empty position to swap or move them. Drag and drop works on desktop too.</p>
-              </div>
-
-              <div class="info-card">
-                <strong>3. Manage your team</strong>
-                <p>Design focused training plans.</p>
-              </div>
-            </section>
+      <section class="report-panel" aria-labelledby="chartTitle">
+        <div class="panel-toolbar">
+          <div>
+            <div class="filter-pill">Filters (<span id="filterCount">0</span>)</div>
+            <h2 id="chartTitle">Count of rows</h2>
           </div>
-        </section>
+        </div>
 
-        <section id="configPage" class="page-section hidden">
-          <div class="layout-grid single-panel-layout">
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Team Setup</h2>
-                <p>Enter your squad, pick how many players are on the field, and choose which formations should be available.</p>
-              </div>
+        <div id="ownerLegend" class="owner-legend" aria-label="Breakdown filters"></div>
 
-              <form id="configForm" class="stack-form">
-                <label class="field">
-                  <span>Team name</span>
-                  <input id="teamName" name="teamName" type="text" placeholder="Harbour United U12" />
-                </label>
+        <div class="chart-wrap">
+          <div id="yAxisTitle" class="y-axis-title">Count of rows</div>
+          <div id="chartGrid" class="chart-grid" aria-hidden="true"></div>
+          <div id="barChart" class="bar-chart" role="img" aria-label="Vertical bar chart"></div>
+          <div id="chartTooltip" class="chart-tooltip hidden" role="status"></div>
+        </div>
 
-                <label class="field">
-                  <span>Players on the field</span>
-                  <select id="playersOnField" name="playersOnField"></select>
-                </label>
+        <div id="xAxisTitle" class="x-axis-title">X-axis</div>
+      </section>
 
-                <label class="field">
-                  <span>Player names</span>
-                  <textarea
-                    id="playerNames"
-                    name="playerNames"
-                    rows="14"
-                    placeholder="Enter one player name per line"
-                  ></textarea>
-                </label>
-
-                <section class="formation-builder" aria-labelledby="formationBuilderTitle">
-                  <div class="formation-builder-header">
-                    <div>
-                      <h3 id="formationBuilderTitle">Formations</h3>
-                      <p>Select the shapes you want available on the team management page.</p>
-                    </div>
-                  </div>
-
-                  <div id="formationSuggestions" class="formation-list"></div>
-
-                  <div class="custom-formation-row">
-                    <label class="field compact-field">
-                      <span>Add a custom formation</span>
-                      <input id="customFormation" type="text" placeholder="3-2-3" />
-                    </label>
-                    <button id="addFormation" type="button" class="secondary-button">Add</button>
-                  </div>
-                  <p id="formationHelp" class="helper-text"></p>
-                </section>
-
-                <div class="button-row">
-                  <button type="submit" class="primary-button">Save And Open Team Board</button>
-                </div>
-                <p id="configStatus" class="status-text" aria-live="polite"></p>
-              </form>
-            </section>
+      <section class="detail-grid">
+        <article class="report-panel">
+          <div class="panel-heading">
+            <h2 id="selectedPipelineTitle">Selection details</h2>
+            <p id="selectedPipelineMeta">Select or hover a bar to inspect the breakdown.</p>
           </div>
-        </section>
+          <div id="pipelineBreakdown" class="breakdown-list"></div>
+        </article>
 
-        <section id="managePage" class="page-section hidden">
-          <div class="manage-grid">
-            <aside class="panel control-panel">
-              <div class="panel-heading">
-                <h2>Team Board</h2>
-                <p>Change the shape, switch players, and export the current view.</p>
-              </div>
-
-              <div class="summary-block">
-                <span class="summary-label">Team</span>
-                <strong id="teamNameSummary">-</strong>
-              </div>
-
-              <label class="field">
-                <span>Formation</span>
-                <select id="formationSelect"></select>
-              </label>
-
-              <div class="button-row">
-                <button id="fillEmptyPositions" type="button" class="secondary-button">Fill Empty Spots</button>
-                <button id="resetLineup" type="button" class="secondary-button">Reset Lineup</button>
-              </div>
-
-              <div class="button-row">
-                <button id="copyImage" type="button" class="primary-button">Copy Image</button>
-                <button id="saveNow" type="button" class="secondary-button">Save Team Changes</button>
-              </div>
-
-              <p id="exportStatus" class="status-text" aria-live="polite"></p>
-
-              <div class="selection-card">
-                <span class="summary-label">Quick swap</span>
-                <p id="selectionHint">Select a player on the field or bench, then select another player or an empty position.</p>
-                <div class="button-row">
-                  <button id="toggleAvailability" type="button" class="secondary-button">Mark selected absent</button>
-                </div>
-              </div>
-
-              <section class="bench-section" aria-labelledby="benchTitle">
-                <div class="bench-header">
-                  <h3 id="benchTitle">Bench</h3>
-                  <button id="sendSelectedToBench" type="button" class="ghost-button">Send selected to bench</button>
-                </div>
-                <div id="benchList" class="bench-list"></div>
-              </section>
-            </aside>
-
-            <section class="panel pitch-panel">
-              <div class="pitch-toolbar">
-                <div>
-                  <p class="eyebrow small-eyebrow">Live Layout</p>
-                  <h2 id="pitchTitle">Football Field</h2>
-                </div>
-                <div class="legend">
-                  <span><i class="legend-dot gk-dot"></i>Goalkeeper</span>
-                  <span><i class="legend-dot outfield-dot"></i>Outfield</span>
-                </div>
-              </div>
-
-              <div id="pitch" class="pitch" aria-label="Football field"></div>
-            </section>
+        <article class="report-panel">
+          <div class="panel-heading">
+            <h2>Source table</h2>
+            <p id="sourceMeta">Grouped from the uploaded data.</p>
           </div>
-        </section>
-
-        <section id="trainingPage" class="page-section hidden">
-          <div class="layout-grid">
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Training</h2>
-                <p>Build a one-hour session plan for your squad with an AI-generated structure based on best practice.</p>
-              </div>
-
-              <div class="info-card">
-                <strong id="trainingTeamLabel">Team</strong>
-                <p id="trainingAgeRange">Age range</p>
-              </div>
-
-              <div class="stack-form">
-                <label class="field">
-                  <span>Focus area</span>
-                  <select id="trainingFocus">
-                    <option value="Passing">Passing</option>
-                    <option value="Mixed">Mixed</option>
-                    <option value="Positioning">Positioning</option>
-                    <option value="Defence">Defence</option>
-                    <option value="Finishing">Finishing</option>
-                    <option value="Pressing">Pressing</option>
-                  </select>
-                </label>
-
-                <div class="button-row">
-                  <button id="generateTrainingPlan" type="button" class="primary-button">Generate Plan</button>
-                  <button id="refreshTrainingPlan" type="button" class="secondary-button">Show Another Plan</button>
-                  <button id="acceptTrainingPlan" type="button" class="secondary-button">Accept Plan</button>
-                  <button id="copyTrainingPlan" type="button" class="secondary-button">Copy Plan</button>
-                </div>
-              </div>
-
-              <p id="trainingStatus" class="status-text" aria-live="polite"></p>
-            </section>
-
-            <section class="panel side-panel">
-              <div class="panel-heading">
-                <h2 id="trainingPlanTitle">Training Plan</h2>
-                <p id="trainingPlanMeta">Generate a plan to see a one-hour session tailored to this team format and focus area.</p>
-              </div>
-
-              <div id="trainingPlanBody" class="training-plan-body">
-                <div class="info-card">
-                  <strong>Ready when you are</strong>
-                  <p>Choose a focus area and generate a fresh session plan. If the first one is not quite right, ask TeamPro for another option.</p>
-                </div>
-              </div>
-            </section>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th id="tableXHeader">X-axis</th>
+                  <th id="tableBreakdownHeader">Breakdown</th>
+                  <th id="tableValueHeader">Value</th>
+                  <th>Share</th>
+                </tr>
+              </thead>
+              <tbody id="dataRows"></tbody>
+            </table>
           </div>
-        </section>
-      </main>
-    </div>
+        </article>
+      </section>
 
-    <script src="./public-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./app.js"></script>
+      <p id="statusMessage" class="status-message" aria-live="polite"></p>
+    </main>
   </body>
 </html>
