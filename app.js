@@ -41,7 +41,6 @@ const elements = {
   xAxisColumn: document.querySelector("#xAxisColumn"),
   yAxisColumn: document.querySelector("#yAxisColumn"),
   breakdownColumn: document.querySelector("#breakdownColumn"),
-  applyMapping: document.querySelector("#applyMapping"),
   filterCount: document.querySelector("#filterCount"),
   ownerLegend: document.querySelector("#ownerLegend"),
   chartGrid: document.querySelector("#chartGrid"),
@@ -101,11 +100,12 @@ elements.dropZone.addEventListener("keydown", (event) => {
   }
 });
 
-elements.applyMapping.addEventListener("click", () => {
-  state.mapping.xAxis = elements.xAxisColumn.value;
-  state.mapping.yAxis = elements.yAxisColumn.value;
-  state.mapping.breakdown = elements.breakdownColumn.value;
-  applyRawRows();
+[
+  elements.xAxisColumn,
+  elements.yAxisColumn,
+  elements.breakdownColumn,
+].forEach((select) => {
+  select.addEventListener("change", applyMappingFromControls);
 });
 
 elements.resetFilters.addEventListener("click", () => {
@@ -247,6 +247,16 @@ function populateMappingControls() {
   fillSelect(elements.breakdownColumn, breakdownOptions, state.mapping.breakdown || noBreakdown, "None");
   elements.fieldCount.textContent = `${state.headers.length} field${state.headers.length === 1 ? "" : "s"}`;
   elements.mappingPanel.classList.toggle("hidden", state.headers.length === 0);
+}
+
+function applyMappingFromControls() {
+  if (!state.rawRows.length) return;
+
+  state.mapping.xAxis = elements.xAxisColumn.value;
+  state.mapping.yAxis = elements.yAxisColumn.value;
+  state.mapping.breakdown = elements.breakdownColumn.value;
+  hideTooltip();
+  applyRawRows({ silent: true });
 }
 
 function fillSelect(select, options, selectedValue, specialLabel) {
