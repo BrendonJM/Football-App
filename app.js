@@ -41,7 +41,6 @@ const elements = {
   xAxisColumn: document.querySelector("#xAxisColumn"),
   yAxisColumn: document.querySelector("#yAxisColumn"),
   breakdownColumn: document.querySelector("#breakdownColumn"),
-  filterCount: document.querySelector("#filterCount"),
   ownerLegend: document.querySelector("#ownerLegend"),
   chartGrid: document.querySelector("#chartGrid"),
   barChart: document.querySelector("#barChart"),
@@ -450,7 +449,6 @@ function renderLegend() {
   elements.ownerLegend.replaceChildren();
 
   if (state.series.length <= 1 && state.series[0]?.name === defaultSeries) {
-    elements.filterCount.textContent = "0";
     return;
   }
 
@@ -465,7 +463,6 @@ function renderLegend() {
     elements.ownerLegend.append(button);
   });
 
-  elements.filterCount.textContent = state.series.length - state.activeSeries.size;
 }
 
 function renderBars() {

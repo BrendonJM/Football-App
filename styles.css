@@ -261,19 +261,6 @@ h2 {
   margin-bottom: 14px;
 }
 
-.filter-pill {
-  display: inline-flex;
-  margin-bottom: 12px;
-  border-radius: 5px;
-  padding: 5px 9px;
-  color: var(--brand-strong);
-  background: var(--brand-soft);
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .owner-legend {
   display: flex;
   flex-wrap: wrap;
@@ -389,8 +376,8 @@ h2 {
   transition: outline 160ms ease;
 }
 
-.bar-group.is-selected .bar-stack,
-.bar-group:hover .bar-stack {
+.bar-group:hover .bar-stack,
+.bar-group:focus-visible .bar-stack {
   outline: 3px solid rgba(81, 85, 255, 0.18);
 }
 
