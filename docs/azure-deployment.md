@@ -171,7 +171,7 @@ az webapp config appsettings set \
 
 `/api/shares` stores each shared report as one JSON blob named `<share-id>.json`.
 
-The share id is generated with 128 bits of cryptographic randomness and is included in URLs as `?share=<token>`. When a shared URL is opened, the app switches to read-only mode and hides upload/configuration controls.
+The share id is generated with 128 bits of cryptographic randomness and is included in URLs as `?share=<token>`. Selected bar and active-series state are stored inside the share JSON record, not in the URL. When a shared URL is opened, the app switches to read-only mode and hides upload/configuration controls.
 
 Share records support an optional `expiresAt` ISO timestamp. If a user chooses a share expiry date in the app, that date is saved with the blob record. If `SHARE_DEFAULT_TTL_DAYS` is set, links without an explicit expiry receive that default. Expired links return HTTP `410`.
 

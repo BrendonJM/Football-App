@@ -1009,6 +1009,8 @@ function buildShareRecord(payload) {
       fileName: payload.fileName || "Shared report",
       mapping: payload.mapping,
       rows: payload.rows,
+      selectedXValue: payload.selectedXValue || "",
+      activeSeries: Array.isArray(payload.activeSeries) ? payload.activeSeries : [],
     },
   };
 }

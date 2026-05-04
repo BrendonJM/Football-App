@@ -129,7 +129,14 @@ elements.copyShareLink.addEventListener("click", async () => {
     return;
   }
 
-  const url = await buildShareUrl();
+  let url;
+
+  try {
+    url = await buildShareUrl();
+  } catch {
+    showStatus("Short share link could not be created. Check share storage configuration.");
+    return;
+  }
 
   try {
     await navigator.clipboard.writeText(url);
@@ -467,6 +474,16 @@ function loadSharedDashboard(shared) {
   state.fileName = shared.fileName || "Shared data";
   state.mapping = shared.mapping || state.mapping;
   initialiseData(shared.rows);
+
+  if (Array.isArray(shared.activeSeries)) {
+    const allowed = new Set(state.series.map((item) => item.name));
+    const selected = shared.activeSeries.filter((item) => allowed.has(item));
+    if (selected.length > 0) state.activeSeries = new Set(selected);
+  }
+
+  if (state.xValues.includes(shared.selectedXValue)) {
+    state.selectedXValue = shared.selectedXValue;
+  }
 }
 
 function renderDashboard() {
@@ -744,39 +761,25 @@ function clearUrlState() {
 }
 
 async function buildShareUrl() {
-  const params = new URLSearchParams();
-  if (state.selectedXValue) params.set("x", state.selectedXValue);
-  if (state.activeSeries.size !== state.series.length) {
-    params.set("series", [...state.activeSeries].join(","));
-  }
-
   const payload = {
     fileName: state.fileName,
     mapping: state.mapping,
     rows: state.groupedRows,
+    selectedXValue: state.selectedXValue,
+    activeSeries: [...state.activeSeries],
     expiresAt: getShareExpiryIso(),
   };
 
-  try {
-    const response = await fetch("/api/shares", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch("/api/shares", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    if (!response.ok) throw new Error("Share API failed.");
+  if (!response.ok) throw new Error("Share API failed.");
 
-    const { id } = await response.json();
-    params.set("share", id);
-    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-  } catch {
-    showStatus("Short share link failed, copied a full data link instead.");
-  }
-
-  const encoded = window.btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  params.set("data", encoded);
-
-  return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
+  const { id } = await response.json();
+  return `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(id)}`;
 }
 
 function getShareExpiryIso() {
