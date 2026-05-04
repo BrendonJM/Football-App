@@ -11,7 +11,7 @@ This is a lightweight standalone dashboard for building reports from Excel or CS
 - Lets users toggle breakdown filters from the legend
 - Shows hover details and a selected-value breakdown
 - Includes a grouped source table
-- Copies a shareable URL that includes the grouped dashboard data and filter state
+- Copies a short shareable URL backed by stored JSON share records
 
 ## Files
 
@@ -19,6 +19,7 @@ This is a lightweight standalone dashboard for building reports from Excel or CS
 - `styles.css` contains the report layout and responsive styling
 - `app.js` contains upload parsing, grouping logic, and dashboard interactions
 - `server.js` serves the static app
+- `docs/azure-deployment.md` covers Azure Blob-backed share storage and container deployment
 
 ## Run locally
 
@@ -27,6 +28,8 @@ npm start
 ```
 
 Then open `http://localhost:3000`.
+
+When running locally without Azure Blob environment variables, share records are stored in a temporary local JSON file. Production deployments must configure Azure Blob Storage for `/api/shares`.
 
 ## Run with Docker
 
@@ -103,11 +106,25 @@ vercel --cwd "/Users/brendonmoore/Documents/New project"
 
 No environment variables are required for the dashboard.
 
+## Share Storage
+
+Production share links require:
+
+- `AZURE_STORAGE_CONNECTION_STRING`
+- `AZURE_BLOB_CONTAINER_NAME`
+
+Optional:
+
+- `SHARE_DEFAULT_TTL_DAYS`
+- `SHARE_MAX_BYTES`
+
+Shared URLs load in read-only mode and use the format `?share=<token>`.
+
 ## Notes
 
 - Uploaded files are parsed locally in the browser.
-- No account, database, or API key is required for sharing the report.
-- For broad sharing, deploy to a hosted HTTPS URL such as Vercel, Netlify, or GitHub Pages.
+- Share records are stored as JSON objects in Azure Blob Storage for hosted deployments.
+- For broad sharing, deploy to a hosted HTTPS URL.
 
 ## Good next additions
 

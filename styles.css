@@ -133,8 +133,33 @@ h2 {
 .header-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: end;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.share-expiry {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.share-expiry input {
+  min-height: 42px;
+  border: 1px solid #bcc9dd;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+body.is-read-only .upload-panel,
+body.is-read-only .mapping-panel,
+body.is-read-only .header-actions {
+  display: none;
 }
 
 .upload-panel {

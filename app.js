@@ -25,6 +25,8 @@ const state = {
   selectedXValue: "",
   fileName: "",
   headers: [],
+  readOnly: false,
+  shareId: "",
   mapping: {
     xAxis: "",
     yAxis: countMeasure,
@@ -57,14 +59,13 @@ const elements = {
   tableBreakdownHeader: document.querySelector("#tableBreakdownHeader"),
   tableValueHeader: document.querySelector("#tableValueHeader"),
   copyShareLink: document.querySelector("#copyShareLink"),
+  shareExpiresAt: document.querySelector("#shareExpiresAt"),
   clearData: document.querySelector("#clearData"),
   resetFilters: document.querySelector("#resetFilters"),
   statusMessage: document.querySelector("#statusMessage"),
 };
 
-populateMappingControls();
-initialiseFromUrl();
-renderDashboard();
+startApp();
 
 elements.browseButton.addEventListener("click", () => elements.fileInput.click());
 elements.fileInput.addEventListener("change", () => {
@@ -128,7 +129,7 @@ elements.copyShareLink.addEventListener("click", async () => {
     return;
   }
 
-  const url = buildShareUrl();
+  const url = await buildShareUrl();
 
   try {
     await navigator.clipboard.writeText(url);
@@ -137,6 +138,13 @@ elements.copyShareLink.addEventListener("click", async () => {
     showStatus(url);
   }
 });
+
+async function startApp() {
+  populateMappingControls();
+  await initialiseFromUrl();
+  applyReadOnlyMode();
+  renderDashboard();
+}
 
 async function handleFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
@@ -389,26 +397,36 @@ function clearAllData() {
   populateMappingControls();
 }
 
-function initialiseFromUrl() {
-  const hashParams = new URLSearchParams(window.location.hash.slice(1));
-  const encodedData = hashParams.get("data");
+async function initialiseFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const shareId = params.get("share");
 
-  if (encodedData) {
+  if (shareId) {
     try {
-      const shared = JSON.parse(decodeURIComponent(escape(window.atob(encodedData))));
-      if (Array.isArray(shared.rows) && shared.rows.length > 0) {
-        state.fileName = shared.fileName || "Shared data";
-        state.mapping = shared.mapping || state.mapping;
-        initialiseData(shared.rows);
-      }
+      const shared = await fetchSharedDashboard(shareId);
+      state.readOnly = true;
+      state.shareId = shareId;
+      loadSharedDashboard(shared);
     } catch {
       showStatus("The shared dashboard data could not be loaded.");
     }
   }
 
-  const params = new URLSearchParams(window.location.search || window.location.hash.slice(1));
-  const seriesParam = params.get("series");
-  const xParam = params.get("x");
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const encodedData = hashParams.get("data");
+
+  if (!shareId && encodedData) {
+    try {
+      const shared = JSON.parse(decodeURIComponent(escape(window.atob(encodedData))));
+      loadSharedDashboard(shared);
+    } catch {
+      showStatus("The shared dashboard data could not be loaded.");
+    }
+  }
+
+  const stateParams = new URLSearchParams(window.location.search || window.location.hash.slice(1));
+  const seriesParam = stateParams.get("series");
+  const xParam = stateParams.get("x");
 
   if (seriesParam) {
     const allowed = new Set(state.series.map((item) => item.name));
@@ -421,6 +439,34 @@ function initialiseFromUrl() {
   }
 
   if (state.xValues.includes(xParam)) state.selectedXValue = xParam;
+}
+
+function applyReadOnlyMode() {
+  document.body.classList.toggle("is-read-only", state.readOnly);
+
+  if (!state.readOnly) return;
+
+  elements.dropZone.setAttribute("aria-hidden", "true");
+  elements.mappingPanel.setAttribute("aria-hidden", "true");
+  showStatus("Shared report opened in read-only mode.");
+}
+
+async function fetchSharedDashboard(shareId) {
+  const response = await fetch(`/api/shares/${encodeURIComponent(shareId)}`);
+
+  if (!response.ok) {
+    throw new Error("Share link not found.");
+  }
+
+  return response.json();
+}
+
+function loadSharedDashboard(shared) {
+  if (!Array.isArray(shared.rows) || shared.rows.length === 0) return;
+
+  state.fileName = shared.fileName || "Shared data";
+  state.mapping = shared.mapping || state.mapping;
+  initialiseData(shared.rows);
 }
 
 function renderDashboard() {
@@ -685,6 +731,7 @@ function getDynamicBarWidth(count) {
 
 function updateUrl() {
   const params = new URLSearchParams();
+  if (state.shareId) params.set("share", state.shareId);
   if (state.selectedXValue) params.set("x", state.selectedXValue);
   if (state.activeSeries.size !== state.series.length) {
     params.set("series", [...state.activeSeries].join(","));
@@ -696,7 +743,7 @@ function clearUrlState() {
   window.history.replaceState({}, "", window.location.pathname);
 }
 
-function buildShareUrl() {
+async function buildShareUrl() {
   const params = new URLSearchParams();
   if (state.selectedXValue) params.set("x", state.selectedXValue);
   if (state.activeSeries.size !== state.series.length) {
@@ -707,11 +754,36 @@ function buildShareUrl() {
     fileName: state.fileName,
     mapping: state.mapping,
     rows: state.groupedRows,
+    expiresAt: getShareExpiryIso(),
   };
+
+  try {
+    const response = await fetch("/api/shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error("Share API failed.");
+
+    const { id } = await response.json();
+    params.set("share", id);
+    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+  } catch {
+    showStatus("Short share link failed, copied a full data link instead.");
+  }
+
   const encoded = window.btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   params.set("data", encoded);
 
   return `${window.location.origin}${window.location.pathname}#${params.toString()}`;
+}
+
+function getShareExpiryIso() {
+  const selectedDate = elements.shareExpiresAt.value;
+  if (!selectedDate) return null;
+
+  return new Date(`${selectedDate}T23:59:59`).toISOString();
 }
 
 function getMeasureLabel() {

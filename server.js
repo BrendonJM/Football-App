@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -12,6 +13,13 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Spreadsheet Report Builder <onboarding@resend.dev>";
 const FEEDBACK_TO_EMAIL = "brendonjmoore@gmail.com";
 const rootDir = __dirname;
+const SHARE_STORE_PATH = process.env.SHARE_STORE_PATH || path.join(os.tmpdir(), "folio-report-shares.json");
+const SHARE_MAX_BYTES = Number(process.env.SHARE_MAX_BYTES || 5 * 1024 * 1024);
+const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING || "";
+const AZURE_BLOB_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || "";
+const SHARE_DEFAULT_TTL_DAYS = Number(process.env.SHARE_DEFAULT_TTL_DAYS || 0);
+const SHARE_STORAGE_MODE = AZURE_STORAGE_CONNECTION_STRING && AZURE_BLOB_CONTAINER_NAME ? "azure-blob" : "local-file";
+const SHARE_LOCAL_FALLBACK_ENABLED = SHARE_STORAGE_MODE === "local-file" && process.env.NODE_ENV !== "production";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -204,6 +212,16 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && requestUrl.pathname === "/api/shares") {
+    await handleCreateShareRequest(request, response);
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname.startsWith("/api/shares/")) {
+    await handleGetShareRequest(requestUrl, response);
+    return;
+  }
+
   if (request.method === "GET" && requestUrl.pathname === "/api/config") {
     sendJson(response, 200, {
       supabaseUrl: SUPABASE_URL,
@@ -222,6 +240,9 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, () => {
   console.log(`Spreadsheet Report Builder running at http://localhost:${PORT}`);
+  console.log(
+    `Share storage mode: ${SHARE_LOCAL_FALLBACK_ENABLED ? "local-file-dev" : SHARE_STORAGE_MODE}`,
+  );
 });
 
 async function handleAssessmentRequest(request, response) {
@@ -405,6 +426,63 @@ async function handleTrainingPlanRequest(request, response) {
     });
     sendJson(response, 500, {
       error: error?.message || "Training plan request failed.",
+    });
+  }
+}
+
+async function handleCreateShareRequest(request, response) {
+  try {
+    const payload = await readJsonBody(request);
+    const shareRecord = buildShareRecord(payload);
+    const encoded = JSON.stringify(shareRecord);
+
+    if (Buffer.byteLength(encoded, "utf8") > SHARE_MAX_BYTES) {
+      sendJson(response, 413, { error: "Share payload is too large." });
+      return;
+    }
+
+    if (!shareRecord.payload.mapping || !Array.isArray(shareRecord.payload.rows) || shareRecord.payload.rows.length === 0) {
+      sendJson(response, 400, { error: "Share payload must include mapping and rows." });
+      return;
+    }
+
+    const id = await createShareId();
+    await saveShareRecord(id, shareRecord);
+
+    sendJson(response, 201, { id, expiresAt: shareRecord.expiresAt });
+  } catch (error) {
+    const status = error.message?.startsWith("expiresAt") ? 400 : 500;
+    sendJson(response, status, {
+      error: error.message || "Share link could not be created.",
+    });
+  }
+}
+
+async function handleGetShareRequest(requestUrl, response) {
+  try {
+    const id = requestUrl.pathname.split("/").pop();
+
+    if (!/^[a-zA-Z0-9_-]{6,32}$/.test(id || "")) {
+      sendJson(response, 400, { error: "Invalid share id." });
+      return;
+    }
+
+    const record = await getShareRecord(id);
+
+    if (!record) {
+      sendJson(response, 404, { error: "Share link not found." });
+      return;
+    }
+
+    if (isShareExpired(record)) {
+      sendJson(response, 410, { error: "Share link has expired." });
+      return;
+    }
+
+    sendJson(response, 200, record.payload);
+  } catch (error) {
+    sendJson(response, 500, {
+      error: error.message || "Share link could not be loaded.",
     });
   }
 }
@@ -904,6 +982,231 @@ function formatMoneyString(value) {
 
 function sanitizeFileName(value) {
   return String(value || "upload.pdf").replace(/[^a-z0-9._-]+/gi, "_");
+}
+
+async function createShareId() {
+  let id = crypto.randomBytes(16).toString("base64url");
+
+  while (await getShareRecord(id)) {
+    id = crypto.randomBytes(16).toString("base64url");
+  }
+
+  return id;
+}
+
+function buildShareRecord(payload) {
+  const createdAt = new Date();
+  const requestedExpiry = parseExpiryDate(payload.expiresAt);
+  const defaultExpiry = SHARE_DEFAULT_TTL_DAYS > 0
+    ? new Date(createdAt.getTime() + SHARE_DEFAULT_TTL_DAYS * 24 * 60 * 60 * 1000)
+    : null;
+
+  return {
+    version: 1,
+    createdAt: createdAt.toISOString(),
+    expiresAt: requestedExpiry?.toISOString() || defaultExpiry?.toISOString() || null,
+    payload: {
+      fileName: payload.fileName || "Shared report",
+      mapping: payload.mapping,
+      rows: payload.rows,
+    },
+  };
+}
+
+function parseExpiryDate(value) {
+  if (!value) return null;
+
+  const expiry = new Date(value);
+  if (Number.isNaN(expiry.getTime())) {
+    throw new Error("expiresAt must be a valid ISO date.");
+  }
+
+  if (expiry.getTime() <= Date.now()) {
+    throw new Error("expiresAt must be in the future.");
+  }
+
+  return expiry;
+}
+
+function isShareExpired(record) {
+  return record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now();
+}
+
+async function saveShareRecord(id, record) {
+  if (SHARE_STORAGE_MODE === "azure-blob") {
+    await saveShareRecordToBlob(id, record);
+    return;
+  }
+
+  if (!SHARE_LOCAL_FALLBACK_ENABLED) {
+    throw new Error("Azure Blob Storage is not configured for share links.");
+  }
+
+  const store = readLocalShareStore();
+  store[id] = record;
+  writeLocalShareStore(store);
+}
+
+async function getShareRecord(id) {
+  if (SHARE_STORAGE_MODE === "azure-blob") {
+    return getShareRecordFromBlob(id);
+  }
+
+  if (!SHARE_LOCAL_FALLBACK_ENABLED) {
+    throw new Error("Azure Blob Storage is not configured for share links.");
+  }
+
+  const store = readLocalShareStore();
+  return store[id] || null;
+}
+
+function readLocalShareStore() {
+  try {
+    return JSON.parse(fs.readFileSync(SHARE_STORE_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalShareStore(store) {
+  fs.mkdirSync(path.dirname(SHARE_STORE_PATH), { recursive: true });
+  fs.writeFileSync(SHARE_STORE_PATH, JSON.stringify(store));
+}
+
+async function saveShareRecordToBlob(id, record) {
+  const body = JSON.stringify(record);
+  const response = await sendBlobRequest({
+    method: "PUT",
+    blobName: `${id}.json`,
+    body,
+    contentType: "application/json; charset=utf-8",
+    extraHeaders: {
+      "x-ms-blob-type": "BlockBlob",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Azure Blob save failed with status ${response.status}.`);
+  }
+}
+
+async function getShareRecordFromBlob(id) {
+  const response = await sendBlobRequest({
+    method: "GET",
+    blobName: `${id}.json`,
+  });
+
+  if (response.status === 404) return null;
+
+  if (!response.ok) {
+    throw new Error(`Azure Blob read failed with status ${response.status}.`);
+  }
+
+  return response.json();
+}
+
+async function sendBlobRequest({
+  method,
+  blobName,
+  body = "",
+  contentType = "",
+  extraHeaders = {},
+}) {
+  const storage = parseAzureStorageConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+  const encodedBlobName = encodeURIComponent(blobName).replace(/%2F/g, "/");
+  const url = `${storage.blobEndpoint.replace(/\/$/, "")}/${AZURE_BLOB_CONTAINER_NAME}/${encodedBlobName}`;
+  const bodyLength = Buffer.byteLength(body);
+  const headers = {
+    "x-ms-date": new Date().toUTCString(),
+    "x-ms-version": "2023-11-03",
+    ...extraHeaders,
+  };
+
+  if (contentType) headers["Content-Type"] = contentType;
+  if (body) headers["Content-Length"] = String(bodyLength);
+
+  headers.Authorization = buildAzureBlobAuthorization({
+    accountName: storage.accountName,
+    accountKey: storage.accountKey,
+    method,
+    containerName: AZURE_BLOB_CONTAINER_NAME,
+    blobName,
+    headers,
+    contentLength: body ? String(bodyLength) : "",
+    contentType,
+  });
+
+  return fetch(url, {
+    method,
+    headers,
+    body: body || undefined,
+  });
+}
+
+function parseAzureStorageConnectionString(connectionString) {
+  const parts = Object.fromEntries(
+    connectionString
+      .split(";")
+      .filter(Boolean)
+      .map((part) => {
+        const separator = part.indexOf("=");
+        return [part.slice(0, separator), part.slice(separator + 1)];
+      }),
+  );
+
+  if (!parts.AccountName || !parts.AccountKey) {
+    throw new Error("AZURE_STORAGE_CONNECTION_STRING must include AccountName and AccountKey.");
+  }
+
+  const protocol = parts.DefaultEndpointsProtocol || "https";
+  const endpointSuffix = parts.EndpointSuffix || "core.windows.net";
+
+  return {
+    accountName: parts.AccountName,
+    accountKey: parts.AccountKey,
+    blobEndpoint: parts.BlobEndpoint || `${protocol}://${parts.AccountName}.blob.${endpointSuffix}`,
+  };
+}
+
+function buildAzureBlobAuthorization({
+  accountName,
+  accountKey,
+  method,
+  containerName,
+  blobName,
+  headers,
+  contentLength,
+  contentType,
+}) {
+  const canonicalizedHeaders = Object.entries(headers)
+    .filter(([key]) => key.toLowerCase().startsWith("x-ms-"))
+    .map(([key, value]) => [key.toLowerCase(), String(value).trim()])
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}:${value}`)
+    .join("\n");
+  const canonicalizedResource = `/${accountName}/${containerName}/${blobName}`;
+  const stringToSign = [
+    method,
+    "",
+    "",
+    contentLength,
+    "",
+    contentType,
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    canonicalizedHeaders,
+    canonicalizedResource,
+  ].join("\n");
+  const signature = crypto
+    .createHmac("sha256", Buffer.from(accountKey, "base64"))
+    .update(stringToSign, "utf8")
+    .digest("base64");
+
+  return `SharedKey ${accountName}:${signature}`;
 }
 
 async function fetchSharePointDocumentText({ sharepointUrl, documentType }) {
