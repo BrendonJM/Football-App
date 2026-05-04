@@ -20,6 +20,7 @@ const AZURE_BLOB_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || "";
 const SHARE_DEFAULT_TTL_DAYS = Number(process.env.SHARE_DEFAULT_TTL_DAYS || 0);
 const SHARE_STORAGE_MODE = AZURE_STORAGE_CONNECTION_STRING && AZURE_BLOB_CONTAINER_NAME ? "azure-blob" : "local-file";
 const SHARE_LOCAL_FALLBACK_ENABLED = SHARE_STORAGE_MODE === "local-file" && process.env.NODE_ENV !== "production";
+const shareStorageStatus = getShareStorageStatus();
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -212,6 +213,15 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && requestUrl.pathname === "/api/health") {
+    sendJson(response, 200, {
+      ok: true,
+      app: "folio-reports",
+      shareStorage: shareStorageStatus,
+    });
+    return;
+  }
+
   if (request.method === "POST" && requestUrl.pathname === "/api/shares") {
     await handleCreateShareRequest(request, response);
     return;
@@ -240,9 +250,7 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, () => {
   console.log(`Spreadsheet Report Builder running at http://localhost:${PORT}`);
-  console.log(
-    `Share storage mode: ${SHARE_LOCAL_FALLBACK_ENABLED ? "local-file-dev" : SHARE_STORAGE_MODE}`,
-  );
+  logShareStorageStatus();
 });
 
 async function handleAssessmentRequest(request, response) {
@@ -452,9 +460,15 @@ async function handleCreateShareRequest(request, response) {
     sendJson(response, 201, { id, expiresAt: shareRecord.expiresAt });
   } catch (error) {
     const status = error.message?.startsWith("expiresAt") ? 400 : 500;
-    sendJson(response, status, {
+    const payload = {
       error: error.message || "Share link could not be created.",
-    });
+    };
+
+    if (status === 500 && !shareStorageStatus.configured) {
+      payload.shareStorage = shareStorageStatus;
+    }
+
+    sendJson(response, status, payload);
   }
 }
 
@@ -481,9 +495,15 @@ async function handleGetShareRequest(requestUrl, response) {
 
     sendJson(response, 200, record.payload);
   } catch (error) {
-    sendJson(response, 500, {
+    const payload = {
       error: error.message || "Share link could not be loaded.",
-    });
+    };
+
+    if (!shareStorageStatus.configured) {
+      payload.shareStorage = shareStorageStatus;
+    }
+
+    sendJson(response, 500, payload);
   }
 }
 
@@ -984,6 +1004,60 @@ function sanitizeFileName(value) {
   return String(value || "upload.pdf").replace(/[^a-z0-9._-]+/gi, "_");
 }
 
+function getShareStorageStatus() {
+  const missing = [];
+  if (!AZURE_STORAGE_CONNECTION_STRING) missing.push("AZURE_STORAGE_CONNECTION_STRING");
+  if (!AZURE_BLOB_CONTAINER_NAME) missing.push("AZURE_BLOB_CONTAINER_NAME");
+
+  if (SHARE_STORAGE_MODE === "azure-blob") {
+    return {
+      provider: "azure-blob",
+      configured: true,
+      productionReady: true,
+      containerName: AZURE_BLOB_CONTAINER_NAME,
+      missingEnvVars: [],
+      message: "Share links are persisted in Azure Blob Storage.",
+    };
+  }
+
+  if (SHARE_LOCAL_FALLBACK_ENABLED) {
+    return {
+      provider: "local-file",
+      configured: true,
+      productionReady: false,
+      path: SHARE_STORE_PATH,
+      missingEnvVars: missing,
+      message: "Share links use local filesystem fallback for development only.",
+    };
+  }
+
+  return {
+    provider: "unconfigured",
+    configured: false,
+    productionReady: false,
+    missingEnvVars: missing,
+    message:
+      "Share links require Azure Blob Storage in production. Set AZURE_STORAGE_CONNECTION_STRING and AZURE_BLOB_CONTAINER_NAME.",
+  };
+}
+
+function logShareStorageStatus() {
+  const message = `[Share Storage] ${shareStorageStatus.provider}: ${shareStorageStatus.message}`;
+
+  if (!shareStorageStatus.configured) {
+    console.error(message);
+    console.error(`[Share Storage] Missing env vars: ${shareStorageStatus.missingEnvVars.join(", ")}`);
+    return;
+  }
+
+  if (!shareStorageStatus.productionReady) {
+    console.warn(message);
+    return;
+  }
+
+  console.log(message);
+}
+
 async function createShareId() {
   let id = crypto.randomBytes(16).toString("base64url");
 
@@ -1041,7 +1115,7 @@ async function saveShareRecord(id, record) {
   }
 
   if (!SHARE_LOCAL_FALLBACK_ENABLED) {
-    throw new Error("Azure Blob Storage is not configured for share links.");
+    throw new Error(shareStorageStatus.message);
   }
 
   const store = readLocalShareStore();
@@ -1055,7 +1129,7 @@ async function getShareRecord(id) {
   }
 
   if (!SHARE_LOCAL_FALLBACK_ENABLED) {
-    throw new Error("Azure Blob Storage is not configured for share links.");
+    throw new Error(shareStorageStatus.message);
   }
 
   const store = readLocalShareStore();

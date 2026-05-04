@@ -201,6 +201,65 @@ az containerapp update \
 
 Make sure the Container App target port remains `3000`.
 
+After restarting, confirm the app sees Azure Blob Storage:
+
+```bash
+curl "https://<container-app-url>/api/health"
+```
+
+The response should include:
+
+```json
+{
+  "shareStorage": {
+    "provider": "azure-blob",
+    "configured": true,
+    "productionReady": true
+  }
+}
+```
+
+If `provider` is `unconfigured`, the app will return a helpful `500` from `/api/shares` with the missing environment variable names.
+
+## Share Storage Test Steps
+
+Local share creation:
+
+```bash
+NODE_ENV=development PORT=3000 npm start
+
+curl -X POST http://localhost:3000/api/shares \
+  -H "Content-Type: application/json" \
+  -d '{"fileName":"test.csv","mapping":{"xAxis":"Pipeline","yAxis":"__count"},"rows":[{"xValue":"Renewals","seriesName":"All rows","value":1}]}'
+```
+
+Production missing env vars:
+
+```bash
+NODE_ENV=production PORT=3000 npm start
+
+curl -i -X POST http://localhost:3000/api/shares \
+  -H "Content-Type: application/json" \
+  -d '{"fileName":"test.csv","mapping":{"xAxis":"Pipeline"},"rows":[{"xValue":"Renewals","seriesName":"All rows","value":1}]}'
+```
+
+Expected: HTTP `500` with `shareStorage.missingEnvVars` listing `AZURE_STORAGE_CONNECTION_STRING` and/or `AZURE_BLOB_CONTAINER_NAME`.
+
+Production Azure Blob share creation:
+
+```bash
+NODE_ENV=production \
+AZURE_STORAGE_CONNECTION_STRING="$STORAGE_CONNECTION_STRING" \
+AZURE_BLOB_CONTAINER_NAME="$SHARE_CONTAINER" \
+PORT=3000 npm start
+```
+
+Then create a share with the local share creation `curl` command and load it with:
+
+```bash
+curl http://localhost:3000/api/shares/<token>
+```
+
 ## GitHub Actions Deployment
 
 The workflow at `.github/workflows/azure-container-appservice.yml`:
