@@ -344,7 +344,7 @@ function applyRawRows(options = {}) {
   }
 
   initialiseData(groupedRows);
-  updateUrl();
+  if (!options.skipUrl) updateUrl();
   renderDashboard();
   if (!options.silent) showStatus(`Loaded ${state.fileName}.`);
 }
@@ -454,7 +454,6 @@ function applyReadOnlyMode() {
   if (!state.readOnly) return;
 
   elements.dropZone.setAttribute("aria-hidden", "true");
-  elements.mappingPanel.setAttribute("aria-hidden", "true");
   showStatus("Shared report opened in read-only mode.");
 }
 
@@ -473,7 +472,17 @@ function loadSharedDashboard(shared) {
 
   state.fileName = shared.fileName || "Shared data";
   state.mapping = shared.mapping || state.mapping;
-  initialiseData(shared.rows);
+
+  if (Array.isArray(shared.rawRows) && shared.rawRows.length > 0) {
+    state.rawRows = shared.rawRows;
+    state.headers = Array.isArray(shared.headers) && shared.headers.length > 0
+      ? shared.headers
+      : Object.keys(shared.rawRows[0] || {});
+    populateMappingControls();
+    applyRawRows({ silent: true, skipUrl: true });
+  } else {
+    initialiseData(shared.rows);
+  }
 
   if (Array.isArray(shared.activeSeries)) {
     const allowed = new Set(state.series.map((item) => item.name));
@@ -763,6 +772,8 @@ function clearUrlState() {
 async function buildShareUrl() {
   const payload = {
     fileName: state.fileName,
+    headers: state.headers,
+    rawRows: state.rawRows,
     mapping: state.mapping,
     rows: state.groupedRows,
     selectedXValue: state.selectedXValue,

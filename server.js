@@ -1081,6 +1081,8 @@ function buildShareRecord(payload) {
     expiresAt: requestedExpiry?.toISOString() || defaultExpiry?.toISOString() || null,
     payload: {
       fileName: payload.fileName || "Shared report",
+      headers: Array.isArray(payload.headers) ? payload.headers : [],
+      rawRows: Array.isArray(payload.rawRows) ? payload.rawRows : [],
       mapping: payload.mapping,
       rows: payload.rows,
       selectedXValue: payload.selectedXValue || "",

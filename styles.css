@@ -157,7 +157,6 @@ h2 {
 }
 
 body.is-read-only .upload-panel,
-body.is-read-only .mapping-panel,
 body.is-read-only .header-actions {
   display: none;
 }

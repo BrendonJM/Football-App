@@ -120,6 +120,7 @@ Optional:
 - `SHARE_MAX_BYTES`
 
 Shared URLs load in read-only mode and use the format `?share=<token>`.
+Receivers can still use the X-axis, Y-axis, and Break down by dropdowns to reconfigure the shared report. The shared link remains read-only for the underlying data source: upload, clear-data, and share controls are hidden.
 
 The app exposes `GET /api/health` for non-secret diagnostics. The `shareStorage.provider` value should be `azure-blob` in production. If production Blob Storage is missing, `/api/shares` returns a helpful `500` response naming the missing env vars.
 
