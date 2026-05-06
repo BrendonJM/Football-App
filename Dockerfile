@@ -8,9 +8,10 @@ WORKDIR /app
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server.js ./
 COPY --chown=node:node index.html ./
+COPY --chown=node:node share.html ./
 COPY --chown=node:node app.js ./
+COPY --chown=node:node share.js ./
 COPY --chown=node:node styles.css ./
-COPY --chown=node:node public-config.js ./
 
 USER node
 

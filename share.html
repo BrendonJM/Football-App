@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Insurance Quote Summary</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./share.js" defer></script>
+  </head>
+  <body>
+    <main class="share-shell">
+      <header class="share-header">
+        <div>
+          <p class="eyebrow">Client review</p>
+          <h1 id="shareTitle">Insurance Quote Summary</h1>
+        </div>
+        <a id="sharePdfLink" class="secondary-button" href="#" download>Download PDF</a>
+      </header>
+
+      <pre id="shareDocument" class="document-preview shared">Loading recommendation...</pre>
+
+      <form id="signForm" class="sign-panel">
+        <div>
+          <h2>Sign-off</h2>
+          <p id="signStatus">Enter your details to agree and sign this recommendation.</p>
+        </div>
+        <label class="field-block">
+          <span>Name</span>
+          <input id="signerName" type="text" autocomplete="name" required />
+        </label>
+        <label class="field-block">
+          <span>Email</span>
+          <input id="signerEmail" type="email" autocomplete="email" />
+        </label>
+        <button class="primary-button" type="submit">Agree and sign</button>
+      </form>
+    </main>
+  </body>
+</html>

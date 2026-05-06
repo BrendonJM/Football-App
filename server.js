@@ -1,184 +1,161 @@
 const http = require("http");
-const fs = require("fs");
+const fs = require("fs/promises");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
-const { spawnSync } = require("child_process");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Spreadsheet Report Builder <onboarding@resend.dev>";
-const FEEDBACK_TO_EMAIL = "brendonjmoore@gmail.com";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const rootDir = __dirname;
-const SHARE_STORE_PATH = process.env.SHARE_STORE_PATH || path.join(os.tmpdir(), "folio-report-shares.json");
-const SHARE_MAX_BYTES = Number(process.env.SHARE_MAX_BYTES || 5 * 1024 * 1024);
-const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING || "";
-const AZURE_BLOB_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || "";
-const SHARE_DEFAULT_TTL_DAYS = Number(process.env.SHARE_DEFAULT_TTL_DAYS || 0);
-const SHARE_STORAGE_MODE = AZURE_STORAGE_CONNECTION_STRING && AZURE_BLOB_CONTAINER_NAME ? "azure-blob" : "local-file";
-const SHARE_LOCAL_FALLBACK_ENABLED = SHARE_STORAGE_MODE === "local-file" && process.env.NODE_ENV !== "production";
-const shareStorageStatus = getShareStorageStatus();
+const storePath =
+  process.env.RECOMMENDATION_STORE_PATH ||
+  path.join(os.tmpdir(), "insurance-quote-recommendations.json");
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
 };
 
-const assessmentSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    title: { type: "string" },
-    overview: { type: "string" },
-    relevance: { type: "string" },
-    criteriaAssessments: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          criterion: { type: "string" },
-          status: {
-            type: "string",
-            enum: [
-              "Evidenced",
-              "Partially evidenced",
-              "Not evidenced",
-              "Needs review",
-            ],
-          },
-          evidence: { type: "string" },
-        },
-        required: ["criterion", "status", "evidence"],
-      },
-    },
-    findings: {
-      type: "array",
-      items: { type: "string" },
-    },
-    gaps: {
-      type: "array",
-      items: { type: "string" },
-    },
-    source: { type: "string" },
-  },
-  required: [
-    "title",
-    "overview",
-    "relevance",
-    "criteriaAssessments",
-    "findings",
-    "gaps",
-    "source",
-  ],
-};
-
-const quoteExtractionSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    documentName: { type: "string" },
-    quoteCount: { type: "integer" },
-    overview: { type: "string" },
-    quotes: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          insurer: { type: "string" },
-          premium: { type: "string" },
-          excess: { type: "string" },
-          coverage: {
-            type: "array",
-            items: { type: "string" },
-          },
-          exclusions: {
-            type: "array",
-            items: { type: "string" },
-          },
-          notes: { type: "string" },
-          evidence: { type: "string" },
-        },
-        required: [
-          "insurer",
-          "premium",
-          "excess",
-          "coverage",
-          "exclusions",
-          "notes",
-          "evidence",
-        ],
-      },
-    },
-  },
-  required: ["documentName", "quoteCount", "overview", "quotes"],
-};
-
-const trainingPlanSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    title: { type: "string" },
-    summary: { type: "string" },
-    ageRange: { type: "string" },
-    focusArea: { type: "string" },
-    totalMinutes: { type: "integer" },
-    sessionGoals: {
-      type: "array",
-      items: { type: "string" },
-    },
-    equipment: {
-      type: "array",
-      items: { type: "string" },
-    },
-    blocks: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          title: { type: "string" },
-          durationMinutes: { type: "integer" },
-          purpose: { type: "string" },
-          setup: { type: "string" },
-          coachingPoints: {
-            type: "array",
-            items: { type: "string" },
-          },
-        },
-        required: [
-          "title",
-          "durationMinutes",
-          "purpose",
-          "setup",
-          "coachingPoints",
-        ],
-      },
-    },
-    coachReminder: { type: "string" },
-  },
-  required: [
-    "title",
-    "summary",
-    "ageRange",
-    "focusArea",
-    "totalMinutes",
-    "sessionGoals",
-    "equipment",
-    "blocks",
-    "coachReminder",
-  ],
-};
+const systemPrompt = `You are a commercial insurance underwriting and broking assistant operating under Australian and New Zealand insurance market standards.
+You are a data-bound system.
+You may ONLY use information explicitly present in the provided:
+• Client risk information, and
+• Structured insurance QUOTE information.
+You must NEVER fabricate, infer, assume, estimate, extrapolate, normalise, or complete missing data.
+Absence of information must always be treated as unknown, not implied.
+ABSOLUTE ANTI-HALLUCINATION RULES (NON-NEGOTIABLE)
+• Do NOT infer cover intent from risk descriptions
+• Do NOT assume standard wordings, market norms, or typical policy structures
+• Do NOT assume limits, excesses, endorsements, inclusions, or exclusions
+• Do NOT fill blanks using "typical", "likely", or "industry standard" logic
+• Do NOT recommend, compare, or summarise anything not explicitly present
+• Do NOT rename, reword, normalise, or consolidate insurer or section terminology
+• Do NOT invent totals or comparative statements
+If a value is not explicitly stated, it must be omitted or shown as "—" or "To be confirmed" where instructed.
+If information is unclear or incomplete, use it verbatim or omit it — do not interpret.
+INPUT HANDLING REQUIREMENTS
+You must correctly handle:
+• Structured client risk summaries
+• Structured quote schedules
+• Multi-insurer quote datasets
+• Partial or incomplete quote information
+Preserve insurer-specific naming, class of risk names, and section structure exactly as provided.
+STRICT TWO-PHASE EXECUTION (MANDATORY)
+PHASE 1 — DATA VALIDATION & NORMALISATION ONLY
+• No advice
+• No opinions
+• No recommendations
+• No prose
+• No summarisation
+• No calculations (except where explicitly allowed later)
+Validate and organise the provided risk and quote data internally.
+Do not resolve inconsistencies.
+Do not fill gaps.
+If data is missing, leave it blank or mark as "—".
+PHASE 2 — ADVISORY & DOCUMENT or WEB PAGE OUTPUT (CONTROLLED)
+Only after Phase 1 is complete and internally validated:
+Prepare a broker-ready insurance quote recommendation document or webpage using ONLY the validated data.
+Before generating the output, you MUST internally confirm:
+• Every numeric value is explicitly provided or calculated strictly per GST rules
+• Every insurer referenced appears in the quote information
+• Every recommended class of risk has a corresponding quoted premium
+• No class of risk appears unless quoted
+If any check fails, omit the affected item rather than guessing.
+RECOMMENDATION LOGIC
+(COHESION-FIRST, NO SPLITTING BY DEFAULT)
+Definitions:
+• "Programme" = all quoted classes of risk in scope
+• "Complete insurer" = an insurer that has quoted every class of risk in scope
+• "Section premium" = the premium shown for that class of risk (use Total Premium incl. GST if shown; otherwise use the premium as explicitly provided)
+MANDATORY ORDER:
+1. SINGLE-INSURER PROGRAMME RULE (DEFAULT)
+• If one or more complete insurers exist:
+– You MUST recommend ONE insurer for ALL classes of risk.
+– Do NOT split recommendations across insurers.
+2. SELECTION BETWEEN COMPLETE INSURERS
+• If multiple complete insurers exist:
+– Calculate each insurer's Programme Total by summing its section premiums across all classes of risk in scope.
+– Recommend the complete insurer with the LOWEST Programme Total.
+• If Programme Totals cannot be calculated due to missing premiums:
+– Do NOT calculate totals.
+– Recommend the complete insurer with the most complete premium data.
+– If still tied or indeterminable, state that a single-insurer recommendation cannot be determined from the provided data and do not recommend.
+3. SPLIT ONLY IF NO COMPLETE INSURER EXISTS
+• Only if NO insurer has quoted every class of risk:
+– Recommend the insurer with the LOWEST section premium for each class of risk.
+– If only one insurer is quoted for a class, recommend that insurer.
+– Exclude unquoted classes entirely.
+4. NO CHERRY-PICKING (ALWAYS ON)
+• Never assemble "best of each insurer" solutions when a complete insurer exists.
+• Splitting is allowed only when unavoidable.
+5. CLIENT-FACING RATIONALE CONSTRAINT
+• Recommendation rationale must be price-based only.
+• Do NOT mention coverage breadth, endorsements, conditions, claims handling, or service.
+• For single-insurer recommendations, reference overall programme pricing only if explicitly calculated from provided data.
+GST AND TOTALS RULES (NZ ONLY)
+• GST rate is 15%
+• If Total Premium (incl. GST) is shown:
+– Company Premium = Total ÷ 1.15 (rounded to 2 decimals)
+– GST = Total − Company Premium
+• ND levies must NOT be included in totals unless explicitly stated
+• TOTAL row must sum:
+– Company Premium
+– GST
+– Total Premium
+• If any component is missing, show "—" for the entire TOTAL row
+OUTPUT REQUIREMENTS
+(FINAL OUTPUT ONLY)
+HEADER / TITLE
+"{Client Name} – Insurance Quote Summary – {Policy Period}"
+FIXED INTRODUCTION TEXT (USE EXACT WORDING)
+Please find your insurance quote for review. The sum insured values have been based on the information provided and the cover options discussed.
+If any details have changed or require adjustment, please let us know so we can update the quote accordingly.
+CLIENT OVERVIEW
+• 2–3 short sentences
+• Use only provided risk and quote data
+• Insured name, policy period, and quoted classes of risk only
+• No interpretation or assumptions
+RECOMMENDATION (FIRST SECTION)
+Include a table with columns:
+Class of Risk
+Recommended Insurer
+Sum Insured / Limit (or "To be confirmed")
+Excess
+Company Premium
+GST
+Total Premium
+Include a final TOTAL row.
+RECOMMENDATION RATIONALE
+• Immediately after the table
+• One short sentence per class of risk
+• Price-based reasoning only
+• Neutral, broker-editable tone
+MARKET RESULTS
+Provide a table showing all quoted insurers by class of risk using the SAME premium basis as the recommendation:
+Class of Risk
+Insurer names
+Section premiums
+ND levy (only where explicitly shown)
+QUOTE DUE DATE
+If not provided, include:
+"Please advise by {QUOTE DUE DATE}."
+SIGN-OFF
+Sign-off block for user to agree and sign
+FINAL OUTPUT RULES
+• Plain-text only
+• Broker-ready
+• No markdown
+• No emojis
+• No invented, inferred, or assumed values
+• Fail closed if a recommendation cannot be supported`;
 
 const server = http.createServer(async (request, response) => {
-  applyCorsHeaders(response);
+  applyCors(response);
   const requestUrl = new URL(request.url, `http://${request.headers.host}`);
 
   if (request.method === "OPTIONS") {
@@ -187,382 +164,198 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (
-    request.method === "POST" &&
-    requestUrl.pathname === "/api/summarize-document"
-  ) {
-    await handleAssessmentRequest(request, response);
-    return;
-  }
+  try {
+    if (request.method === "POST" && requestUrl.pathname === "/api/recommendations") {
+      await handleRecommendationRequest(request, response);
+      return;
+    }
 
-  if (
-    request.method === "POST" &&
-    requestUrl.pathname === "/api/extract-quotes"
-  ) {
-    await handleQuoteExtractionRequest(request, response);
-    return;
-  }
+    if (request.method === "POST" && requestUrl.pathname === "/api/shares") {
+      await handleShareCreate(request, response);
+      return;
+    }
 
-  if (request.method === "POST" && requestUrl.pathname === "/api/feedback") {
-    await handleFeedbackRequest(request, response);
-    return;
-  }
+    if (request.method === "GET" && requestUrl.pathname.startsWith("/api/shares/")) {
+      await handleShareGet(requestUrl, response);
+      return;
+    }
 
-  if (request.method === "POST" && requestUrl.pathname === "/api/training-plan") {
-    await handleTrainingPlanRequest(request, response);
-    return;
-  }
+    if (request.method === "POST" && requestUrl.pathname.startsWith("/api/shares/")) {
+      await handleShareSign(request, requestUrl, response);
+      return;
+    }
 
-  if (request.method === "GET" && requestUrl.pathname === "/api/health") {
-    sendJson(response, 200, {
-      ok: true,
-      app: "folio-reports",
-      shareStorage: shareStorageStatus,
-    });
-    return;
-  }
+    if (request.method === "GET" && requestUrl.pathname.startsWith("/api/pdf/")) {
+      await handlePdfGet(requestUrl, response);
+      return;
+    }
 
-  if (request.method === "POST" && requestUrl.pathname === "/api/shares") {
-    await handleCreateShareRequest(request, response);
-    return;
-  }
+    if (request.method === "GET" && requestUrl.pathname === "/api/health") {
+      sendJson(response, 200, {
+        ok: true,
+        app: "insurance-quote-recommendation",
+        aiConfigured: Boolean(OPENAI_API_KEY),
+      });
+      return;
+    }
 
-  if (request.method === "GET" && requestUrl.pathname.startsWith("/api/shares/")) {
-    await handleGetShareRequest(requestUrl, response);
-    return;
-  }
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Method not allowed." });
+      return;
+    }
 
-  if (request.method === "GET" && requestUrl.pathname === "/api/config") {
-    sendJson(response, 200, {
-      supabaseUrl: SUPABASE_URL,
-      supabaseAnonKey: SUPABASE_ANON_KEY,
-    });
-    return;
+    await serveStatic(requestUrl.pathname, response);
+  } catch (error) {
+    console.error(error);
+    sendJson(response, 500, { error: error.message || "Unexpected server error." });
   }
-
-  if (request.method !== "GET") {
-    sendJson(response, 405, { error: "Method not allowed." });
-    return;
-  }
-
-  serveStaticFile(requestUrl.pathname, response);
 });
 
 server.listen(PORT, () => {
-  console.log(`Spreadsheet Report Builder running at http://localhost:${PORT}`);
-  logShareStorageStatus();
+  console.log(`Insurance Quote Recommendation app running at http://localhost:${PORT}`);
 });
 
-async function handleAssessmentRequest(request, response) {
-  try {
-    const payload = await readJsonBody(request);
+async function handleRecommendationRequest(request, response) {
+  const payload = await readJson(request);
+  const clientRiskText = cleanText(payload.clientRiskText);
+  const quoteDocuments = Array.isArray(payload.quoteDocuments) ? payload.quoteDocuments : [];
+  const scheduleDocuments = Array.isArray(payload.scheduleDocuments) ? payload.scheduleDocuments : [];
+  const quoteDueDate = cleanText(payload.quoteDueDate);
 
-    if (
-      !payload.documentName ||
-      !payload.matchTerm ||
-      !Array.isArray(payload.complianceCriteria)
-    ) {
-      sendJson(response, 400, {
-        error:
-          "documentName, matchTerm, and complianceCriteria are required fields.",
-      });
-      return;
-    }
+  if (!quoteDocuments.length) {
+    sendJson(response, 400, { error: "Upload at least one quote document." });
+    return;
+  }
 
-    if (!OPENAI_API_KEY) {
-      sendJson(response, 500, {
-        error:
-          "OPENAI_API_KEY is not configured. Add it to your server environment before using the assessment route.",
-      });
-      return;
-    }
-
-    const documentText =
-      payload.documentText ||
-      (await fetchSharePointDocumentText({
-        sharepointUrl: payload.sharepointUrl,
-        documentType: payload.documentType,
-      }));
-
-    const assessment = await requestOpenAIAssessment({
-      documentName: payload.documentName,
-      sharepointUrl: payload.sharepointUrl,
-      matchTerm: payload.matchTerm,
-      documentType: payload.documentType || "file",
-      complianceCriteria: payload.complianceCriteria,
-      documentText,
-    });
-
-    sendJson(response, 200, assessment);
-  } catch (error) {
+  if (!OPENAI_API_KEY) {
     sendJson(response, 500, {
-      error: error.message || "Assessment request failed.",
+      error: "OPENAI_API_KEY is not configured. Add it to the server environment to generate recommendations.",
     });
+    return;
   }
+
+  const userInput = buildModelInput({
+    clientRiskText,
+    quoteDocuments,
+    scheduleDocuments,
+    quoteDueDate,
+  });
+  const documentText = await requestRecommendation(userInput);
+  const title = extractTitle(documentText);
+
+  sendJson(response, 200, {
+    title,
+    documentText,
+    generatedAt: new Date().toISOString(),
+  });
 }
 
-async function handleQuoteExtractionRequest(request, response) {
-  try {
-    const payload = await readJsonBody(request);
+async function handleShareCreate(request, response) {
+  const payload = await readJson(request);
+  const documentText = cleanText(payload.documentText);
 
-    if (!payload.documentName || (!payload.documentText && !payload.pdfBase64)) {
-      sendJson(response, 400, {
-        error: "documentName and either documentText or pdfBase64 are required fields.",
-      });
-      return;
-    }
-
-    const documentText =
-      payload.documentText ||
-      extractPdfTextFromBase64({
-        documentName: payload.documentName,
-        pdfBase64: payload.pdfBase64,
-      });
-
-    const extraction = OPENAI_API_KEY
-      ? await requestQuoteExtraction({
-          documentName: payload.documentName,
-          documentText,
-          documentType: payload.documentType || "pdf",
-        })
-      : buildHeuristicQuoteExtraction({
-          documentName: payload.documentName,
-          documentText,
-          documentType: payload.documentType || "pdf",
-        });
-
-    sendJson(response, 200, extraction);
-  } catch (error) {
-    sendJson(response, 500, {
-      error: error.message || "Quote extraction request failed.",
-    });
+  if (!documentText) {
+    sendJson(response, 400, { error: "documentText is required." });
+    return;
   }
+
+  const id = crypto.randomBytes(9).toString("base64url");
+  const record = {
+    id,
+    title: cleanText(payload.title) || extractTitle(documentText),
+    documentText,
+    createdAt: new Date().toISOString(),
+    signedAt: "",
+    signerName: "",
+    signerEmail: "",
+  };
+
+  const records = await readStore();
+  records[id] = record;
+  await writeStore(records);
+
+  sendJson(response, 201, {
+    id,
+    url: `/share.html?id=${encodeURIComponent(id)}`,
+    pdfUrl: `/api/pdf/${encodeURIComponent(id)}`,
+  });
 }
 
-async function handleFeedbackRequest(request, response) {
-  try {
-    const payload = await readJsonBody(request);
-    const message = String(payload.message || "").trim();
-    const userEmail = String(payload.userEmail || "").trim();
-    const page = String(payload.page || "").trim();
-    const appName = String(payload.app || "Spreadsheet Report Builder").trim();
+async function handleShareGet(requestUrl, response) {
+  const id = requestUrl.pathname.split("/").pop();
+  const record = await getRecord(id);
 
-    if (!message) {
-      sendJson(response, 400, {
-        error: "Feedback message is required.",
-      });
-      return;
-    }
-
-    if (!RESEND_API_KEY) {
-      sendJson(response, 500, {
-        error: "RESEND_API_KEY is not configured yet.",
-      });
-      return;
-    }
-
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: RESEND_FROM_EMAIL,
-        to: [FEEDBACK_TO_EMAIL],
-        subject: `${appName} feedback`,
-        text: buildFeedbackText({ message, userEmail, page, appName }),
-        html: buildFeedbackHtml({ message, userEmail, page, appName }),
-      }),
-    });
-
-    if (!resendResponse.ok) {
-      const errorText = await resendResponse.text();
-      throw new Error(`Resend request failed: ${errorText}`);
-    }
-
-    const resendJson = await resendResponse.json();
-    sendJson(response, 200, {
-      ok: true,
-      id: resendJson.id || null,
-    });
-  } catch (error) {
-    console.error("[Feedback] Email send failed", {
-      error,
-      message: error.message || String(error),
-    });
-    sendJson(response, 500, {
-      error: error.message || "Feedback email failed to send.",
-    });
+  if (!record) {
+    sendJson(response, 404, { error: "Recommendation link not found." });
+    return;
   }
+
+  sendJson(response, 200, record);
 }
 
-async function handleTrainingPlanRequest(request, response) {
-  try {
-    const payload = await readJsonBody(request);
+async function handleShareSign(request, requestUrl, response) {
+  const id = requestUrl.pathname.split("/").pop();
+  const payload = await readJson(request);
+  const records = await readStore();
+  const record = records[id];
 
-    if (!payload.teamName || !payload.playersOnField || !payload.focusArea || !payload.ageRange) {
-      sendJson(response, 400, {
-        error: "teamName, playersOnField, focusArea, and ageRange are required fields.",
-      });
-      return;
-    }
-
-    if (!OPENAI_API_KEY) {
-      sendJson(response, 500, {
-        error: "OPENAI_API_KEY is not configured yet for training plan generation.",
-      });
-      return;
-    }
-
-    const plan = await requestTrainingPlan({
-      teamName: String(payload.teamName),
-      playersOnField: Number(payload.playersOnField),
-      ageRange: String(payload.ageRange),
-      focusArea: String(payload.focusArea),
-      formation: String(payload.formation || ""),
-      squadSize: Number(payload.squadSize || 0),
-      variationSeed: String(payload.variationSeed || ""),
-      previousPlanTitle: String(payload.previousPlanTitle || ""),
-    });
-
-    sendJson(response, 200, plan);
-  } catch (error) {
-    console.error("[Training] Plan generation failed", {
-      error,
-      message: error?.message || String(error),
-    });
-    sendJson(response, 500, {
-      error: error?.message || "Training plan request failed.",
-    });
+  if (!record) {
+    sendJson(response, 404, { error: "Recommendation link not found." });
+    return;
   }
+
+  const signerName = cleanText(payload.signerName);
+  if (!signerName) {
+    sendJson(response, 400, { error: "Signer name is required." });
+    return;
+  }
+
+  record.signerName = signerName;
+  record.signerEmail = cleanText(payload.signerEmail);
+  record.signedAt = new Date().toISOString();
+  records[id] = record;
+  await writeStore(records);
+
+  sendJson(response, 200, record);
 }
 
-async function handleCreateShareRequest(request, response) {
-  try {
-    const payload = await readJsonBody(request);
-    const shareRecord = buildShareRecord(payload);
-    const encoded = JSON.stringify(shareRecord);
+async function handlePdfGet(requestUrl, response) {
+  const id = requestUrl.pathname.split("/").pop();
+  const record = await getRecord(id);
 
-    if (Buffer.byteLength(encoded, "utf8") > SHARE_MAX_BYTES) {
-      sendJson(response, 413, { error: "Share payload is too large." });
-      return;
-    }
-
-    if (!shareRecord.payload.mapping || !Array.isArray(shareRecord.payload.rows) || shareRecord.payload.rows.length === 0) {
-      sendJson(response, 400, { error: "Share payload must include mapping and rows." });
-      return;
-    }
-
-    const id = await createShareId();
-    await saveShareRecord(id, shareRecord);
-
-    sendJson(response, 201, { id, expiresAt: shareRecord.expiresAt });
-  } catch (error) {
-    const status = error.message?.startsWith("expiresAt") ? 400 : 500;
-    const payload = {
-      error: error.message || "Share link could not be created.",
-    };
-
-    if (status === 500 && !shareStorageStatus.configured) {
-      payload.shareStorage = shareStorageStatus;
-    }
-
-    sendJson(response, status, payload);
+  if (!record) {
+    sendJson(response, 404, { error: "Recommendation link not found." });
+    return;
   }
+
+  const signedText = record.signedAt
+    ? `${record.documentText}\n\nSIGNED\nName: ${record.signerName}\nEmail: ${record.signerEmail || "—"}\nSigned at: ${record.signedAt}`
+    : record.documentText;
+  const pdf = createPdf(signedText);
+  const filename = `${slugify(record.title || "insurance-quote-summary")}.pdf`;
+
+  response.writeHead(200, {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Length": pdf.length,
+  });
+  response.end(pdf);
 }
 
-async function handleGetShareRequest(requestUrl, response) {
-  try {
-    const id = requestUrl.pathname.split("/").pop();
-
-    if (!/^[a-zA-Z0-9_-]{6,32}$/.test(id || "")) {
-      sendJson(response, 400, { error: "Invalid share id." });
-      return;
-    }
-
-    const record = await getShareRecord(id);
-
-    if (!record) {
-      sendJson(response, 404, { error: "Share link not found." });
-      return;
-    }
-
-    if (isShareExpired(record)) {
-      sendJson(response, 410, { error: "Share link has expired." });
-      return;
-    }
-
-    sendJson(response, 200, record.payload);
-  } catch (error) {
-    const payload = {
-      error: error.message || "Share link could not be loaded.",
-    };
-
-    if (!shareStorageStatus.configured) {
-      payload.shareStorage = shareStorageStatus;
-    }
-
-    sendJson(response, 500, payload);
-  }
-}
-
-async function requestOpenAIAssessment({
-  documentName,
-  sharepointUrl,
-  matchTerm,
-  documentType,
-  complianceCriteria,
-  documentText,
-}) {
+async function requestRecommendation(userInput) {
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4.1",
+      model: OPENAI_MODEL,
       input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "You are an insurance broker compliance reviewer. Assess the supplied document conservatively against the criteria. Use only evidence from the supplied text. Return JSON only.",
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(
-                {
-                  documentName,
-                  sharepointUrl: sharepointUrl || "Not provided",
-                  matchTerm,
-                  documentType,
-                  complianceCriteria,
-                  documentText,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        },
+        { role: "system", content: [{ type: "input_text", text: systemPrompt }] },
+        { role: "user", content: [{ type: "input_text", text: userInput }] },
       ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "compliance_assessment",
-          strict: true,
-          schema: assessmentSchema,
-        },
-      },
+      temperature: 0,
     }),
   });
 
@@ -571,839 +364,222 @@ async function requestOpenAIAssessment({
     throw new Error(`OpenAI request failed: ${errorText}`);
   }
 
-  const responseJson = await apiResponse.json();
-  const outputText = extractOutputText(responseJson);
+  const data = await apiResponse.json();
+  const outputText =
+    data.output_text ||
+    data.output
+      ?.flatMap((item) => item.content || [])
+      .map((content) => content.text || "")
+      .join("\n")
+      .trim();
 
   if (!outputText) {
-    throw new Error("OpenAI did not return structured assessment text.");
+    throw new Error("The AI response did not include recommendation text.");
   }
 
-  return JSON.parse(outputText);
+  return outputText;
 }
 
-async function requestQuoteExtraction({
-  documentName,
-  documentText,
-  documentType,
-}) {
-  const apiResponse = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1",
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "You extract insurer quotes from a single insurance document. Detect when one document contains multiple quotes. Use only evidence in the supplied text. Return JSON only.",
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(
-                {
-                  documentName,
-                  documentType,
-                  task:
-                    "Identify every distinct insurer quote in this document. If several quotes appear in one PDF, return each of them separately.",
-                  standardCriteria: ["What is covered", "Cost"],
-                  documentText,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "quote_extraction",
-          strict: true,
-          schema: quoteExtractionSchema,
-        },
-      },
-    }),
-  });
+function buildModelInput({ clientRiskText, quoteDocuments, scheduleDocuments, quoteDueDate }) {
+  const quotes = quoteDocuments
+    .map((document, index) => formatDocumentBlock("QUOTE", document, index))
+    .join("\n\n");
+  const schedules = scheduleDocuments
+    .map((document, index) => formatDocumentBlock("SCHEDULE", document, index))
+    .join("\n\n");
 
-  if (!apiResponse.ok) {
-    const errorText = await apiResponse.text();
-    throw new Error(`OpenAI request failed: ${errorText}`);
-  }
+  return `Generate the final broker-ready output only, following the system rules exactly.
 
-  const responseJson = await apiResponse.json();
-  const outputText = extractOutputText(responseJson);
+QUOTE DUE DATE PROVIDED BY USER:
+${quoteDueDate || "—"}
 
-  if (!outputText) {
-    throw new Error("OpenAI did not return structured quote extraction text.");
-  }
+CLIENT RISK INFORMATION:
+${clientRiskText || "—"}
 
-  return JSON.parse(outputText);
+STRUCTURED INSURANCE QUOTE INFORMATION:
+${quotes}
+
+SCHEDULE INFORMATION:
+${schedules || "—"}`;
 }
 
-async function requestTrainingPlan({
-  teamName,
-  playersOnField,
-  ageRange,
-  focusArea,
-  formation,
-  squadSize,
-  variationSeed,
-  previousPlanTitle,
-}) {
-  const apiResponse = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "Create structured planning content and return JSON only.",
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(
-                {
-                  teamName,
-                  playersOnField,
-                  ageRange,
-                  focusArea,
-                  formation: formation || "Not specified",
-                  squadSize,
-                  variationSeed,
-                  previousPlanTitle: previousPlanTitle || "None",
-                  requirements: [
-                    "Create a structured plan that totals exactly 60 minutes.",
-                    "Include a warm-up inside that 60-minute total.",
-                    "Theme the session clearly around the chosen focus area.",
-                    "If the focus area is Mixed, blend 2 or 3 complementary themes across the session rather than sticking to one narrow topic.",
-                    "Make the practices age-appropriate for the supplied age range.",
-                    "Use metres, not yards.",
-                    "Return 4 or 5 session blocks with exact durationMinutes values.",
-                    "Vary the plan when a previous title is provided so the coach gets a fresh option.",
-                  ],
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "training_plan",
-          strict: true,
-          schema: trainingPlanSchema,
-        },
-      },
-    }),
-  });
-
-  if (!apiResponse.ok) {
-    const errorText = await apiResponse.text();
-    throw new Error(`OpenAI request failed: ${errorText}`);
-  }
-
-  const responseJson = await apiResponse.json();
-  const outputText = extractOutputText(responseJson);
-
-  if (!outputText) {
-    throw new Error("OpenAI did not return structured training plan text.");
-  }
-
-  return JSON.parse(outputText);
+function formatDocumentBlock(label, document, index) {
+  return `${label} ${index + 1}
+File name: ${cleanText(document.name) || "Untitled"}
+Document kind: ${cleanText(document.kind) || label.toLowerCase()}
+Extracted text:
+${cleanText(document.text) || "—"}`;
 }
 
-function extractPdfTextFromBase64({ documentName, pdfBase64 }) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "quote-pdf-"));
-  const pdfPath = path.join(tempDir, sanitizeFileName(documentName || "upload.pdf"));
-
-  try {
-    fs.writeFileSync(pdfPath, Buffer.from(pdfBase64, "base64"));
-    return extractPdfTextWithPython(pdfPath);
-  } finally {
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch (error) {
-      // Ignore temp cleanup failures.
-    }
+async function readJson(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
   }
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw) return {};
+  return JSON.parse(raw);
 }
 
-function extractPdfTextWithPython(pdfPath) {
-  const pythonCandidates = [
-    process.env.CODEX_PYTHON_PATH,
-    path.join(
-      os.homedir(),
-      ".cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3",
-    ),
-    "python3",
-  ].filter(Boolean);
-
-  const script = `
-from pathlib import Path
-from pypdf import PdfReader
-import sys
-pdf_path = Path(sys.argv[1])
-reader = PdfReader(str(pdf_path))
-parts = []
-for page in reader.pages:
-    parts.append(page.extract_text() or "")
-print("\\n\\n".join(parts))
-`.trim();
-
-  for (const pythonPath of pythonCandidates) {
-    const result = spawnSync(pythonPath, ["-c", script, pdfPath], {
-      encoding: "utf8",
-      maxBuffer: 10 * 1024 * 1024,
-    });
-
-    if (result.status === 0 && result.stdout.trim()) {
-      return result.stdout;
-    }
-  }
-
-  throw new Error(
-    "PDF text extraction is not available. Ensure pypdf is installed or provide extracted document text.",
-  );
+function sendJson(response, status, payload) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(payload));
 }
 
-function buildHeuristicQuoteExtraction({
-  documentName,
-  documentText,
-  documentType,
-}) {
-  const sections = splitDocumentIntoQuoteSections(documentText);
-  const quotes = sections.map((section, index) => buildHeuristicQuote(section, index));
-
-  return {
-    documentName,
-    documentType,
-    quoteCount: quotes.length,
-    overview:
-      quotes.length === 1
-        ? "One insurer quote was identified in the supplied document."
-        : `${quotes.length} insurer quotes were identified in the supplied document.`,
-    quotes,
-  };
+function applyCors(response) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-function splitDocumentIntoQuoteSections(documentText) {
-  const normalized = String(documentText || "")
-    .replace(/\u00a0/g, " ")
-    .trim();
-
-  if (!normalized) {
-    return [];
-  }
-
-  const boundaries = [0];
-  const patterns = [
-    /(?:^|\n)(?=\d{1,2}\s+\w+\s+\d{4}\s*\nMax\s+Insurances)/gim,
-  ];
-
-  patterns.forEach((pattern) => {
-    let match = pattern.exec(normalized);
-
-    while (match) {
-      boundaries.push(
-        normalized[match.index] === "\n" ? match.index + 1 : match.index,
-      );
-      if (pattern.lastIndex === match.index) {
-        pattern.lastIndex += 1;
-      }
-      match = pattern.exec(normalized);
-    }
-  });
-
-  const uniqueBoundaries = [...new Set(boundaries)]
-    .filter((offset) => offset >= 0 && offset < normalized.length)
-    .sort((left, right) => left - right);
-
-  if (uniqueBoundaries.length <= 1) {
-    return [normalized];
-  }
-
-  return sliceSections(normalized, uniqueBoundaries);
-}
-
-function sliceSections(text, starts) {
-  return starts
-    .map((start, index) => {
-      const end = index + 1 < starts.length ? starts[index + 1] : text.length;
-      return text.slice(start, end).trim();
-    })
-    .filter(Boolean);
-}
-
-function buildHeuristicQuote(section, index) {
-  const normalizedSection = String(section || "").replace(/\u00a0/g, " ");
-  const insurer =
-    matchFirst(normalizedSection, [
-      /From Broker .*?\n([A-Z][A-Za-z0-9 &.-]{1,60})\s+[A-Z]{2,4}-\d+/s,
-      /underwriter,\s*(Vero Insurance New Zealand Limited)/i,
-      /\b(Ando)\b/,
-      /\b(Vero Insurance(?: New Zealand Limited)?)\b/i,
-    ]) || `Quote ${index + 1}`;
-
-  const premium =
-    matchTotalPremium(normalizedSection) ||
-    matchMoney(normalizedSection, [/Total\s+\$?\s*([0-9,]+\.\d{2})/i]) ||
-    matchMoney(normalizedSection, [/Total.*?\$?\s*([0-9,]+\.\d{2})/i]);
-  const excess = matchMoney(normalizedSection, [
-    /\bExcess(?:es)?\s+\$?\s*([0-9,]+(?:\.\d{2})?)/i,
-  ]);
-  const coverage = collectCoverageItems(normalizedSection);
-  const exclusions = collectExclusions(normalizedSection);
-
-  return {
-    insurer: normalizeInsurerName(insurer),
-    premium: premium ? formatMoneyString(premium) : "Not clearly identified",
-    excess: excess ? formatMoneyString(excess) : "Not clearly identified",
-    coverage,
-    exclusions,
-    notes:
-      normalizedSection.includes("Comprehensive")
-        ? "Comprehensive motor cover detected in the extracted text."
-        : "Quote detected from the uploaded PDF.",
-    evidence: normalizedSection.slice(0, 600).replace(/\s+/g, " ").trim(),
-  };
-}
-
-function matchTotalPremium(section) {
-  const totalLine = section.match(/Total[^\n]*/i);
-
-  if (!totalLine) {
-    return null;
-  }
-
-  const amounts = [...totalLine[0].matchAll(/\$?\s*([0-9,]+\.\d{2})/g)].map(
-    (match) => Number(match[1].replace(/,/g, "")),
-  );
-
-  return amounts.length ? amounts[amounts.length - 1] : null;
-}
-
-function collectCoverageItems(section) {
-  const items = [];
-
-  if (/Comprehensive/i.test(section)) {
-    items.push("Comprehensive cover");
-  }
-
-  if (/Agreed Value/i.test(section)) {
-    items.push("Agreed value");
-  }
-
-  if (/Windscreen/i.test(section)) {
-    items.push("Windscreen and window glass");
-  }
-
-  if (/Open Driver Policy/i.test(section)) {
-    items.push("Open driver policy");
-  }
-
-  if (/Exclude all under 25yr Drivers/i.test(section)) {
-    items.push("Under 25 drivers excluded");
-  }
-
-  return items;
-}
-
-function collectExclusions(section) {
-  const exclusions = [];
-
-  if (/International Licence/i.test(section)) {
-    exclusions.push("International licence excess applies");
-  }
-
-  if (/Unnamed Drivers/i.test(section)) {
-    exclusions.push("Unnamed drivers excess applies");
-  }
-
-  if (/Drivers aged:\s*20\s*&\s*Under/i.test(section)) {
-    exclusions.push("Young driver excess applies");
-  }
-
-  return exclusions;
-}
-
-function matchFirst(text, patterns) {
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-  }
-
-  return "";
-}
-
-function matchMoney(text, patterns) {
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-
-    if (match && match[1]) {
-      return Number(match[1].replace(/,/g, ""));
-    }
-  }
-
-  return null;
-}
-
-function normalizeInsurerName(value) {
-  const cleaned = String(value || "").replace(/\s+/g, " ").trim();
-
-  if (/^vero insurance new zealand limited$/i.test(cleaned)) {
-    return "Vero";
-  }
-
-  if (/^ando$/i.test(cleaned)) {
-    return "Ando";
-  }
-
-  return cleaned;
-}
-
-function formatMoneyString(value) {
-  return new Intl.NumberFormat("en-NZ", {
-    style: "currency",
-    currency: "NZD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function sanitizeFileName(value) {
-  return String(value || "upload.pdf").replace(/[^a-z0-9._-]+/gi, "_");
-}
-
-function getShareStorageStatus() {
-  const missing = [];
-  if (!AZURE_STORAGE_CONNECTION_STRING) missing.push("AZURE_STORAGE_CONNECTION_STRING");
-  if (!AZURE_BLOB_CONTAINER_NAME) missing.push("AZURE_BLOB_CONTAINER_NAME");
-
-  if (SHARE_STORAGE_MODE === "azure-blob") {
-    return {
-      provider: "azure-blob",
-      configured: true,
-      productionReady: true,
-      containerName: AZURE_BLOB_CONTAINER_NAME,
-      missingEnvVars: [],
-      message: "Share links are persisted in Azure Blob Storage.",
-    };
-  }
-
-  if (SHARE_LOCAL_FALLBACK_ENABLED) {
-    return {
-      provider: "local-file",
-      configured: true,
-      productionReady: false,
-      path: SHARE_STORE_PATH,
-      missingEnvVars: missing,
-      message: "Share links use local filesystem fallback for development only.",
-    };
-  }
-
-  return {
-    provider: "unconfigured",
-    configured: false,
-    productionReady: false,
-    missingEnvVars: missing,
-    message:
-      "Share links require Azure Blob Storage in production. Set AZURE_STORAGE_CONNECTION_STRING and AZURE_BLOB_CONTAINER_NAME.",
-  };
-}
-
-function logShareStorageStatus() {
-  const message = `[Share Storage] ${shareStorageStatus.provider}: ${shareStorageStatus.message}`;
-
-  if (!shareStorageStatus.configured) {
-    console.error(message);
-    console.error(`[Share Storage] Missing env vars: ${shareStorageStatus.missingEnvVars.join(", ")}`);
-    return;
-  }
-
-  if (!shareStorageStatus.productionReady) {
-    console.warn(message);
-    return;
-  }
-
-  console.log(message);
-}
-
-async function createShareId() {
-  let id = crypto.randomBytes(16).toString("base64url");
-
-  while (await getShareRecord(id)) {
-    id = crypto.randomBytes(16).toString("base64url");
-  }
-
-  return id;
-}
-
-function buildShareRecord(payload) {
-  const createdAt = new Date();
-  const requestedExpiry = parseExpiryDate(payload.expiresAt);
-  const defaultExpiry = SHARE_DEFAULT_TTL_DAYS > 0
-    ? new Date(createdAt.getTime() + SHARE_DEFAULT_TTL_DAYS * 24 * 60 * 60 * 1000)
-    : null;
-
-  return {
-    version: 1,
-    createdAt: createdAt.toISOString(),
-    expiresAt: requestedExpiry?.toISOString() || defaultExpiry?.toISOString() || null,
-    payload: {
-      fileName: payload.fileName || "Shared report",
-      headers: Array.isArray(payload.headers) ? payload.headers : [],
-      rawRows: Array.isArray(payload.rawRows) ? payload.rawRows : [],
-      mapping: payload.mapping,
-      rows: payload.rows,
-      selectedXValue: payload.selectedXValue || "",
-      activeSeries: Array.isArray(payload.activeSeries) ? payload.activeSeries : [],
-    },
-  };
-}
-
-function parseExpiryDate(value) {
-  if (!value) return null;
-
-  const expiry = new Date(value);
-  if (Number.isNaN(expiry.getTime())) {
-    throw new Error("expiresAt must be a valid ISO date.");
-  }
-
-  if (expiry.getTime() <= Date.now()) {
-    throw new Error("expiresAt must be in the future.");
-  }
-
-  return expiry;
-}
-
-function isShareExpired(record) {
-  return record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now();
-}
-
-async function saveShareRecord(id, record) {
-  if (SHARE_STORAGE_MODE === "azure-blob") {
-    await saveShareRecordToBlob(id, record);
-    return;
-  }
-
-  if (!SHARE_LOCAL_FALLBACK_ENABLED) {
-    throw new Error(shareStorageStatus.message);
-  }
-
-  const store = readLocalShareStore();
-  store[id] = record;
-  writeLocalShareStore(store);
-}
-
-async function getShareRecord(id) {
-  if (SHARE_STORAGE_MODE === "azure-blob") {
-    return getShareRecordFromBlob(id);
-  }
-
-  if (!SHARE_LOCAL_FALLBACK_ENABLED) {
-    throw new Error(shareStorageStatus.message);
-  }
-
-  const store = readLocalShareStore();
-  return store[id] || null;
-}
-
-function readLocalShareStore() {
-  try {
-    return JSON.parse(fs.readFileSync(SHARE_STORE_PATH, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
-function writeLocalShareStore(store) {
-  fs.mkdirSync(path.dirname(SHARE_STORE_PATH), { recursive: true });
-  fs.writeFileSync(SHARE_STORE_PATH, JSON.stringify(store));
-}
-
-async function saveShareRecordToBlob(id, record) {
-  const body = JSON.stringify(record);
-  const response = await sendBlobRequest({
-    method: "PUT",
-    blobName: `${id}.json`,
-    body,
-    contentType: "application/json; charset=utf-8",
-    extraHeaders: {
-      "x-ms-blob-type": "BlockBlob",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Azure Blob save failed with status ${response.status}.`);
-  }
-}
-
-async function getShareRecordFromBlob(id) {
-  const response = await sendBlobRequest({
-    method: "GET",
-    blobName: `${id}.json`,
-  });
-
-  if (response.status === 404) return null;
-
-  if (!response.ok) {
-    throw new Error(`Azure Blob read failed with status ${response.status}.`);
-  }
-
-  return response.json();
-}
-
-async function sendBlobRequest({
-  method,
-  blobName,
-  body = "",
-  contentType = "",
-  extraHeaders = {},
-}) {
-  const storage = parseAzureStorageConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-  const encodedBlobName = encodeURIComponent(blobName).replace(/%2F/g, "/");
-  const url = `${storage.blobEndpoint.replace(/\/$/, "")}/${AZURE_BLOB_CONTAINER_NAME}/${encodedBlobName}`;
-  const bodyLength = Buffer.byteLength(body);
-  const headers = {
-    "x-ms-date": new Date().toUTCString(),
-    "x-ms-version": "2023-11-03",
-    ...extraHeaders,
-  };
-
-  if (contentType) headers["Content-Type"] = contentType;
-  if (body) headers["Content-Length"] = String(bodyLength);
-
-  headers.Authorization = buildAzureBlobAuthorization({
-    accountName: storage.accountName,
-    accountKey: storage.accountKey,
-    method,
-    containerName: AZURE_BLOB_CONTAINER_NAME,
-    blobName,
-    headers,
-    contentLength: body ? String(bodyLength) : "",
-    contentType,
-  });
-
-  return fetch(url, {
-    method,
-    headers,
-    body: body || undefined,
-  });
-}
-
-function parseAzureStorageConnectionString(connectionString) {
-  const parts = Object.fromEntries(
-    connectionString
-      .split(";")
-      .filter(Boolean)
-      .map((part) => {
-        const separator = part.indexOf("=");
-        return [part.slice(0, separator), part.slice(separator + 1)];
-      }),
-  );
-
-  if (!parts.AccountName || !parts.AccountKey) {
-    throw new Error("AZURE_STORAGE_CONNECTION_STRING must include AccountName and AccountKey.");
-  }
-
-  const protocol = parts.DefaultEndpointsProtocol || "https";
-  const endpointSuffix = parts.EndpointSuffix || "core.windows.net";
-
-  return {
-    accountName: parts.AccountName,
-    accountKey: parts.AccountKey,
-    blobEndpoint: parts.BlobEndpoint || `${protocol}://${parts.AccountName}.blob.${endpointSuffix}`,
-  };
-}
-
-function buildAzureBlobAuthorization({
-  accountName,
-  accountKey,
-  method,
-  containerName,
-  blobName,
-  headers,
-  contentLength,
-  contentType,
-}) {
-  const canonicalizedHeaders = Object.entries(headers)
-    .filter(([key]) => key.toLowerCase().startsWith("x-ms-"))
-    .map(([key, value]) => [key.toLowerCase(), String(value).trim()])
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}:${value}`)
-    .join("\n");
-  const canonicalizedResource = `/${accountName}/${containerName}/${blobName}`;
-  const stringToSign = [
-    method,
-    "",
-    "",
-    contentLength,
-    "",
-    contentType,
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    canonicalizedHeaders,
-    canonicalizedResource,
-  ].join("\n");
-  const signature = crypto
-    .createHmac("sha256", Buffer.from(accountKey, "base64"))
-    .update(stringToSign, "utf8")
-    .digest("base64");
-
-  return `SharedKey ${accountName}:${signature}`;
-}
-
-async function fetchSharePointDocumentText({ sharepointUrl, documentType }) {
-  if (!sharepointUrl) {
-    throw new Error(
-      "No document text or SharePoint link was provided for assessment.",
-    );
-  }
-
-  throw new Error(
-    `Authenticated SharePoint retrieval is not configured yet for ${String(
-      documentType || "file",
-    ).toUpperCase()} documents. Add Microsoft Graph retrieval or provide extracted text first.`,
-  );
-}
-
-function extractOutputText(responseJson) {
-  const outputItems = Array.isArray(responseJson.output) ? responseJson.output : [];
-
-  for (const item of outputItems) {
-    const contentItems = Array.isArray(item.content) ? item.content : [];
-
-    for (const content of contentItems) {
-      if (content.type === "output_text" && content.text) {
-        return content.text;
-      }
-    }
-  }
-
-  return "";
-}
-
-function buildFeedbackText({ message, userEmail, page, appName }) {
-  return [
-    `${appName} feedback received`,
-    "",
-    `From user: ${userEmail || "Not signed in"}`,
-    `Current page: ${page || "Unknown"}`,
-    "",
-    "Feedback:",
-    message,
-  ].join("\n");
-}
-
-function buildFeedbackHtml({ message, userEmail, page, appName }) {
-  return `
-    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
-      <h2 style="margin-bottom: 12px;">${escapeHtml(appName)} feedback received</h2>
-      <p><strong>From user:</strong> ${escapeHtml(userEmail || "Not signed in")}</p>
-      <p><strong>Current page:</strong> ${escapeHtml(page || "Unknown")}</p>
-      <p><strong>Feedback:</strong></p>
-      <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(message)}</div>
-    </div>
-  `;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function readJsonBody(request) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-
-    request.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    request.on("end", () => {
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch (error) {
-        reject(new Error("Request body must be valid JSON."));
-      }
-    });
-
-    request.on("error", reject);
-  });
-}
-
-function serveStaticFile(pathname, response) {
-  const safePath = pathname === "/" ? "/index.html" : pathname;
-  const normalizedPath = path.normalize(safePath).replace(/^(\.\.[/\\])+/, "");
-  const filePath = path.join(rootDir, normalizedPath);
-
-  if (!filePath.startsWith(rootDir)) {
+async function serveStatic(urlPath, response) {
+  const safePath = urlPath === "/" ? "/index.html" : decodeURIComponent(urlPath);
+  const fullPath = path.normalize(path.join(rootDir, safePath));
+
+  if (!fullPath.startsWith(rootDir)) {
     sendJson(response, 403, { error: "Forbidden." });
     return;
   }
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      sendJson(response, 404, { error: "Not found." });
-      return;
-    }
-
+  try {
+    const file = await fs.readFile(fullPath);
     response.writeHead(200, {
-      "Content-Type":
-        mimeTypes[path.extname(filePath).toLowerCase()] ||
-        "application/octet-stream",
+      "Content-Type": mimeTypes[path.extname(fullPath)] || "application/octet-stream",
     });
-    response.end(content);
-  });
+    response.end(file);
+  } catch {
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+  }
 }
 
-function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-  });
-  response.end(JSON.stringify(payload));
+async function readStore() {
+  try {
+    return JSON.parse(await fs.readFile(storePath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
 }
 
-function applyCorsHeaders(response) {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+async function writeStore(records) {
+  await fs.mkdir(path.dirname(storePath), { recursive: true });
+  await fs.writeFile(storePath, JSON.stringify(records, null, 2));
+}
+
+async function getRecord(id) {
+  if (!/^[a-zA-Z0-9_-]{8,32}$/.test(id || "")) return null;
+  const records = await readStore();
+  return records[id] || null;
+}
+
+function cleanText(value) {
+  return String(value || "").replace(/\r\n/g, "\n").trim();
+}
+
+function extractTitle(documentText) {
+  return (
+    documentText
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean) || "Insurance Quote Summary"
+  );
+}
+
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 80) || "insurance-quote-summary";
+}
+
+function createPdf(text) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 54;
+  const lineHeight = 14;
+  const linesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
+  const lines = wrapLines(text, 88);
+  const pages = [];
+
+  for (let index = 0; index < lines.length; index += linesPerPage) {
+    pages.push(lines.slice(index, index + linesPerPage));
+  }
+
+  if (!pages.length) pages.push([""]);
+
+  const objects = [];
+  const addObject = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const pageIds = [];
+
+  for (const pageLines of pages) {
+    const content = [
+      "BT",
+      "/F1 10 Tf",
+      `${margin} ${pageHeight - margin} Td`,
+      `${lineHeight} TL`,
+      ...pageLines.map((line) => `(${escapePdf(line)}) Tj T*`),
+      "ET",
+    ].join("\n");
+    const contentId = addObject(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
+    const pageId = addObject(
+      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`
+    );
+    pageIds.push(pageId);
+  }
+
+  const pagesId = addObject(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`);
+  const catalogId = addObject(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+
+  for (const pageId of pageIds) {
+    objects[pageId - 1] = objects[pageId - 1].replace("/Parent 0 0 R", `/Parent ${pagesId} 0 R`);
+  }
+
+  const chunks = ["%PDF-1.4\n"];
+  const offsets = [0];
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(Buffer.byteLength(chunks.join("")));
+    chunks.push(`${index + 1} 0 obj\n${objects[index]}\nendobj\n`);
+  }
+  const xrefOffset = Buffer.byteLength(chunks.join(""));
+  chunks.push(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
+  for (let index = 1; index < offsets.length; index += 1) {
+    chunks.push(`${String(offsets[index]).padStart(10, "0")} 00000 n \n`);
+  }
+  chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+  return Buffer.from(chunks.join(""), "utf8");
+}
+
+function wrapLines(text, maxLength) {
+  return cleanText(text)
+    .split("\n")
+    .flatMap((line) => {
+      if (!line) return [""];
+      const words = line.split(/\s+/);
+      const wrapped = [];
+      let current = "";
+      for (const word of words) {
+        const next = current ? `${current} ${word}` : word;
+        if (next.length > maxLength && current) {
+          wrapped.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      }
+      if (current) wrapped.push(current);
+      return wrapped;
+    });
+}
+
+function escapePdf(value) {
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
 }

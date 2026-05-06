@@ -3,112 +3,122 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Spreadsheet Report Builder</title>
+    <title>Quote Recommendation Builder</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
   <body>
-    <aside class="brand-rail" aria-label="Folio Reports">
-      <div class="brand-logo"><span>Folio</span><em>CRM</em></div>
-      <div class="rail-active">Reports</div>
-    </aside>
-    <main class="dashboard-shell">
-      <header class="dashboard-header">
+    <main class="app-shell">
+      <header class="topbar">
         <div>
-          <h1>Folio Reports</h1>
-          <p class="lede">Drop an Excel or CSV file, then choose the fields for your chart axes.</p>
+          <p class="eyebrow">Commercial broking workspace</p>
+          <h1>Quote Recommendation Builder</h1>
         </div>
-        <div class="header-actions">
-          <label class="share-expiry">
-            <span>Share expiry</span>
-            <input id="shareExpiresAt" type="date" />
-          </label>
-          <button id="clearData" class="ghost-button" type="button">Clear data</button>
-          <button id="resetFilters" class="ghost-button" type="button">Reset filters</button>
-          <button id="copyShareLink" class="primary-button" type="button">Copy share link</button>
-        </div>
+        <div class="status-pill" id="apiStatus">Checking AI</div>
       </header>
 
-      <section id="dropZone" class="upload-panel" tabindex="0" aria-label="Upload Excel or CSV report">
-        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv,text/csv" />
-        <div>
-          <strong>Drop Excel or CSV here</strong>
-          <p>Column names from the uploaded file become report fields for the X-axis, Y-axis, and optional breakdown.</p>
-        </div>
-        <button id="browseButton" class="ghost-button" type="button">Browse file</button>
-      </section>
-
-      <section id="mappingPanel" class="mapping-panel hidden" aria-label="Report builder">
-        <div class="builder-heading">
-          <strong>Configure report</strong>
-          <span id="fieldCount">0 fields</span>
-        </div>
-        <label>
-          <span>X-axis</span>
-          <select id="xAxisColumn"></select>
-        </label>
-        <label>
-          <span>Y-axis</span>
-          <select id="yAxisColumn"></select>
-        </label>
-        <label>
-          <span>Break down by</span>
-          <select id="breakdownColumn"></select>
-        </label>
-      </section>
-
-      <section class="report-panel" aria-labelledby="chartTitle">
-        <div class="panel-toolbar">
-          <div>
-            <h2 id="chartTitle">Count of rows</h2>
+      <section class="document-workspace">
+        <aside class="review-sidebar" aria-label="Document sections">
+          <div class="prepared-card">
+            <span>Prepared by</span>
+            <strong>Ebix Insurance Brokers</strong>
+            <em>Pre Renewal Review</em>
           </div>
-        </div>
+          <div class="client-card">
+            <span>Client details</span>
+            <strong>Quote Recommendation</strong>
+          </div>
+          <nav class="section-nav" aria-label="Workflow sections">
+            <a href="#uploadArea" class="is-active"><span>Upload</span><em>01</em></a>
+            <a href="#documentList"><span>Documents</span><em>02</em></a>
+            <a href="#recommendationOutput"><span>Recommendation</span><em>03</em></a>
+            <a href="#sharePanel"><span>Share & PDF</span><em>04</em></a>
+          </nav>
+        </aside>
 
-        <div id="ownerLegend" class="owner-legend" aria-label="Breakdown filters"></div>
+        <section class="document-stage" aria-label="Recommendation workspace">
+          <article class="paper-sheet">
+            <header class="paper-header">
+              <div>
+                <p class="eyebrow">Quote recommendation</p>
+                <h2>Create client-ready advice</h2>
+              </div>
+              <button id="copyTextButton" class="secondary-button" type="button" disabled>Copy text</button>
+            </header>
 
-        <div class="chart-wrap">
-          <div id="yAxisTitle" class="y-axis-title">Count of rows</div>
-          <div id="chartGrid" class="chart-grid" aria-hidden="true"></div>
-          <div id="barChart" class="bar-chart" role="img" aria-label="Vertical bar chart"></div>
-          <div id="chartTooltip" class="chart-tooltip hidden" role="status"></div>
-        </div>
+            <section id="uploadArea" class="input-grid" aria-label="Upload quote inputs">
+              <label class="field-block client-notes">
+                <span>Client risk information</span>
+                <textarea id="clientRiskText" rows="7" placeholder="Paste insured name, policy period, client risk notes, quoted classes of risk, or other data-bound client information."></textarea>
+              </label>
 
-        <div id="xAxisTitle" class="x-axis-title">X-axis</div>
+              <label class="field-block">
+                <span>Quote due date</span>
+                <input id="quoteDueDate" type="date" />
+              </label>
+
+              <section class="upload-lane" aria-label="Upload quote documents">
+                <div>
+                  <h2>Quotes</h2>
+                  <p>Upload one or many related insurer quotes.</p>
+                </div>
+                <input id="quoteInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
+                <button class="secondary-button" id="quoteBrowse" type="button">Choose quote files</button>
+              </section>
+
+              <section class="upload-lane" aria-label="Upload schedules">
+                <div>
+                  <h2>Schedules</h2>
+                  <p>Upload schedules or client risk summaries.</p>
+                </div>
+                <input id="scheduleInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
+                <button class="secondary-button" id="scheduleBrowse" type="button">Choose schedule files</button>
+              </section>
+            </section>
+
+            <section class="document-list-wrap">
+              <div class="section-heading">
+                <h2>Uploaded documents</h2>
+                <button class="icon-button" id="clearFiles" type="button" title="Clear documents" aria-label="Clear documents">×</button>
+              </div>
+              <ul id="documentList" class="document-list"></ul>
+            </section>
+
+            <section class="recommendation-section" aria-label="Recommendation output">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Broker-ready output</p>
+                  <h2 id="outputTitle">Recommendation document</h2>
+                </div>
+              </div>
+              <pre id="recommendationOutput" class="document-preview">Upload quote documents and schedules, then choose whether to generate a webpage URL or a PDF.</pre>
+            </section>
+
+            <div id="sharePanel" class="share-panel hidden">
+              <div>
+                <span>Web link</span>
+                <a id="shareLink" href="#" target="_blank" rel="noreferrer"></a>
+              </div>
+              <div>
+                <span>PDF</span>
+                <a id="pdfLink" href="#" download>Download PDF</a>
+              </div>
+            </div>
+          </article>
+
+          <div class="floating-actions">
+            <p id="statusMessage" class="status-message" aria-live="polite"></p>
+            <div class="delivery-actions" aria-label="Generate deliverable">
+              <button id="generateWebButton" class="primary-button" type="button">Generate webpage URL</button>
+              <button id="generatePdfButton" class="secondary-button" type="button">Generate PDF</button>
+            </div>
+          </div>
+        </section>
       </section>
-
-      <section class="detail-grid">
-        <article class="report-panel">
-          <div class="panel-heading">
-            <h2 id="selectedPipelineTitle">Selection details</h2>
-            <p id="selectedPipelineMeta">Select or hover a bar to inspect the breakdown.</p>
-          </div>
-          <div id="pipelineBreakdown" class="breakdown-list"></div>
-        </article>
-
-        <article class="report-panel">
-          <div class="panel-heading">
-            <h2>Source table</h2>
-            <p id="sourceMeta">Grouped from the uploaded data.</p>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th id="tableXHeader">X-axis</th>
-                  <th id="tableBreakdownHeader">Breakdown</th>
-                  <th id="tableValueHeader">Value</th>
-                  <th>Share</th>
-                </tr>
-              </thead>
-              <tbody id="dataRows"></tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-
-      <p id="statusMessage" class="status-message" aria-live="polite"></p>
     </main>
   </body>
 </html>

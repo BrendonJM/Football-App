@@ -16,3 +16,7 @@ openai-backend-contract.md
 sharepoint-setup.html
 supabase-schema.sql
 vercel.json
+api
+docs
+build-config.js
+public-config.js
