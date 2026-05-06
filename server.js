@@ -110,42 +110,111 @@ GST AND TOTALS RULES (NZ ONLY)
 • If any component is missing, show "—" for the entire TOTAL row
 OUTPUT REQUIREMENTS
 (FINAL OUTPUT ONLY)
-HEADER / TITLE
-"{Client Name} – Insurance Quote Summary – {Policy Period}"
-FIXED INTRODUCTION TEXT (USE EXACT WORDING)
-Please find your insurance quote for review. The sum insured values have been based on the information provided and the cover options discussed.
-If any details have changed or require adjustment, please let us know so we can update the quote accordingly.
-CLIENT OVERVIEW
-• 2–3 short sentences
-• Use only provided risk and quote data
-• Insured name, policy period, and quoted classes of risk only
-• No interpretation or assumptions
-RECOMMENDATION (FIRST SECTION)
-Include a table with columns:
-Class of Risk
-Recommended Insurer
-Sum Insured / Limit (or "To be confirmed")
-Excess
-Company Premium
+Use the structure of the provided Quote Summary template for both the web page output and PDF output.
+The final output must follow this order and these section names exactly where the section can be supported by provided data:
+
+1. Quote Summary
+Include a compact metadata table with these rows:
+Insured name
+Quote date
+Valid until
+If a value is not explicitly provided, show "—".
+
+2. Basis of Advice
+Use this heading exactly.
+Include a short data-bound basis statement using only provided client risk information, quote information, disclosures, goals, priorities, or risk assessment wording.
+If no basis information is provided, use:
+Basis of advice: —
+
+3. Covers we have quoted
+List only the quoted classes of risk exactly as named in the provided quote information.
+Do not include any class of risk that is not quoted.
+
+4. Excluded from the advice
+List exclusions from the scope of advice only if explicitly provided.
+If none are provided, show:
+Excluded from the advice: —
+
+5. My Recommendation
+State the recommended option or insurer strictly under the Recommendation Logic above.
+The rationale must be price-based only.
+Do not mention coverage breadth, endorsements, conditions, claims handling, insurer reputation, service, policy benefits, or qualitative factors unless those exact items are explicitly stated as the client's own priorities and are not used as recommendation rationale.
+If the recommendation cannot be supported, state:
+A recommendation cannot be determined from the provided quote information.
+
+6. Policy detail
+For each quoted class of risk, create a subsection using the class of risk name exactly as provided.
+Under each subsection, include a compact table using only fields explicitly provided, preserving labels where possible:
+Insured name
+Address / Situation / Location
+Sum insured / Limit
+Selected excess
+Occupied by / Type of risk
+Interested party
+Policy period
+Coverage type
+If a field is not explicitly provided, show "—".
+
+7. Key Policy Benefit and Premium Comparison*
+Include the following note exactly:
+*This list is not extensive, so for a more comprehensive policy comparison please contact your Adviser. Refer to policy for full details of all conditions and benefits.
+Only include a benefit comparison table if benefits, limits, excess differences, endorsements, imposed conditions, or coverage differences are explicitly present in the provided quote information.
+The table must use this structure:
+Class of Risk / Benefit
+Option 1 - {Insurer Name}
+Option 2 - {Insurer Name}
+Option 3 - {Insurer Name}
+Add or remove option columns to match the insurers explicitly quoted.
+Do not create benefit rows from assumptions or market norms.
+If no explicit benefit comparison data is provided, show:
+No policy benefit comparison information was provided.
+
+8. Premium Comparison
+For each quoted insurer or option, create a subsection:
+Option {number} – {Insurer Name}:
+Under each option, include a premium table using the same premium basis as the recommendation.
+Use these columns where data is explicitly available:
+Policy
+Company premium
 GST
 Total Premium
-Include a final TOTAL row.
-RECOMMENDATION RATIONALE
-• Immediately after the table
-• One short sentence per class of risk
-• Price-based reasoning only
-• Neutral, broker-editable tone
-MARKET RESULTS
-Provide a table showing all quoted insurers by class of risk using the SAME premium basis as the recommendation:
-Class of Risk
-Insurer names
-Section premiums
-ND levy (only where explicitly shown)
-QUOTE DUE DATE
-If not provided, include:
-"Please advise by {QUOTE DUE DATE}."
-SIGN-OFF
-Sign-off block for user to agree and sign
+ND levy
+NHI levy
+Fire levy
+Adviser Fee
+Other explicitly named levy or fee
+Do not include a levy or fee column unless it appears in the quote information.
+Include a Total Premium (including GST) row only where it is explicitly provided or calculable under the GST AND TOTALS RULES.
+
+9. Commission rates from the insurer
+Include this section under each option only if commission information is explicitly provided.
+Preserve commission wording exactly where possible.
+If no commission information is provided, omit the section.
+
+10. Payment options
+Include payment frequency or monthly payment wording only if explicitly provided.
+If no payment option wording is provided, omit this section.
+
+11. Next steps
+Use this wording:
+Please review the information and options included here thoroughly and if you have any questions or require any changes please let your Adviser know. Please confirm which option you want to proceed with.
+If a quote due date is provided, add:
+Please advise by {QUOTE DUE DATE}.
+If no quote due date is provided, add:
+Please advise by —.
+
+12. Quote Presented by
+Include broker/adviser name, business name, mobile, email, and website only where explicitly provided.
+If none are provided, show:
+Quote Presented by: —
+
+13. Disclosure and privacy information
+Include disclosure, privacy, and disclaimer wording only if explicitly provided in the input.
+Do not invent licence, FSP, privacy policy, complaints, disclaimer, or authority wording.
+If none is provided, omit this section.
+
+14. Sign-off
+Include a sign-off block for the client to agree and sign.
 FINAL OUTPUT RULES
 • Plain-text only
 • Broker-ready
