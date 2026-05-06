@@ -159,7 +159,7 @@ If a field is not explicitly provided, show "—".
 Include the following note exactly:
 *This list is not extensive, so for a more comprehensive policy comparison please contact your Adviser. Refer to policy for full details of all conditions and benefits.
 Only include a benefit comparison table if benefits, limits, excess differences, endorsements, imposed conditions, or coverage differences are explicitly present in the provided quote information.
-The table must use this structure:
+This section mist always display as a table and must use this structure.  Each option must display as a new column in the table:
 Class of Risk / Benefit
 Option 1 - {Insurer Name}
 Option 2 - {Insurer Name}
