@@ -411,6 +411,88 @@ a:focus-visible {
   background: #fff;
 }
 
+.rich-document {
+  display: grid;
+  gap: 16px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: normal;
+}
+
+.rich-document h2,
+.rich-document h3,
+.rich-document p,
+.rich-document ul {
+  margin: 0;
+}
+
+.rich-document h2 {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  color: var(--ink);
+  font-size: 1.18rem;
+  line-height: 1.2;
+}
+
+.rich-document h2:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rich-document h3 {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.rich-document p,
+.rich-document li {
+  color: var(--muted);
+}
+
+.rich-document ul {
+  padding-left: 18px;
+}
+
+.rich-document table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.rich-document th,
+.rich-document td {
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rich-document tr:last-child th,
+.rich-document tr:last-child td {
+  border-bottom: 0;
+}
+
+.rich-document th:last-child,
+.rich-document td:last-child {
+  border-right: 0;
+}
+
+.rich-document th {
+  background: var(--brand-pale);
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.rich-document td {
+  color: var(--ink);
+}
+
 .share-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

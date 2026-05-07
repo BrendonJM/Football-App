@@ -44,7 +44,7 @@ async function loadRecommendation() {
 
 function renderRecord(record) {
   elements.title.textContent = record.title || "Insurance Quote Summary";
-  elements.document.textContent = record.documentText || "";
+  renderDocument(record.documentText || "");
 
   if (record.signedAt) {
     elements.signerName.value = record.signerName || "";
@@ -86,4 +86,92 @@ function showError(message) {
   elements.document.textContent = message;
   elements.signStatus.textContent = "This recommendation cannot be signed until it loads.";
   elements.form.querySelector("button").disabled = true;
+}
+
+function renderDocument(text) {
+  elements.document.innerHTML = "";
+  const blocks = String(text || "").trim().split(/\n{2,}/);
+
+  if (!blocks.length || !blocks[0]) {
+    elements.document.textContent = "No recommendation text was provided.";
+    return;
+  }
+
+  for (const block of blocks) {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) continue;
+
+    if (isPipeTable(lines)) {
+      elements.document.append(renderTable(lines));
+      continue;
+    }
+
+    if (isHeading([lines[0]]) && isPipeTable(lines.slice(1))) {
+      const heading = document.createElement(lines[0].match(/^\d+\.\s/) ? "h2" : "h3");
+      heading.textContent = lines[0];
+      elements.document.append(heading);
+      elements.document.append(renderTable(lines.slice(1)));
+      continue;
+    }
+
+    if (isHeading(lines)) {
+      const heading = document.createElement(lines[0].match(/^\d+\.\s/) ? "h2" : "h3");
+      heading.textContent = lines[0];
+      elements.document.append(heading);
+      if (lines.length > 1) {
+        elements.document.append(renderParagraph(lines.slice(1).join(" ")));
+      }
+      continue;
+    }
+
+    if (lines.every((line) => /^[-•]\s+/.test(line))) {
+      const list = document.createElement("ul");
+      for (const line of lines) {
+        const item = document.createElement("li");
+        item.textContent = line.replace(/^[-•]\s+/, "");
+        list.append(item);
+      }
+      elements.document.append(list);
+      continue;
+    }
+
+    elements.document.append(renderParagraph(lines.join(" ")));
+  }
+}
+
+function isHeading(lines) {
+  return lines.length === 1 && (/^\d+\.\s+\S/.test(lines[0]) || /^[A-Z][^.!?]{2,80}$/.test(lines[0]));
+}
+
+function isPipeTable(lines) {
+  const nonEmpty = lines.filter(Boolean);
+  return nonEmpty.length >= 2 && nonEmpty.every(isPipeRow);
+}
+
+function isPipeRow(line) {
+  return line.includes("|") && !/^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+$/.test(line);
+}
+
+function renderTable(lines) {
+  const table = document.createElement("table");
+  const rows = lines.map((line) => line.split("|").map((cell) => cell.trim()));
+  const columnCount = Math.max(...rows.map((row) => row.length));
+
+  rows.forEach((row, rowIndex) => {
+    const tableRow = document.createElement("tr");
+    for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+      const cell = document.createElement(rowIndex === 0 ? "th" : "td");
+      cell.textContent = row[columnIndex] || "—";
+      tableRow.append(cell);
+    }
+    table.append(tableRow);
+  });
+
+  return table;
+}
+
+function renderParagraph(text) {
+  const paragraph = document.createElement("p");
+  paragraph.textContent = text;
+  return paragraph;
 }

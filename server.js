@@ -112,6 +112,18 @@ OUTPUT REQUIREMENTS
 (FINAL OUTPUT ONLY)
 Use the structure of the provided Quote Summary template for both the web page output and PDF output.
 The final output must follow this order and these section names exactly where the section can be supported by provided data:
+TABLE FORMATTING RULES
+• Every table requested below MUST be output as a plain-text pipe table.
+• A pipe table is consecutive rows using " | " between cells.
+• Do NOT use Markdown separator rows such as "--- | ---".
+• Do NOT use prose where a table is requested.
+• Where a section contains field/value pairs, options, classes of risk, insurers, premiums, limits, excesses, levies, fees, or comparison data, prefer a pipe table over prose unless the section wording below explicitly requires a sentence.
+• Keep table cells compact. Use "—" where instructed for missing values.
+• Put one blank line between each section heading and the table or text that follows it.
+• Example:
+Field | Value
+Prepared for | Example Client
+Prepared by | Example Adviser
 
 1. Quote Summary
 Include a compact metadata table with these rows:
@@ -131,16 +143,17 @@ If no basis information is provided, use:
 Basis of advice: —
 
 3. Covers we have quoted
+Use a compact pipe table.
 List only the quoted classes of risk exactly as named in the provided quote information.
 Do not include any class of risk that is not quoted.
 
 4. Excluded from the advice
-List exclusions from the scope of advice only if explicitly provided.
+Use a compact pipe table for exclusions from the scope of advice only if explicitly provided.
 If none are provided, show:
 Excluded from the advice: —
 
 5. My Recommendation
-State the recommended option or insurer strictly under the Recommendation Logic above.
+Use a compact pipe table to state the recommended option or insurer strictly under the Recommendation Logic above.
 The rationale must be price-based only.
 Do not mention coverage breadth, endorsements, conditions, claims handling, insurer reputation, service, policy benefits, or qualitative factors unless those exact items are explicitly stated as the client's own priorities and are not used as recommendation rationale.
 If the recommendation cannot be supported, state:
@@ -409,7 +422,7 @@ async function handlePdfGet(requestUrl, response) {
   const signedText = record.signedAt
     ? `${record.documentText}\n\nSIGNED\nName: ${record.signerName}\nEmail: ${record.signerEmail || "—"}\nSigned at: ${record.signedAt}`
     : record.documentText;
-  const pdf = createPdf(signedText);
+  const pdf = createPdf(formatDocumentTextForPdf(signedText));
   const filename = `${slugify(record.title || "insurance-quote-summary")}.pdf`;
 
   response.writeHead(200, {
@@ -637,6 +650,55 @@ function createPdf(text) {
   }
   chunks.push(`trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
   return Buffer.from(chunks.join(""), "utf8");
+}
+
+function formatDocumentTextForPdf(text) {
+  const blocks = cleanText(text).split(/\n{2,}/);
+  return blocks
+    .map((block) => {
+      const lines = block.split("\n").map((line) => line.trimEnd());
+      if (isPdfHeading(lines[0]) && isPipeTable(lines.slice(1))) {
+        return `${lines[0]}\n\n${formatPipeTableForPdf(lines.slice(1))}`;
+      }
+      if (!isPipeTable(lines)) return block;
+      return formatPipeTableForPdf(lines);
+    })
+    .join("\n\n");
+}
+
+function isPdfHeading(line) {
+  return /^\d+\.\s+\S/.test(String(line || "").trim()) || /^[A-Z][^.!?]{2,80}$/.test(String(line || "").trim());
+}
+
+function isPipeTable(lines) {
+  const tableRows = lines.filter((line) => isPipeRow(line));
+  return tableRows.length >= 2 && tableRows.length === lines.filter(Boolean).length;
+}
+
+function isPipeRow(line) {
+  return String(line || "").includes("|") && !/^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+$/.test(line);
+}
+
+function formatPipeTableForPdf(lines) {
+  const rows = lines.filter(isPipeRow).map((line) => line.split("|").map((cell) => cell.trim()));
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const widths = Array.from({ length: columnCount }, (_, columnIndex) =>
+    Math.min(
+      26,
+      Math.max(
+        8,
+        ...rows.map((row) => String(row[columnIndex] || "").length)
+      )
+    )
+  );
+  const separator = widths.map((width) => "-".repeat(width)).join("-+-");
+  const formatted = rows.map((row, rowIndex) => {
+    const line = widths
+      .map((width, columnIndex) => String(row[columnIndex] || "—").slice(0, width).padEnd(width, " "))
+      .join(" | ");
+    return rowIndex === 0 ? `${line}\n${separator}` : line;
+  });
+  return formatted.join("\n");
 }
 
 function wrapLines(text, maxLength) {
