@@ -6,6 +6,10 @@ const state = {
 
 const elements = {
   apiStatus: document.querySelector("#apiStatus"),
+  preparedForInput: document.querySelector("#preparedForInput"),
+  preparedByInput: document.querySelector("#preparedByInput"),
+  preparedForTile: document.querySelector("#preparedForTile"),
+  preparedByTile: document.querySelector("#preparedByTile"),
   clientRiskText: document.querySelector("#clientRiskText"),
   quoteDueDate: document.querySelector("#quoteDueDate"),
   quoteInput: document.querySelector("#quoteInput"),
@@ -31,10 +35,13 @@ init();
 function init() {
   wireEvents();
   renderDocuments();
+  updatePreparedTiles();
   checkHealth();
 }
 
 function wireEvents() {
+  elements.preparedForInput.addEventListener("input", updatePreparedTiles);
+  elements.preparedByInput.addEventListener("input", updatePreparedTiles);
   elements.quoteBrowse.addEventListener("click", () => elements.quoteInput.click());
   elements.scheduleBrowse.addEventListener("click", () => elements.scheduleInput.click());
   elements.quoteInput.addEventListener("change", () => addFiles(elements.quoteInput.files, "quote"));
@@ -45,6 +52,11 @@ function wireEvents() {
   elements.generatePdfButton.addEventListener("click", () => createDeliverable("pdf"));
   elements.copyTextButton.addEventListener("click", copyRecommendationText);
   elements.quoteSummaryEditor.addEventListener("input", syncEditedSummary);
+}
+
+function updatePreparedTiles() {
+  elements.preparedForTile.textContent = elements.preparedForInput.value.trim() || "Quote Recommendation";
+  elements.preparedByTile.textContent = elements.preparedByInput.value.trim() || "Ebix Insurance Brokers";
 }
 
 async function checkHealth() {
@@ -266,6 +278,8 @@ async function generateRecommendation() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      preparedFor: elements.preparedForInput.value,
+      preparedBy: elements.preparedByInput.value,
       clientRiskText: elements.clientRiskText.value,
       quoteDueDate: elements.quoteDueDate.value,
       quoteDocuments: state.quoteDocuments.map(stripLocalFields),

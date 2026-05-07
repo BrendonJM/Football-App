@@ -115,10 +115,14 @@ The final output must follow this order and these section names exactly where th
 
 1. Quote Summary
 Include a compact metadata table with these rows:
+Prepared for
+Prepared by
 Insured name
 Quote date
 Valid until
 If a value is not explicitly provided, show "—".
+Use the provided PREPARED FOR value for the Prepared for row.
+Use the provided PREPARED BY value for the Prepared by row.
 
 2. Basis of Advice
 Use this heading exactly.
@@ -204,7 +208,8 @@ If no quote due date is provided, add:
 Please advise by —.
 
 12. Quote Presented by
-Include broker/adviser name, business name, mobile, email, and website only where explicitly provided.
+Include the provided PREPARED BY value first.
+Also include broker/adviser name, business name, mobile, email, and website only where explicitly provided.
 If none are provided, show:
 Quote Presented by: —
 
@@ -286,6 +291,8 @@ server.listen(PORT, () => {
 
 async function handleRecommendationRequest(request, response) {
   const payload = await readJson(request);
+  const preparedFor = cleanText(payload.preparedFor);
+  const preparedBy = cleanText(payload.preparedBy);
   const clientRiskText = cleanText(payload.clientRiskText);
   const quoteDocuments = Array.isArray(payload.quoteDocuments) ? payload.quoteDocuments : [];
   const scheduleDocuments = Array.isArray(payload.scheduleDocuments) ? payload.scheduleDocuments : [];
@@ -304,6 +311,8 @@ async function handleRecommendationRequest(request, response) {
   }
 
   const userInput = buildModelInput({
+    preparedFor,
+    preparedBy,
     clientRiskText,
     quoteDocuments,
     scheduleDocuments,
@@ -449,7 +458,7 @@ async function requestRecommendation(userInput) {
   return outputText;
 }
 
-function buildModelInput({ clientRiskText, quoteDocuments, scheduleDocuments, quoteDueDate }) {
+function buildModelInput({ preparedFor, preparedBy, clientRiskText, quoteDocuments, scheduleDocuments, quoteDueDate }) {
   const quotes = quoteDocuments
     .map((document, index) => formatDocumentBlock("QUOTE", document, index))
     .join("\n\n");
@@ -458,6 +467,12 @@ function buildModelInput({ clientRiskText, quoteDocuments, scheduleDocuments, qu
     .join("\n\n");
 
   return `Generate the final broker-ready output only, following the system rules exactly.
+
+PREPARED FOR:
+${preparedFor || "—"}
+
+PREPARED BY:
+${preparedBy || "—"}
 
 QUOTE DUE DATE PROVIDED BY USER:
 ${quoteDueDate || "—"}

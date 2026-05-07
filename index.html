@@ -25,12 +25,12 @@
         <aside class="review-sidebar" aria-label="Document sections">
           <div class="prepared-card">
             <span>Prepared by</span>
-            <strong>Ebix Insurance Brokers</strong>
+            <strong id="preparedByTile">Ebix Insurance Brokers</strong>
             <em>Pre Renewal Review</em>
           </div>
           <div class="client-card">
             <span>Client details</span>
-            <strong>Quote Recommendation</strong>
+            <strong id="preparedForTile">Quote Recommendation</strong>
           </div>
           <nav class="section-nav" aria-label="Workflow sections">
             <a href="#uploadArea" class="is-active"><span>Upload</span><em>01</em></a>
@@ -51,6 +51,16 @@
             </header>
 
             <section id="uploadArea" class="input-grid" aria-label="Upload quote inputs">
+              <label class="field-block">
+                <span>Prepared for</span>
+                <input id="preparedForInput" type="text" placeholder="Client or insured name" />
+              </label>
+
+              <label class="field-block">
+                <span>Prepared by</span>
+                <input id="preparedByInput" type="text" placeholder="Broker, adviser, or business name" />
+              </label>
+
               <label class="field-block client-notes">
                 <span>Client risk information</span>
                 <textarea id="clientRiskText" rows="7" placeholder="Paste insured name, policy period, client risk notes, quoted classes of risk, or other data-bound client information."></textarea>
