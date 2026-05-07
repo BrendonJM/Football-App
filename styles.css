@@ -229,10 +229,6 @@ h2 {
   gap: 14px;
 }
 
-.client-notes {
-  grid-row: span 3;
-}
-
 .field-block {
   display: grid;
   gap: 8px;
@@ -723,10 +719,6 @@ a:focus-visible {
 
   .share-downloads a {
     flex: 1 1 160px;
-  }
-
-  .client-notes {
-    grid-row: auto;
   }
 
   .upload-lane {

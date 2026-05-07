@@ -10,7 +10,6 @@ const elements = {
   preparedByInput: document.querySelector("#preparedByInput"),
   preparedForTile: document.querySelector("#preparedForTile"),
   preparedByTile: document.querySelector("#preparedByTile"),
-  clientRiskText: document.querySelector("#clientRiskText"),
   quoteDueDate: document.querySelector("#quoteDueDate"),
   quoteInput: document.querySelector("#quoteInput"),
   scheduleInput: document.querySelector("#scheduleInput"),
@@ -290,7 +289,7 @@ async function generateRecommendation() {
     body: JSON.stringify({
       preparedFor: elements.preparedForInput.value,
       preparedBy: elements.preparedByInput.value,
-      clientRiskText: elements.clientRiskText.value,
+      clientRiskText: "",
       quoteDueDate: elements.quoteDueDate.value,
       quoteDocuments: state.quoteDocuments.map(stripLocalFields),
       scheduleDocuments: state.scheduleDocuments.map(stripLocalFields),
