@@ -5,6 +5,7 @@ const elements = {
   title: document.querySelector("#shareTitle"),
   document: document.querySelector("#shareDocument"),
   pdfLink: document.querySelector("#sharePdfLink"),
+  wordLink: document.querySelector("#shareWordLink"),
   form: document.querySelector("#signForm"),
   signerName: document.querySelector("#signerName"),
   signerEmail: document.querySelector("#signerEmail"),
@@ -22,6 +23,7 @@ async function init() {
   }
 
   elements.pdfLink.href = `/api/pdf/${encodeURIComponent(shareId)}`;
+  elements.wordLink.href = `/api/word/${encodeURIComponent(shareId)}`;
   elements.form.addEventListener("submit", signRecommendation);
   await loadRecommendation();
 }
@@ -145,16 +147,23 @@ function isHeading(lines) {
 
 function isPipeTable(lines) {
   const nonEmpty = lines.filter(Boolean);
-  return nonEmpty.length >= 2 && nonEmpty.every(isPipeRow);
+  const rows = nonEmpty.filter(isPipeRow);
+  return rows.length >= 2 && nonEmpty.every((line) => isPipeRow(line) || isPipeSeparator(line));
 }
 
 function isPipeRow(line) {
-  return line.includes("|") && !/^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+$/.test(line);
+  return line.includes("|") && !isPipeSeparator(line);
+}
+
+function isPipeSeparator(line) {
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
 }
 
 function renderTable(lines) {
   const table = document.createElement("table");
-  const rows = lines.map((line) => line.split("|").map((cell) => cell.trim()));
+  const rows = lines
+    .filter(isPipeRow)
+    .map((line) => line.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim() || "—"));
   const columnCount = Math.max(...rows.map((row) => row.length));
 
   rows.forEach((row, rowIndex) => {

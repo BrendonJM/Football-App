@@ -29,7 +29,7 @@
           <a href="#uploadArea" class="is-active"><em>1</em><span><strong>Upload</strong>Add documents</span></a>
           <a href="#documentList"><em>2</em><span><strong>Review</strong>Check documents</span></a>
           <a href="#quoteSummaryEditor"><em>3</em><span><strong>Summary</strong>Edit output</span></a>
-          <a href="#sharePanel"><em>4</em><span><strong>Export</strong>URL or PDF</span></a>
+          <a href="#sharePanel"><em>4</em><span><strong>Export</strong>URL, PDF, or Word</span></a>
         </div>
 
         <div class="tile-card">
@@ -48,6 +48,7 @@
             <button id="generateSummaryButton" class="primary-button" type="button">Generate quote summary</button>
             <button id="generateWebButton" class="secondary-button" type="button" disabled>Generate webpage URL</button>
             <button id="generatePdfButton" class="secondary-button" type="button" disabled>Generate PDF</button>
+            <button id="generateWordButton" class="secondary-button" type="button" disabled>Generate Word</button>
           </div>
         </div>
       </div>
@@ -58,7 +59,7 @@
         <div>
           <p class="eyebrow">Resources / Quote Recommendations</p>
           <h1>Quote Recommendations</h1>
-          <p class="topbar-copy">Upload quote and schedule documents, review the generated summary, then create a client-ready URL or PDF.</p>
+          <p class="topbar-copy">Upload quote and schedule documents, review the generated summary, then create a client-ready URL, PDF, or Word document.</p>
         </div>
         <div class="status-pill" id="apiStatus">Checking AI</div>
       </header>
@@ -138,7 +139,7 @@
                 id="quoteSummaryEditor"
                 class="document-editor"
                 spellcheck="true"
-                placeholder="Upload quote documents and schedules, then generate the quote summary. Review and edit the summary here before creating a webpage URL or PDF."
+                placeholder="Upload quote documents and schedules, then generate the quote summary. Review and edit the summary here before creating a webpage URL, PDF, or Word document."
               ></textarea>
           </section>
 
@@ -150,6 +151,10 @@
               <div>
                 <span>PDF</span>
                 <a id="pdfLink" href="#" download>Download PDF</a>
+              </div>
+              <div>
+                <span>Word</span>
+                <a id="wordLink" href="#" download>Download Word</a>
               </div>
           </section>
         </section>

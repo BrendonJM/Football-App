@@ -21,6 +21,7 @@ const elements = {
   generateSummaryButton: document.querySelector("#generateSummaryButton"),
   generateWebButton: document.querySelector("#generateWebButton"),
   generatePdfButton: document.querySelector("#generatePdfButton"),
+  generateWordButton: document.querySelector("#generateWordButton"),
   statusMessage: document.querySelector("#statusMessage"),
   outputTitle: document.querySelector("#outputTitle"),
   quoteSummaryEditor: document.querySelector("#quoteSummaryEditor"),
@@ -28,6 +29,7 @@ const elements = {
   sharePanel: document.querySelector("#sharePanel"),
   shareLink: document.querySelector("#shareLink"),
   pdfLink: document.querySelector("#pdfLink"),
+  wordLink: document.querySelector("#wordLink"),
 };
 
 init();
@@ -50,6 +52,7 @@ function wireEvents() {
   elements.generateSummaryButton.addEventListener("click", generateSummaryForReview);
   elements.generateWebButton.addEventListener("click", () => createDeliverable("web"));
   elements.generatePdfButton.addEventListener("click", () => createDeliverable("pdf"));
+  elements.generateWordButton.addEventListener("click", () => createDeliverable("word"));
   elements.copyTextButton.addEventListener("click", copyRecommendationText);
   elements.quoteSummaryEditor.addEventListener("input", syncEditedSummary);
 }
@@ -230,7 +233,7 @@ async function generateSummaryForReview() {
   try {
     const recommendation = await generateRecommendation();
     renderEditableSummary(recommendation);
-    setStatus("Quote summary generated. Review and edit before creating a URL or PDF.");
+    setStatus("Quote summary generated. Review and edit before creating a URL, PDF, or Word document.");
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -243,13 +246,18 @@ async function createDeliverable(type) {
   const recommendation = buildEditedRecommendation();
 
   if (!recommendation) {
-    setStatus("Generate and review the quote summary before creating a URL or PDF.", true);
+    setStatus("Generate and review the quote summary before creating a URL, PDF, or Word document.", true);
     return;
   }
 
   setDeliveryButtonsDisabled(true);
   elements.sharePanel.classList.add("hidden");
-  setStatus(type === "web" ? "Creating webpage URL from edited summary..." : "Creating PDF from edited summary...");
+  const statusByType = {
+    web: "Creating webpage URL from edited summary...",
+    pdf: "Creating PDF from edited summary...",
+    word: "Creating Word document from edited summary...",
+  };
+  setStatus(statusByType[type] || statusByType.web);
 
   try {
     const share = await createShare(recommendation);
@@ -263,8 +271,10 @@ async function createDeliverable(type) {
       } catch {
         setStatus("Webpage URL generated from edited summary.");
       }
-    } else {
+    } else if (type === "pdf") {
       setStatus("PDF generated from edited summary. Download it from the PDF link below.");
+    } else {
+      setStatus("Word document generated from edited summary. Download it from the Word link below.");
     }
   } catch (error) {
     setStatus(error.message, true);
@@ -321,9 +331,11 @@ async function createShare(recommendation) {
 function renderShareLinks(share) {
   const shareUrl = new URL(share.url, window.location.origin).href;
   const pdfUrl = new URL(share.pdfUrl, window.location.origin).href;
+  const wordUrl = new URL(share.wordUrl, window.location.origin).href;
   elements.shareLink.href = shareUrl;
   elements.shareLink.textContent = shareUrl;
   elements.pdfLink.href = pdfUrl;
+  elements.wordLink.href = wordUrl;
   elements.sharePanel.classList.remove("hidden");
 }
 
@@ -331,12 +343,14 @@ function clearShareLinks() {
   elements.shareLink.removeAttribute("href");
   elements.shareLink.textContent = "";
   elements.pdfLink.removeAttribute("href");
+  elements.wordLink.removeAttribute("href");
   elements.sharePanel.classList.add("hidden");
 }
 
 function setDeliveryButtonsDisabled(disabled) {
   elements.generateWebButton.disabled = disabled;
   elements.generatePdfButton.disabled = disabled;
+  elements.generateWordButton.disabled = disabled;
 }
 
 function setSummaryButtonDisabled(disabled) {

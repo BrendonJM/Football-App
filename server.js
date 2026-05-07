@@ -277,6 +277,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && requestUrl.pathname.startsWith("/api/word/")) {
+      await handleWordGet(requestUrl, response);
+      return;
+    }
+
     if (request.method === "GET" && requestUrl.pathname === "/api/health") {
       sendJson(response, 200, {
         ok: true,
@@ -369,6 +374,7 @@ async function handleShareCreate(request, response) {
     id,
     url: `/share.html?id=${encodeURIComponent(id)}`,
     pdfUrl: `/api/pdf/${encodeURIComponent(id)}`,
+    wordUrl: `/api/word/${encodeURIComponent(id)}`,
   });
 }
 
@@ -422,7 +428,7 @@ async function handlePdfGet(requestUrl, response) {
   const signedText = record.signedAt
     ? `${record.documentText}\n\nSIGNED\nName: ${record.signerName}\nEmail: ${record.signerEmail || "—"}\nSigned at: ${record.signedAt}`
     : record.documentText;
-  const pdf = createPdf(formatDocumentTextForPdf(signedText));
+  const pdf = createPdf(signedText);
   const filename = `${slugify(record.title || "insurance-quote-summary")}.pdf`;
 
   response.writeHead(200, {
@@ -431,6 +437,29 @@ async function handlePdfGet(requestUrl, response) {
     "Content-Length": pdf.length,
   });
   response.end(pdf);
+}
+
+async function handleWordGet(requestUrl, response) {
+  const id = requestUrl.pathname.split("/").pop();
+  const record = await getRecord(id);
+
+  if (!record) {
+    sendJson(response, 404, { error: "Recommendation link not found." });
+    return;
+  }
+
+  const signedText = record.signedAt
+    ? `${record.documentText}\n\nSIGNED\nName: ${record.signerName}\nEmail: ${record.signerEmail || "—"}\nSigned at: ${record.signedAt}`
+    : record.documentText;
+  const word = createWordDocument(record.title || "Insurance Quote Summary", signedText);
+  const filename = `${slugify(record.title || "insurance-quote-summary")}.doc`;
+
+  response.writeHead(200, {
+    "Content-Type": "application/msword; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Length": Buffer.byteLength(word),
+  });
+  response.end(word);
 }
 
 async function requestRecommendation(userInput) {
@@ -594,38 +623,22 @@ function slugify(value) {
 function createPdf(text) {
   const pageWidth = 595.28;
   const pageHeight = 841.89;
-  const margin = 54;
-  const lineHeight = 14;
-  const linesPerPage = Math.floor((pageHeight - margin * 2) / lineHeight);
-  const lines = wrapLines(text, 88);
-  const pages = [];
-
-  for (let index = 0; index < lines.length; index += linesPerPage) {
-    pages.push(lines.slice(index, index + linesPerPage));
-  }
-
-  if (!pages.length) pages.push([""]);
-
+  const margin = 42;
   const objects = [];
   const addObject = (body) => {
     objects.push(body);
     return objects.length;
   };
   const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const boldFontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
   const pageIds = [];
+  const pages = renderPdfPages(text, { pageWidth, pageHeight, margin });
 
-  for (const pageLines of pages) {
-    const content = [
-      "BT",
-      "/F1 10 Tf",
-      `${margin} ${pageHeight - margin} Td`,
-      `${lineHeight} TL`,
-      ...pageLines.map((line) => `(${escapePdf(line)}) Tj T*`),
-      "ET",
-    ].join("\n");
+  for (const pageCommands of pages) {
+    const content = pageCommands.join("\n");
     const contentId = addObject(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
     const pageId = addObject(
-      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`
+      `<< /Type /Page /Parent 0 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontId} 0 R /F2 ${boldFontId} 0 R >> >> /Contents ${contentId} 0 R >>`
     );
     pageIds.push(pageId);
   }
@@ -652,75 +665,246 @@ function createPdf(text) {
   return Buffer.from(chunks.join(""), "utf8");
 }
 
-function formatDocumentTextForPdf(text) {
-  const blocks = cleanText(text).split(/\n{2,}/);
-  return blocks
+function createWordDocument(title, text) {
+  const body = parseDocumentBlocks(text)
     .map((block) => {
-      const lines = block.split("\n").map((line) => line.trimEnd());
-      if (isPdfHeading(lines[0]) && isPipeTable(lines.slice(1))) {
-        return `${lines[0]}\n\n${formatPipeTableForPdf(lines.slice(1))}`;
+      if (block.type === "heading") {
+        const tag = block.level === 1 ? "h2" : "h3";
+        return `<${tag}>${escapeHtml(block.text)}</${tag}>`;
       }
-      if (!isPipeTable(lines)) return block;
-      return formatPipeTableForPdf(lines);
+
+      if (block.type === "table") {
+        const rows = block.rows
+          .map((row, rowIndex) => {
+            const cells = row
+              .map((cell) => {
+                const tag = rowIndex === 0 ? "th" : "td";
+                return `<${tag}>${escapeHtml(cell)}</${tag}>`;
+              })
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("");
+        return `<table>${rows}</table>`;
+      }
+
+      return `<p>${escapeHtml(block.text)}</p>`;
     })
-    .join("\n\n");
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page WordSection1 { size: 595.3pt 841.9pt; margin: 42pt; }
+    body { font-family: Arial, sans-serif; color: #25272b; font-size: 10.5pt; line-height: 1.45; }
+    h1 { font-size: 22pt; margin: 0 0 18pt; }
+    h2 { font-size: 15pt; margin: 18pt 0 8pt; color: #25272b; }
+    h3 { font-size: 12pt; margin: 14pt 0 6pt; color: #25272b; }
+    p { margin: 0 0 10pt; color: #4d5868; }
+    table { width: 100%; border-collapse: collapse; margin: 6pt 0 14pt; }
+    th, td { border: 1pt solid #cbd5e1; padding: 6pt 7pt; text-align: left; vertical-align: top; }
+    th { background: #f3f4ff; font-weight: bold; color: #25272b; }
+    td { color: #25272b; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  ${body}
+</body>
+</html>`;
 }
 
-function isPdfHeading(line) {
+function renderPdfPages(text, settings) {
+  const { pageWidth, pageHeight, margin } = settings;
+  const contentWidth = pageWidth - margin * 2;
+  const pages = [[]];
+  let currentPage = pages[0];
+  let y = pageHeight - margin;
+
+  const newPage = () => {
+    currentPage = [];
+    pages.push(currentPage);
+    y = pageHeight - margin;
+  };
+
+  const ensureSpace = (height) => {
+    if (y - height < margin) newPage();
+  };
+
+  const addText = (value, x, baseline, options = {}) => {
+    const font = options.bold ? "F2" : "F1";
+    const size = options.size || 10;
+    const color = options.color || [0.15, 0.15, 0.17];
+    currentPage.push(`${color.join(" ")} rg`);
+    currentPage.push(`BT /${font} ${size} Tf ${x.toFixed(2)} ${baseline.toFixed(2)} Td (${escapePdf(value)}) Tj ET`);
+  };
+
+  const addRect = (x, top, width, height, options = {}) => {
+    const bottom = top - height;
+    if (options.fill) {
+      currentPage.push(`${options.fill.join(" ")} rg ${x.toFixed(2)} ${bottom.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re f`);
+    }
+    currentPage.push(`${(options.stroke || [0.86, 0.89, 0.92]).join(" ")} RG 0.5 w ${x.toFixed(2)} ${bottom.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re S`);
+  };
+
+  for (const block of parseDocumentBlocks(text)) {
+    if (block.type === "heading") {
+      const size = block.level === 1 ? 16 : 13;
+      ensureSpace(30);
+      addText(block.text, margin, y - size, { bold: true, size, color: [0.08, 0.1, 0.13] });
+      y -= size + 14;
+      continue;
+    }
+
+    if (block.type === "table") {
+      y = renderPdfTable(block.rows, { addText, addRect, ensureSpace, newPage, getY: () => y, setY: (nextY) => { y = nextY; }, margin, contentWidth });
+      y -= 14;
+      continue;
+    }
+
+    const lines = wrapPdfText(block.text, contentWidth, 10);
+    ensureSpace(lines.length * 13 + 8);
+    for (const line of lines) {
+      addText(line, margin, y - 10, { size: 10, color: [0.33, 0.38, 0.46] });
+      y -= 13;
+    }
+    y -= 8;
+  }
+
+  return pages.length ? pages : [[]];
+}
+
+function renderPdfTable(rows, tools) {
+  const { addText, addRect, ensureSpace, newPage, getY, setY, margin, contentWidth } = tools;
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const widths = getPdfTableColumnWidths(columnCount, contentWidth);
+  const fontSize = columnCount > 4 ? 7.6 : 8.8;
+  const lineHeight = columnCount > 4 ? 9 : 10.5;
+  let y = getY();
+
+  rows.forEach((row, rowIndex) => {
+    const cellLines = widths.map((width, columnIndex) => wrapPdfText(row[columnIndex] || "—", width - 12, fontSize));
+    const rowHeight = Math.max(28, Math.max(...cellLines.map((lines) => lines.length)) * lineHeight + 14);
+
+    if (y - rowHeight < 42) {
+      newPage();
+      y = getY();
+      if (rowIndex > 0) {
+        const headerLines = widths.map((width, columnIndex) => wrapPdfText(rows[0][columnIndex] || "—", width - 12, fontSize));
+        const headerHeight = Math.max(28, Math.max(...headerLines.map((lines) => lines.length)) * lineHeight + 14);
+        drawPdfTableRow(rows[0], headerLines, widths, headerHeight, y, { addText, addRect, margin, fontSize, lineHeight, isHeader: true });
+        y -= headerHeight;
+      }
+    }
+
+    ensureSpace(rowHeight);
+    drawPdfTableRow(row, cellLines, widths, rowHeight, y, { addText, addRect, margin, fontSize, lineHeight, isHeader: rowIndex === 0 });
+    y -= rowHeight;
+  });
+
+  setY(y);
+  return y;
+}
+
+function drawPdfTableRow(row, cellLines, widths, rowHeight, top, options) {
+  const { addText, addRect, margin, fontSize, lineHeight, isHeader } = options;
+  let x = margin;
+  widths.forEach((width, columnIndex) => {
+    addRect(x, top, width, rowHeight, {
+      fill: isHeader ? [0.95, 0.96, 1] : null,
+      stroke: [0.82, 0.86, 0.9],
+    });
+    const lines = cellLines[columnIndex] || ["—"];
+    lines.forEach((line, lineIndex) => {
+      addText(line, x + 6, top - 15 - lineIndex * lineHeight, {
+        bold: isHeader,
+        size: fontSize,
+        color: isHeader ? [0.15, 0.15, 0.17] : [0.22, 0.25, 0.3],
+      });
+    });
+    x += width;
+  });
+}
+
+function getPdfTableColumnWidths(columnCount, contentWidth) {
+  if (columnCount <= 1) return [contentWidth];
+  if (columnCount === 2) return [contentWidth * 0.34, contentWidth * 0.66];
+  const first = contentWidth * 0.28;
+  const remaining = (contentWidth - first) / (columnCount - 1);
+  return [first, ...Array.from({ length: columnCount - 1 }, () => remaining)];
+}
+
+function parseDocumentBlocks(text) {
+  const blocks = [];
+  for (const rawBlock of cleanText(text).split(/\n{2,}/)) {
+    const lines = rawBlock.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) continue;
+
+    if (isDocumentHeading(lines[0]) && isPipeTable(lines.slice(1))) {
+      blocks.push({ type: "heading", level: lines[0].match(/^\d+\.\s/) ? 1 : 2, text: lines[0] });
+      blocks.push({ type: "table", rows: parsePipeRows(lines.slice(1)) });
+      continue;
+    }
+
+    if (isPipeTable(lines)) {
+      blocks.push({ type: "table", rows: parsePipeRows(lines) });
+      continue;
+    }
+
+    if (lines.length === 1 && isDocumentHeading(lines[0])) {
+      blocks.push({ type: "heading", level: lines[0].match(/^\d+\.\s/) ? 1 : 2, text: lines[0] });
+      continue;
+    }
+
+    blocks.push({ type: "paragraph", text: lines.join(" ") });
+  }
+  return blocks;
+}
+
+function isDocumentHeading(line) {
   return /^\d+\.\s+\S/.test(String(line || "").trim()) || /^[A-Z][^.!?]{2,80}$/.test(String(line || "").trim());
 }
 
 function isPipeTable(lines) {
-  const tableRows = lines.filter((line) => isPipeRow(line));
-  return tableRows.length >= 2 && tableRows.length === lines.filter(Boolean).length;
+  const nonEmpty = lines.filter(Boolean);
+  const rows = nonEmpty.filter((line) => isPipeRow(line));
+  return rows.length >= 2 && nonEmpty.every((line) => isPipeRow(line) || isPipeSeparator(line));
 }
 
 function isPipeRow(line) {
-  return String(line || "").includes("|") && !/^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+$/.test(line);
+  const value = String(line || "").trim();
+  return value.includes("|") && !isPipeSeparator(value);
 }
 
-function formatPipeTableForPdf(lines) {
-  const rows = lines.filter(isPipeRow).map((line) => line.split("|").map((cell) => cell.trim()));
-  const columnCount = Math.max(...rows.map((row) => row.length));
-  const widths = Array.from({ length: columnCount }, (_, columnIndex) =>
-    Math.min(
-      26,
-      Math.max(
-        8,
-        ...rows.map((row) => String(row[columnIndex] || "").length)
-      )
-    )
-  );
-  const separator = widths.map((width) => "-".repeat(width)).join("-+-");
-  const formatted = rows.map((row, rowIndex) => {
-    const line = widths
-      .map((width, columnIndex) => String(row[columnIndex] || "—").slice(0, width).padEnd(width, " "))
-      .join(" | ");
-    return rowIndex === 0 ? `${line}\n${separator}` : line;
-  });
-  return formatted.join("\n");
+function isPipeSeparator(line) {
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(String(line || "").trim());
 }
 
-function wrapLines(text, maxLength) {
-  return cleanText(text)
-    .split("\n")
-    .flatMap((line) => {
-      if (!line) return [""];
-      const words = line.split(/\s+/);
-      const wrapped = [];
-      let current = "";
-      for (const word of words) {
-        const next = current ? `${current} ${word}` : word;
-        if (next.length > maxLength && current) {
-          wrapped.push(current);
-          current = word;
-        } else {
-          current = next;
-        }
-      }
-      if (current) wrapped.push(current);
-      return wrapped;
-    });
+function parsePipeRows(lines) {
+  return lines
+    .filter((line) => isPipeRow(line))
+    .map((line) => line.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim() || "—"));
+}
+
+function wrapPdfText(text, maxWidth, fontSize) {
+  const maxChars = Math.max(8, Math.floor(maxWidth / (fontSize * 0.48)));
+  const words = String(text || "—").split(/\s+/);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : ["—"];
 }
 
 function escapePdf(value) {
@@ -728,4 +912,12 @@ function escapePdf(value) {
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
     .replace(/\)/g, "\\)");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

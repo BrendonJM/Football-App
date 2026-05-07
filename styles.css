@@ -495,7 +495,7 @@ a:focus-visible {
 
 .share-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 14px;
 }
 
@@ -508,6 +508,13 @@ a:focus-visible {
 .share-panel a {
   overflow-wrap: anywhere;
   font-weight: 800;
+}
+
+.share-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .rail-panel {
@@ -708,6 +715,14 @@ a:focus-visible {
   .share-panel,
   .sign-panel {
     grid-template-columns: 1fr;
+  }
+
+  .share-downloads {
+    justify-content: stretch;
+  }
+
+  .share-downloads a {
+    flex: 1 1 160px;
   }
 
   .client-notes {
