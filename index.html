@@ -12,40 +12,67 @@
     <script src="./app.js" defer></script>
   </head>
   <body>
+    <aside class="app-nav" aria-label="Folio CRM navigation">
+      <div class="folio-logo"><span>Folio</span><em>CRM</em></div>
+      <a class="nav-item is-active" href="#uploadArea">
+        <span aria-hidden="true">↗</span>
+        <strong>Quote Recommendations</strong>
+      </a>
+    </aside>
+
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Commercial broking workspace</p>
-          <h1>Quote Recommendation Builder</h1>
+          <p class="eyebrow">Resources / Quote Recommendations</p>
+          <h1>Quote Recommendations</h1>
+          <p class="topbar-copy">Upload quote and schedule documents, review the generated summary, then create a client-ready URL or PDF.</p>
         </div>
         <div class="status-pill" id="apiStatus">Checking AI</div>
       </header>
 
       <section class="document-workspace">
         <aside class="review-sidebar" aria-label="Document sections">
-          <div class="prepared-card">
-            <span>Prepared by</span>
-            <strong id="preparedByTile">Ebix Insurance Brokers</strong>
-            <em>Pre Renewal Review</em>
+          <div class="review-header">
+            <span aria-hidden="true">↥</span>
+            <div>
+              <p class="eyebrow">Review</p>
+              <h2>Ready for upload</h2>
+            </div>
           </div>
-          <div class="client-card">
-            <span>Client details</span>
+
+          <div class="review-steps">
+            <a href="#uploadArea" class="is-active"><em>1</em><span><strong>Upload</strong>Add documents</span></a>
+            <a href="#documentList"><em>2</em><span><strong>Review</strong>Check documents</span></a>
+            <a href="#quoteSummaryEditor"><em>3</em><span><strong>Summary</strong>Edit output</span></a>
+            <a href="#sharePanel"><em>4</em><span><strong>Export</strong>URL or PDF</span></a>
+          </div>
+
+          <div class="tile-card">
+            <span>Prepared for</span>
             <strong id="preparedForTile">Quote Recommendation</strong>
           </div>
-          <nav class="section-nav" aria-label="Workflow sections">
-            <a href="#uploadArea" class="is-active"><span>Upload</span><em>01</em></a>
-            <a href="#documentList"><span>Documents</span><em>02</em></a>
-            <a href="#quoteSummaryEditor"><span>Quote Summary</span><em>03</em></a>
-            <a href="#sharePanel"><span>Share & PDF</span><em>04</em></a>
-          </nav>
+
+          <div class="tile-card">
+            <span>Prepared by</span>
+            <strong id="preparedByTile">Ebix Insurance Brokers</strong>
+          </div>
+
+          <div class="floating-actions">
+            <p id="statusMessage" class="status-message" aria-live="polite"></p>
+            <div class="delivery-actions" aria-label="Generate deliverable">
+              <button id="generateSummaryButton" class="primary-button" type="button">Generate quote summary</button>
+              <button id="generateWebButton" class="secondary-button" type="button" disabled>Generate webpage URL</button>
+              <button id="generatePdfButton" class="secondary-button" type="button" disabled>Generate PDF</button>
+            </div>
+          </div>
         </aside>
 
         <section class="document-stage" aria-label="Recommendation workspace">
-          <article class="paper-sheet">
-            <header class="paper-header">
+          <section class="workspace-card">
+            <header class="card-header">
               <div>
-                <p class="eyebrow">Quote recommendation</p>
-                <h2>Create client-ready advice</h2>
+                <p class="eyebrow">Upload</p>
+                <h2>Build quote summary</h2>
               </div>
               <button id="copyTextButton" class="secondary-button" type="button" disabled>Copy text</button>
             </header>
@@ -90,15 +117,20 @@
               </section>
             </section>
 
-            <section class="document-list-wrap">
+          </section>
+
+          <section class="workspace-card document-list-wrap">
               <div class="section-heading">
-                <h2>Uploaded documents</h2>
+                <div>
+                  <p class="eyebrow">Arrange</p>
+                  <h2>Uploaded documents</h2>
+                </div>
                 <button class="icon-button" id="clearFiles" type="button" title="Clear documents" aria-label="Clear documents">×</button>
               </div>
               <ul id="documentList" class="document-list"></ul>
-            </section>
+          </section>
 
-            <section class="recommendation-section" aria-label="Recommendation output">
+          <section class="workspace-card recommendation-section" aria-label="Recommendation output">
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Editable quote summary</p>
@@ -111,9 +143,9 @@
                 spellcheck="true"
                 placeholder="Upload quote documents and schedules, then generate the quote summary. Review and edit the summary here before creating a webpage URL or PDF."
               ></textarea>
-            </section>
+          </section>
 
-            <div id="sharePanel" class="share-panel hidden">
+          <section id="sharePanel" class="workspace-card share-panel hidden">
               <div>
                 <span>Web link</span>
                 <a id="shareLink" href="#" target="_blank" rel="noreferrer"></a>
@@ -122,17 +154,7 @@
                 <span>PDF</span>
                 <a id="pdfLink" href="#" download>Download PDF</a>
               </div>
-            </div>
-          </article>
-
-          <div class="floating-actions">
-            <p id="statusMessage" class="status-message" aria-live="polite"></p>
-            <div class="delivery-actions" aria-label="Generate deliverable">
-              <button id="generateSummaryButton" class="primary-button" type="button">Generate quote summary</button>
-              <button id="generateWebButton" class="secondary-button" type="button" disabled>Generate webpage URL</button>
-              <button id="generatePdfButton" class="secondary-button" type="button" disabled>Generate PDF</button>
-            </div>
-          </div>
+          </section>
         </section>
       </section>
     </main>
