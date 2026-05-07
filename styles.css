@@ -69,9 +69,10 @@ h2 {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 10;
-  width: 210px;
+  width: 300px;
+  overflow-y: auto;
   background: var(--rail);
-  padding: 24px 9px;
+  padding: 24px 12px;
   color: #fff;
 }
 
@@ -116,7 +117,7 @@ h2 {
 
 .app-shell {
   width: auto;
-  margin-left: 210px;
+  margin-left: 300px;
   padding: 32px 20px 56px;
 }
 
@@ -180,7 +181,7 @@ h2 {
 
 .document-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   max-width: 1238px;
@@ -194,7 +195,6 @@ h2 {
 }
 
 .workspace-card,
-.review-sidebar,
 .sign-panel {
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -216,8 +216,7 @@ h2 {
 }
 
 .card-header h2,
-.section-heading h2,
-.review-header h2 {
+.section-heading h2 {
   margin: 0;
   color: var(--ink);
   font-size: 1.24rem;
@@ -429,33 +428,28 @@ a:focus-visible {
   font-weight: 800;
 }
 
-.review-sidebar {
-  position: sticky;
-  top: 24px;
+.rail-panel {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 13px;
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 18px;
 }
 
-.review-header {
+.rail-heading {
   display: grid;
-  grid-template-columns: 44px 1fr;
-  align-items: center;
-  gap: 14px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 12px;
+  gap: 2px;
 }
 
-.review-header > span {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 7px;
-  background: var(--brand-pale);
-  color: var(--brand);
-  font-size: 1.35rem;
-  font-weight: 900;
+.rail-heading .eyebrow {
+  color: var(--rail-muted);
+}
+
+.rail-heading h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.04rem;
+  line-height: 1.2;
 }
 
 .review-steps {
@@ -467,19 +461,19 @@ a:focus-visible {
   display: grid;
   grid-template-columns: 34px 1fr;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-height: 58px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 7px;
-  color: var(--ink);
+  color: #fff;
   padding: 8px 11px;
   text-decoration: none;
 }
 
 .review-steps a.is-active,
 .review-steps a:hover {
-  border-color: #c3c7ff;
-  background: var(--brand-pale);
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(86, 81, 255, 0.28);
 }
 
 .review-steps em {
@@ -488,8 +482,8 @@ a:focus-visible {
   width: 29px;
   height: 29px;
   border-radius: 50%;
-  background: #e9eef5;
-  color: var(--muted);
+  background: rgba(255, 255, 255, 0.12);
+  color: #dfe6f3;
   font-style: normal;
   font-weight: 900;
   font-size: 0.83rem;
@@ -506,32 +500,37 @@ a:focus-visible {
 }
 
 .review-steps strong {
+  color: #fff;
   font-size: 0.9rem;
 }
 
 .review-steps span {
-  color: var(--muted);
+  color: var(--rail-muted);
   font-size: 0.78rem;
 }
 
 .tile-card {
   display: grid;
   gap: 8px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 7px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.06);
   padding: 13px;
 }
 
+.tile-card span {
+  color: var(--rail-muted);
+}
+
 .tile-card strong {
-  color: var(--ink);
+  color: #fff;
   overflow-wrap: anywhere;
 }
 
 .floating-actions {
   display: grid;
   gap: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   padding-top: 14px;
 }
 
@@ -547,9 +546,20 @@ a:focus-visible {
 .status-message {
   min-height: 20px;
   margin: 0;
-  color: var(--muted);
+  color: var(--rail-muted);
   font-size: 0.88rem;
   font-weight: 750;
+}
+
+.rail-panel .secondary-button {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #dfe2ff;
+}
+
+.rail-panel .secondary-button:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .status-message.error,
@@ -576,17 +586,8 @@ a:focus-visible {
 }
 
 @media (max-width: 1120px) {
-  .document-workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .review-sidebar {
-    position: static;
-    grid-row: 1;
-  }
-
   .review-steps {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 
@@ -602,8 +603,7 @@ a:focus-visible {
   }
 
   .nav-item {
-    width: max-content;
-    min-width: 210px;
+    min-width: 0;
   }
 
   .app-shell,
