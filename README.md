@@ -7,9 +7,10 @@ A fresh broker-facing application for turning insurance quote documents and sche
 - Upload one or many related quote documents.
 - Upload schedules or client risk summaries.
 - Extract text from PDF, DOCX, TXT, CSV, XLSX, XLS, and JSON files in the browser.
-- Generate a client webpage URL directly from the uploaded quote and schedule set.
-- Generate a PDF directly from the uploaded quote and schedule set.
-- Preview and copy the broker-ready plain-text recommendation created with the strict data-bound AI prompt.
+- Generate an editable quote summary from the uploaded quote and schedule set.
+- Review and amend the generated quote summary before creating deliverables.
+- Generate a client webpage URL or downloadable PDF from the edited quote summary.
+- Copy the broker-ready plain-text quote summary created with the strict data-bound AI prompt.
 - Record client sign-off name, optional email, and timestamp.
 
 ## Run Locally

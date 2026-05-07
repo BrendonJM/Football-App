@@ -35,7 +35,7 @@
           <nav class="section-nav" aria-label="Workflow sections">
             <a href="#uploadArea" class="is-active"><span>Upload</span><em>01</em></a>
             <a href="#documentList"><span>Documents</span><em>02</em></a>
-            <a href="#recommendationOutput"><span>Recommendation</span><em>03</em></a>
+            <a href="#quoteSummaryEditor"><span>Quote Summary</span><em>03</em></a>
             <a href="#sharePanel"><span>Share & PDF</span><em>04</em></a>
           </nav>
         </aside>
@@ -91,11 +91,16 @@
             <section class="recommendation-section" aria-label="Recommendation output">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Broker-ready output</p>
-                  <h2 id="outputTitle">Recommendation document</h2>
+                  <p class="eyebrow">Editable quote summary</p>
+                  <h2 id="outputTitle">Quote summary</h2>
                 </div>
               </div>
-              <pre id="recommendationOutput" class="document-preview">Upload quote documents and schedules, then choose whether to generate a webpage URL or a PDF.</pre>
+              <textarea
+                id="quoteSummaryEditor"
+                class="document-editor"
+                spellcheck="true"
+                placeholder="Upload quote documents and schedules, then generate the quote summary. Review and edit the summary here before creating a webpage URL or PDF."
+              ></textarea>
             </section>
 
             <div id="sharePanel" class="share-panel hidden">
@@ -113,8 +118,9 @@
           <div class="floating-actions">
             <p id="statusMessage" class="status-message" aria-live="polite"></p>
             <div class="delivery-actions" aria-label="Generate deliverable">
-              <button id="generateWebButton" class="primary-button" type="button">Generate webpage URL</button>
-              <button id="generatePdfButton" class="secondary-button" type="button">Generate PDF</button>
+              <button id="generateSummaryButton" class="primary-button" type="button">Generate quote summary</button>
+              <button id="generateWebButton" class="secondary-button" type="button" disabled>Generate webpage URL</button>
+              <button id="generatePdfButton" class="secondary-button" type="button" disabled>Generate PDF</button>
             </div>
           </div>
         </section>

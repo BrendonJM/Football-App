@@ -14,11 +14,12 @@ const elements = {
   scheduleBrowse: document.querySelector("#scheduleBrowse"),
   clearFiles: document.querySelector("#clearFiles"),
   documentList: document.querySelector("#documentList"),
+  generateSummaryButton: document.querySelector("#generateSummaryButton"),
   generateWebButton: document.querySelector("#generateWebButton"),
   generatePdfButton: document.querySelector("#generatePdfButton"),
   statusMessage: document.querySelector("#statusMessage"),
   outputTitle: document.querySelector("#outputTitle"),
-  recommendationOutput: document.querySelector("#recommendationOutput"),
+  quoteSummaryEditor: document.querySelector("#quoteSummaryEditor"),
   copyTextButton: document.querySelector("#copyTextButton"),
   sharePanel: document.querySelector("#sharePanel"),
   shareLink: document.querySelector("#shareLink"),
@@ -39,9 +40,11 @@ function wireEvents() {
   elements.quoteInput.addEventListener("change", () => addFiles(elements.quoteInput.files, "quote"));
   elements.scheduleInput.addEventListener("change", () => addFiles(elements.scheduleInput.files, "schedule"));
   elements.clearFiles.addEventListener("click", clearFiles);
-  elements.generateWebButton.addEventListener("click", () => generateDeliverable("web"));
-  elements.generatePdfButton.addEventListener("click", () => generateDeliverable("pdf"));
+  elements.generateSummaryButton.addEventListener("click", generateSummaryForReview);
+  elements.generateWebButton.addEventListener("click", () => createDeliverable("web"));
+  elements.generatePdfButton.addEventListener("click", () => createDeliverable("pdf"));
   elements.copyTextButton.addEventListener("click", copyRecommendationText);
+  elements.quoteSummaryEditor.addEventListener("input", syncEditedSummary);
 }
 
 async function checkHealth() {
@@ -86,6 +89,7 @@ async function addFiles(fileList, kind) {
   elements.quoteInput.value = "";
   elements.scheduleInput.value = "";
   renderDocuments();
+  invalidateGeneratedSummary("Documents changed. Generate a fresh quote summary before creating a link or PDF.");
   setStatus("Documents ready.");
 }
 
@@ -159,6 +163,7 @@ function renderDocuments() {
     item.className = "empty-item";
     item.textContent = "No documents uploaded yet.";
     elements.documentList.append(item);
+    setSummaryButtonDisabled(true);
     setDeliveryButtonsDisabled(true);
     return;
   }
@@ -176,12 +181,14 @@ function renderDocuments() {
     elements.documentList.append(item);
   }
 
-  setDeliveryButtonsDisabled(state.quoteDocuments.length === 0);
+  setSummaryButtonDisabled(state.quoteDocuments.length === 0);
+  setDeliveryButtonsDisabled(!hasEditableSummary());
 }
 
 function removeDocument(id) {
   state.quoteDocuments = state.quoteDocuments.filter((documentRecord) => documentRecord.id !== id);
   state.scheduleDocuments = state.scheduleDocuments.filter((documentRecord) => documentRecord.id !== id);
+  invalidateGeneratedSummary("Documents changed. Generate a fresh quote summary before creating a link or PDF.");
   renderDocuments();
 }
 
@@ -189,25 +196,50 @@ function clearFiles() {
   state.quoteDocuments = [];
   state.scheduleDocuments = [];
   state.recommendation = null;
-  elements.recommendationOutput.textContent = "Upload quote documents and schedules, then choose whether to generate a webpage URL or a PDF.";
+  elements.outputTitle.textContent = "Quote summary";
+  elements.quoteSummaryEditor.value = "";
   elements.copyTextButton.disabled = true;
   elements.sharePanel.classList.add("hidden");
   renderDocuments();
   setStatus("Cleared.");
 }
 
-async function generateDeliverable(type) {
+async function generateSummaryForReview() {
   if (!state.quoteDocuments.length) {
     setStatus("Upload at least one quote document.", true);
     return;
   }
 
+  setSummaryButtonDisabled(true);
   setDeliveryButtonsDisabled(true);
   elements.sharePanel.classList.add("hidden");
-  setStatus(type === "web" ? "Generating webpage recommendation..." : "Generating PDF recommendation...");
+  setStatus("Generating quote summary for review...");
 
   try {
     const recommendation = await generateRecommendation();
+    renderEditableSummary(recommendation);
+    setStatus("Quote summary generated. Review and edit before creating a URL or PDF.");
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    setSummaryButtonDisabled(state.quoteDocuments.length === 0);
+    setDeliveryButtonsDisabled(!hasEditableSummary());
+  }
+}
+
+async function createDeliverable(type) {
+  const recommendation = buildEditedRecommendation();
+
+  if (!recommendation) {
+    setStatus("Generate and review the quote summary before creating a URL or PDF.", true);
+    return;
+  }
+
+  setDeliveryButtonsDisabled(true);
+  elements.sharePanel.classList.add("hidden");
+  setStatus(type === "web" ? "Creating webpage URL from edited summary..." : "Creating PDF from edited summary...");
+
+  try {
     const share = await createShare(recommendation);
 
     renderShareLinks(share);
@@ -215,17 +247,17 @@ async function generateDeliverable(type) {
     if (type === "web") {
       try {
         await navigator.clipboard.writeText(new URL(share.url, window.location.origin).href);
-        setStatus("Webpage URL generated and copied.");
+        setStatus("Webpage URL generated from edited summary and copied.");
       } catch {
-        setStatus("Webpage URL generated.");
+        setStatus("Webpage URL generated from edited summary.");
       }
     } else {
-      setStatus("PDF generated. Download it from the PDF link below.");
+      setStatus("PDF generated from edited summary. Download it from the PDF link below.");
     }
   } catch (error) {
     setStatus(error.message, true);
   } finally {
-    setDeliveryButtonsDisabled(state.quoteDocuments.length === 0);
+    setDeliveryButtonsDisabled(!hasEditableSummary());
   }
 }
 
@@ -247,16 +279,14 @@ async function generateRecommendation() {
   }
 
   state.recommendation = payload;
-  elements.outputTitle.textContent = payload.title || "Recommendation document";
-  elements.recommendationOutput.textContent = payload.documentText;
-  elements.copyTextButton.disabled = false;
   return payload;
 }
 
 async function copyRecommendationText() {
-  if (!state.recommendation?.documentText) return;
-  await navigator.clipboard.writeText(state.recommendation.documentText);
-  setStatus("Recommendation text copied.");
+  const summaryText = getEditedSummaryText();
+  if (!summaryText) return;
+  await navigator.clipboard.writeText(summaryText);
+  setStatus("Quote summary text copied.");
 }
 
 async function createShare(recommendation) {
@@ -286,6 +316,66 @@ function renderShareLinks(share) {
 function setDeliveryButtonsDisabled(disabled) {
   elements.generateWebButton.disabled = disabled;
   elements.generatePdfButton.disabled = disabled;
+}
+
+function setSummaryButtonDisabled(disabled) {
+  elements.generateSummaryButton.disabled = disabled;
+}
+
+function renderEditableSummary(recommendation) {
+  elements.outputTitle.textContent = recommendation.title || "Quote summary";
+  elements.quoteSummaryEditor.value = recommendation.documentText || "";
+  syncEditedSummary();
+  elements.quoteSummaryEditor.focus();
+}
+
+function syncEditedSummary() {
+  if (state.recommendation) {
+    state.recommendation.documentText = getEditedSummaryText();
+    state.recommendation.title = extractTitleFromText(state.recommendation.documentText);
+  }
+
+  elements.copyTextButton.disabled = !hasEditableSummary();
+  setDeliveryButtonsDisabled(!hasEditableSummary());
+  elements.sharePanel.classList.add("hidden");
+}
+
+function invalidateGeneratedSummary(message) {
+  state.recommendation = null;
+  elements.outputTitle.textContent = "Quote summary";
+  elements.quoteSummaryEditor.value = "";
+  elements.copyTextButton.disabled = true;
+  setDeliveryButtonsDisabled(true);
+  elements.sharePanel.classList.add("hidden");
+  if (message) setStatus(message);
+}
+
+function buildEditedRecommendation() {
+  const documentText = getEditedSummaryText();
+  if (!documentText) return null;
+
+  return {
+    title: extractTitleFromText(documentText),
+    documentText,
+    generatedAt: state.recommendation?.generatedAt || new Date().toISOString(),
+  };
+}
+
+function hasEditableSummary() {
+  return Boolean(getEditedSummaryText());
+}
+
+function getEditedSummaryText() {
+  return elements.quoteSummaryEditor.value.trim();
+}
+
+function extractTitleFromText(text) {
+  return (
+    String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean) || "Quote summary"
+  );
 }
 
 function stripLocalFields(documentRecord) {
