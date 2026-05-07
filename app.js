@@ -313,6 +313,13 @@ function renderShareLinks(share) {
   elements.sharePanel.classList.remove("hidden");
 }
 
+function clearShareLinks() {
+  elements.shareLink.removeAttribute("href");
+  elements.shareLink.textContent = "";
+  elements.pdfLink.removeAttribute("href");
+  elements.sharePanel.classList.add("hidden");
+}
+
 function setDeliveryButtonsDisabled(disabled) {
   elements.generateWebButton.disabled = disabled;
   elements.generatePdfButton.disabled = disabled;
@@ -325,11 +332,11 @@ function setSummaryButtonDisabled(disabled) {
 function renderEditableSummary(recommendation) {
   elements.outputTitle.textContent = recommendation.title || "Quote summary";
   elements.quoteSummaryEditor.value = recommendation.documentText || "";
-  syncEditedSummary();
+  syncEditedSummary({ silent: true });
   elements.quoteSummaryEditor.focus();
 }
 
-function syncEditedSummary() {
+function syncEditedSummary({ silent = false } = {}) {
   if (state.recommendation) {
     state.recommendation.documentText = getEditedSummaryText();
     state.recommendation.title = extractTitleFromText(state.recommendation.documentText);
@@ -337,7 +344,11 @@ function syncEditedSummary() {
 
   elements.copyTextButton.disabled = !hasEditableSummary();
   setDeliveryButtonsDisabled(!hasEditableSummary());
-  elements.sharePanel.classList.add("hidden");
+  clearShareLinks();
+
+  if (!silent && hasEditableSummary()) {
+    setStatus("Quote summary edited. Generate a new URL or PDF to include the changes.");
+  }
 }
 
 function invalidateGeneratedSummary(message) {
@@ -346,7 +357,7 @@ function invalidateGeneratedSummary(message) {
   elements.quoteSummaryEditor.value = "";
   elements.copyTextButton.disabled = true;
   setDeliveryButtonsDisabled(true);
-  elements.sharePanel.classList.add("hidden");
+  clearShareLinks();
   if (message) setStatus(message);
 }
 
