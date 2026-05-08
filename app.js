@@ -24,7 +24,6 @@ const elements = {
   statusMessage: document.querySelector("#statusMessage"),
   outputTitle: document.querySelector("#outputTitle"),
   quoteSummaryEditor: document.querySelector("#quoteSummaryEditor"),
-  copyTextButton: document.querySelector("#copyTextButton"),
   sharePanel: document.querySelector("#sharePanel"),
   shareLink: document.querySelector("#shareLink"),
   pdfLink: document.querySelector("#pdfLink"),
@@ -52,7 +51,6 @@ function wireEvents() {
   elements.generateWebButton.addEventListener("click", () => createDeliverable("web"));
   elements.generatePdfButton.addEventListener("click", () => createDeliverable("pdf"));
   elements.generateWordButton.addEventListener("click", () => createDeliverable("word"));
-  elements.copyTextButton.addEventListener("click", copyRecommendationText);
   elements.quoteSummaryEditor.addEventListener("input", syncEditedSummary);
 }
 
@@ -212,7 +210,6 @@ function clearFiles() {
   state.recommendation = null;
   elements.outputTitle.textContent = "Quote summary";
   elements.quoteSummaryEditor.value = "";
-  elements.copyTextButton.disabled = true;
   elements.sharePanel.classList.add("hidden");
   renderDocuments();
   setStatus("Cleared.");
@@ -305,13 +302,6 @@ async function generateRecommendation() {
   return payload;
 }
 
-async function copyRecommendationText() {
-  const summaryText = getEditedSummaryText();
-  if (!summaryText) return;
-  await navigator.clipboard.writeText(summaryText);
-  setStatus("Quote summary text copied.");
-}
-
 async function createShare(recommendation) {
   const response = await fetch("/api/shares", {
     method: "POST",
@@ -369,7 +359,6 @@ function syncEditedSummary({ silent = false } = {}) {
     state.recommendation.title = extractTitleFromText(state.recommendation.documentText);
   }
 
-  elements.copyTextButton.disabled = !hasEditableSummary();
   setDeliveryButtonsDisabled(!hasEditableSummary());
   clearShareLinks();
 
@@ -382,7 +371,6 @@ function invalidateGeneratedSummary(message) {
   state.recommendation = null;
   elements.outputTitle.textContent = "Quote summary";
   elements.quoteSummaryEditor.value = "";
-  elements.copyTextButton.disabled = true;
   setDeliveryButtonsDisabled(true);
   clearShareLinks();
   if (message) setStatus(message);
