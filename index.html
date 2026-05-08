@@ -76,38 +76,42 @@
             </header>
 
             <section id="uploadArea" class="input-grid" aria-label="Upload quote inputs">
-              <label class="field-block">
-                <span>Prepared for</span>
-                <input id="preparedForInput" type="text" placeholder="Client or insured name" />
-              </label>
+              <div class="upload-fields">
+                <label class="field-block">
+                  <span>Prepared by</span>
+                  <input id="preparedByInput" type="text" placeholder="Broker, adviser, or business name" />
+                </label>
 
-              <label class="field-block">
-                <span>Prepared by</span>
-                <input id="preparedByInput" type="text" placeholder="Broker, adviser, or business name" />
-              </label>
+                <label class="field-block">
+                  <span>Prepared for</span>
+                  <input id="preparedForInput" type="text" placeholder="Client or insured name" />
+                </label>
 
-              <label class="field-block">
-                <span>Quote due date</span>
-                <input id="quoteDueDate" type="date" />
-              </label>
+                <label class="field-block">
+                  <span>Quote due date</span>
+                  <input id="quoteDueDate" type="date" />
+                </label>
+              </div>
 
-              <section class="upload-lane" aria-label="Upload quote documents">
-                <div>
-                  <h2>Quotes</h2>
-                  <p>Upload one or many related insurer quotes.</p>
-                </div>
-                <input id="quoteInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
-                <button class="secondary-button" id="quoteBrowse" type="button">Choose quote files</button>
-              </section>
+              <div class="upload-files">
+                <section class="upload-lane" aria-label="Upload quote documents">
+                  <div>
+                    <h2>Quotes</h2>
+                    <p>Upload one or many related insurer quotes.</p>
+                  </div>
+                  <input id="quoteInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
+                  <button class="secondary-button" id="quoteBrowse" type="button">Choose quote files</button>
+                </section>
 
-              <section class="upload-lane" aria-label="Upload schedules">
-                <div>
-                  <h2>Schedules</h2>
-                  <p>Upload schedules or client risk summaries.</p>
-                </div>
-                <input id="scheduleInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
-                <button class="secondary-button" id="scheduleBrowse" type="button">Choose schedule files</button>
-              </section>
+                <section class="upload-lane" aria-label="Upload schedules">
+                  <div>
+                    <h2>Schedules</h2>
+                    <p>Upload schedules or client risk summaries.</p>
+                  </div>
+                  <input id="scheduleInput" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.xls,.json" />
+                  <button class="secondary-button" id="scheduleBrowse" type="button">Choose schedule files</button>
+                </section>
+              </div>
             </section>
 
           </section>
