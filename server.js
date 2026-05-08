@@ -52,9 +52,19 @@ MULTI-INSURER DOCUMENT HANDLING
 • Page markers such as "--- PDF SOURCE: {file name} | PAGE {number} OF {total} ---" are source boundaries, not quote content.
 • Use page markers, insurer names, logos, trading names, quote headings, document headers, footers, and wording changes to identify where one insurer's quote ends and another insurer's quote begins.
 • If a document switches insurer part-way through, split the information internally into separate insurer-specific quote records.
+• Treat each explicitly identified insurer inside the same uploaded document as a separate quote option.
+• If insurer A appears on pages 1-5 and insurer B appears from page 6 onward, insurer A and insurer B MUST both be considered as quoted insurers.
 • Preserve the insurer name exactly as shown in the relevant pages or sections.
 • Do NOT merge premiums, limits, excesses, levies, conditions, or policy sections across insurer boundaries.
 • If the insurer for a page or section cannot be identified explicitly, omit that section or show the insurer as "—"; do not assign it to a nearby insurer by proximity alone.
+MANDATORY INSURER DISCOVERY CHECK
+Before applying Recommendation Logic or producing the final output:
+• Scan the full quote information from beginning to end, including every page marker and every uploaded file.
+• Build an internal insurer list containing every insurer name explicitly present anywhere in the quote information.
+• Build a separate internal quote record for each discovered insurer.
+• Do NOT discard an insurer merely because it appears later in a PDF, appears after another insurer's quote, or is in the same uploaded file as another insurer.
+• If two or more insurers are explicitly present, the final output MUST reflect two or more insurer options wherever comparison sections are supported by provided data.
+• If a discovered insurer has no explicitly quoted premium, include it only where supported by data and do not invent missing premiums.
 STRICT TWO-PHASE EXECUTION (MANDATORY)
 PHASE 1 — DATA VALIDATION & NORMALISATION ONLY
 • No advice
@@ -73,6 +83,7 @@ Prepare a broker-ready insurance quote recommendation document or webpage using 
 Before generating the output, you MUST internally confirm:
 • Every numeric value is explicitly provided or calculated strictly per GST rules
 • Every insurer referenced appears in the quote information
+• Every insurer explicitly present in the quote information has been considered, including insurers inside the same uploaded file
 • Every recommended class of risk has a corresponding quoted premium
 • No class of risk appears unless quoted
 If any check fails, omit the affected item rather than guessing.
@@ -164,6 +175,7 @@ Excluded from the advice: —
 
 5. My Recommendation
 Use a compact pipe table to state the recommended option or insurer strictly under the Recommendation Logic above.
+Base the recommendation on all discovered insurer quote records, including multiple insurers found inside one uploaded document.
 The rationale must be price-based only.
 Do not mention coverage breadth, endorsements, conditions, claims handling, insurer reputation, service, policy benefits, or qualitative factors unless those exact items are explicitly stated as the client's own priorities and are not used as recommendation rationale.
 If the recommendation cannot be supported, state:
@@ -199,6 +211,7 @@ No policy benefit comparison information was provided.
 8. Premium Comparison
 For each quoted insurer or option, create a subsection:
 Option {number} – {Insurer Name}:
+You MUST create a separate option subsection for every insurer explicitly quoted anywhere in the quote information, including multiple insurers found inside one uploaded document.
 Under each option, include a premium table using the same premium basis as the recommendation.
 Use these columns where data is explicitly available:
 Policy
@@ -533,7 +546,7 @@ CLIENT RISK INFORMATION:
 ${clientRiskText || "—"}
 
 STRUCTURED INSURANCE QUOTE INFORMATION:
-The uploaded quote documents below may contain one insurer or multiple insurers within the same file. Use file names and page/source markers to separate insurer-specific quote records. Do not merge data across insurer boundaries.
+The uploaded quote documents below may contain one insurer or multiple insurers within the same file. Use file names and page/source markers to separate insurer-specific quote records. Do not merge data across insurer boundaries. Before writing the final output, scan every quote page and create one option for each insurer explicitly found, even when those insurers are bundled into a single PDF.
 
 ${quotes}
 
