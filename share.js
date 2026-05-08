@@ -92,7 +92,7 @@ function showError(message) {
 
 function renderDocument(text) {
   elements.document.innerHTML = "";
-  const blocks = String(text || "").trim().split(/\n{2,}/);
+  const blocks = normalizeDocumentBlocks(text);
 
   if (!blocks.length || !blocks[0]) {
     elements.document.textContent = "No recommendation text was provided.";
@@ -141,8 +141,39 @@ function renderDocument(text) {
   }
 }
 
+function normalizeDocumentBlocks(text) {
+  const rawBlocks = String(text || "")
+    .trim()
+    .split(/\n{2,}/)
+    .map((block) => block.split("\n").map((line) => line.trim()).filter(Boolean))
+    .filter((lines) => lines.length);
+  const blocks = [];
+
+  for (let index = 0; index < rawBlocks.length; index += 1) {
+    const lines = rawBlocks[index];
+
+    if (isPartialPipeBlock(lines)) {
+      const merged = [...lines];
+      while (isPartialPipeBlock(rawBlocks[index + 1] || [])) {
+        index += 1;
+        merged.push(...rawBlocks[index]);
+      }
+      blocks.push(merged.join("\n"));
+      continue;
+    }
+
+    blocks.push(lines.join("\n"));
+  }
+
+  return blocks;
+}
+
+function isPartialPipeBlock(lines) {
+  return lines.length > 0 && lines.some(isPipeRow) && lines.every((line) => isPipeRow(line) || isPipeSeparator(line));
+}
+
 function isHeading(lines) {
-  return lines.length === 1 && (/^\d+\.\s+\S/.test(lines[0]) || /^[A-Z][^.!?]{2,80}$/.test(lines[0]));
+  return lines.length === 1 && !lines[0].includes("|") && (/^\d+\.\s+\S/.test(lines[0]) || /^[A-Z][^.!?]{2,80}$/.test(lines[0]));
 }
 
 function isPipeTable(lines) {

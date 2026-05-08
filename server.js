@@ -839,18 +839,18 @@ function getPdfTableColumnWidths(columnCount, contentWidth) {
 
 function parseDocumentBlocks(text) {
   const blocks = [];
-  for (const rawBlock of cleanText(text).split(/\n{2,}/)) {
+  for (const rawBlock of normalizeDocumentBlocks(text)) {
     const lines = rawBlock.split("\n").map((line) => line.trim()).filter(Boolean);
     if (!lines.length) continue;
+
+    if (isPipeTable(lines)) {
+      blocks.push({ type: "table", rows: parsePipeRows(lines) });
+      continue;
+    }
 
     if (isDocumentHeading(lines[0]) && isPipeTable(lines.slice(1))) {
       blocks.push({ type: "heading", level: lines[0].match(/^\d+\.\s/) ? 1 : 2, text: lines[0] });
       blocks.push({ type: "table", rows: parsePipeRows(lines.slice(1)) });
-      continue;
-    }
-
-    if (isPipeTable(lines)) {
-      blocks.push({ type: "table", rows: parsePipeRows(lines) });
       continue;
     }
 
@@ -864,8 +864,39 @@ function parseDocumentBlocks(text) {
   return blocks;
 }
 
+function normalizeDocumentBlocks(text) {
+  const rawBlocks = cleanText(text)
+    .split(/\n{2,}/)
+    .map((block) => block.split("\n").map((line) => line.trim()).filter(Boolean))
+    .filter((lines) => lines.length);
+  const blocks = [];
+
+  for (let index = 0; index < rawBlocks.length; index += 1) {
+    const lines = rawBlocks[index];
+
+    if (isPartialPipeBlock(lines)) {
+      const merged = [...lines];
+      while (isPartialPipeBlock(rawBlocks[index + 1] || [])) {
+        index += 1;
+        merged.push(...rawBlocks[index]);
+      }
+      blocks.push(merged.join("\n"));
+      continue;
+    }
+
+    blocks.push(lines.join("\n"));
+  }
+
+  return blocks;
+}
+
+function isPartialPipeBlock(lines) {
+  return lines.length > 0 && lines.some(isPipeRow) && lines.every((line) => isPipeRow(line) || isPipeSeparator(line));
+}
+
 function isDocumentHeading(line) {
-  return /^\d+\.\s+\S/.test(String(line || "").trim()) || /^[A-Z][^.!?]{2,80}$/.test(String(line || "").trim());
+  const value = String(line || "").trim();
+  return !value.includes("|") && (/^\d+\.\s+\S/.test(value) || /^[A-Z][^.!?]{2,80}$/.test(value));
 }
 
 function isPipeTable(lines) {
