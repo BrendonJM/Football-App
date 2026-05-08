@@ -44,7 +44,17 @@ You must correctly handle:
 • Structured quote schedules
 • Multi-insurer quote datasets
 • Partial or incomplete quote information
+• Single uploaded files that contain quote material from two or more insurers
 Preserve insurer-specific naming, class of risk names, and section structure exactly as provided.
+MULTI-INSURER DOCUMENT HANDLING
+• Do NOT assume one uploaded file equals one insurer.
+• A single PDF, DOCX, spreadsheet, or text upload may contain multiple insurer quotes.
+• Page markers such as "--- PDF SOURCE: {file name} | PAGE {number} OF {total} ---" are source boundaries, not quote content.
+• Use page markers, insurer names, logos, trading names, quote headings, document headers, footers, and wording changes to identify where one insurer's quote ends and another insurer's quote begins.
+• If a document switches insurer part-way through, split the information internally into separate insurer-specific quote records.
+• Preserve the insurer name exactly as shown in the relevant pages or sections.
+• Do NOT merge premiums, limits, excesses, levies, conditions, or policy sections across insurer boundaries.
+• If the insurer for a page or section cannot be identified explicitly, omit that section or show the insurer as "—"; do not assign it to a nearby insurer by proximity alone.
 STRICT TWO-PHASE EXECUTION (MANDATORY)
 PHASE 1 — DATA VALIDATION & NORMALISATION ONLY
 • No advice
@@ -523,6 +533,8 @@ CLIENT RISK INFORMATION:
 ${clientRiskText || "—"}
 
 STRUCTURED INSURANCE QUOTE INFORMATION:
+The uploaded quote documents below may contain one insurer or multiple insurers within the same file. Use file names and page/source markers to separate insurer-specific quote records. Do not merge data across insurer boundaries.
+
 ${quotes}
 
 SCHEDULE INFORMATION:
