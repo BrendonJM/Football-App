@@ -57,8 +57,8 @@ function wireEvents() {
 }
 
 function updatePreparedTiles() {
-  elements.preparedForTile.textContent = elements.preparedForInput.value.trim() || "Quote Recommendation";
-  elements.preparedByTile.textContent = elements.preparedByInput.value.trim() || "Ebix Insurance Brokers";
+  elements.preparedForTile.textContent = elements.preparedForInput.value.trim();
+  elements.preparedByTile.textContent = elements.preparedByInput.value.trim();
 }
 
 async function checkHealth() {
