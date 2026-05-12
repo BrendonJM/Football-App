@@ -65,10 +65,12 @@ const feedbackStatus = document.querySelector("#feedbackStatus");
 const navAccount = document.querySelector("#navAccount");
 const navConfig = document.querySelector("#navConfig");
 const navManage = document.querySelector("#navManage");
+const navComms = document.querySelector("#navComms");
 const navTraining = document.querySelector("#navTraining");
 const accountPage = document.querySelector("#accountPage");
 const configPage = document.querySelector("#configPage");
 const managePage = document.querySelector("#managePage");
+const commsPage = document.querySelector("#commsPage");
 const trainingPage = document.querySelector("#trainingPage");
 const teamSwitcher = document.querySelector("#teamSwitcher");
 const newTeamButton = document.querySelector("#newTeam");
@@ -246,6 +248,12 @@ navConfig.addEventListener("click", () => {
 
 navManage.addEventListener("click", () => {
   state.page = "manage";
+  persistState();
+  renderAll();
+});
+
+navComms.addEventListener("click", () => {
+  state.page = "comms";
   persistState();
   renderAll();
 });
@@ -1225,7 +1233,7 @@ function createStateFromPersisted(saved) {
   const runtime = hydrateTeamRuntime(activeTeam);
 
   return {
-    page: ["account", "config", "manage", "training"].includes(saved.page) ? saved.page : "config",
+    page: ["account", "config", "manage", "comms", "training"].includes(saved.page) ? saved.page : "config",
     teams: teams.length > 0 ? teams : [fallbackTeam],
     activeTeamId: activeTeam.id,
     config: runtime.config,
@@ -1497,15 +1505,18 @@ function renderPage() {
   const accountActive = state.page === "account";
   const configActive = state.page === "config";
   const manageActive = state.page === "manage";
+  const commsActive = state.page === "comms";
   const trainingActive = state.page === "training";
 
   accountPage.classList.toggle("hidden", !accountActive);
   configPage.classList.toggle("hidden", !configActive);
   managePage.classList.toggle("hidden", !manageActive);
+  commsPage.classList.toggle("hidden", !commsActive);
   trainingPage.classList.toggle("hidden", !trainingActive);
   navAccount.classList.toggle("is-active", accountActive);
   navConfig.classList.toggle("is-active", configActive);
   navManage.classList.toggle("is-active", manageActive);
+  navComms.classList.toggle("is-active", commsActive);
   navTraining.classList.toggle("is-active", trainingActive);
 }
 
