@@ -200,6 +200,48 @@
                 <p id="configStatus" class="status-text" aria-live="polite"></p>
               </form>
             </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Contacts</h2>
+                <p>Link parents, coaches, and managers to one or more players in this team.</p>
+              </div>
+
+              <form id="contactForm" class="stack-form">
+                <input id="contactId" type="hidden" />
+                <label class="field">
+                  <span>Contact name</span>
+                  <input id="contactName" type="text" placeholder="Sam Taylor" />
+                </label>
+                <label class="field">
+                  <span>Email address</span>
+                  <input id="contactEmail" type="email" placeholder="sam@example.com" />
+                </label>
+                <label class="field">
+                  <span>Phone number</span>
+                  <input id="contactPhone" type="tel" placeholder="+64 21 123 4567" />
+                </label>
+                <label class="field">
+                  <span>Role / relationship</span>
+                  <input id="contactRole" type="text" placeholder="Parent, coach, manager" />
+                </label>
+                <div class="field">
+                  <span>Linked players</span>
+                  <div id="contactLinkedPlayers" class="checkbox-grid"></div>
+                </div>
+                <label class="field">
+                  <span>Notes</span>
+                  <textarea id="contactNotes" rows="3" placeholder="Optional notes"></textarea>
+                </label>
+                <div class="button-row">
+                  <button id="saveContact" type="submit" class="primary-button">Save Contact</button>
+                  <button id="resetContact" type="button" class="secondary-button">Clear</button>
+                </div>
+                <p id="contactStatus" class="status-text" aria-live="polite"></p>
+              </form>
+
+              <div id="contactList" class="entity-list"></div>
+            </section>
           </div>
         </section>
 
@@ -271,44 +313,6 @@
 
         <section id="commsPage" class="page-section hidden">
           <div class="team-admin-grid">
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Contacts</h2>
-                <p>Store the key people for this team and keep their details handy.</p>
-              </div>
-
-              <form id="contactForm" class="stack-form">
-                <input id="contactId" type="hidden" />
-                <label class="field">
-                  <span>Contact name</span>
-                  <input id="contactName" type="text" placeholder="Sam Taylor" />
-                </label>
-                <label class="field">
-                  <span>Email address</span>
-                  <input id="contactEmail" type="email" placeholder="sam@example.com" />
-                </label>
-                <label class="field">
-                  <span>Phone number</span>
-                  <input id="contactPhone" type="tel" placeholder="+64 21 123 4567" />
-                </label>
-                <label class="field">
-                  <span>Role / relationship</span>
-                  <input id="contactRole" type="text" placeholder="Parent, coach, manager" />
-                </label>
-                <label class="field">
-                  <span>Notes</span>
-                  <textarea id="contactNotes" rows="3" placeholder="Optional notes"></textarea>
-                </label>
-                <div class="button-row">
-                  <button id="saveContact" type="submit" class="primary-button">Save Contact</button>
-                  <button id="resetContact" type="button" class="secondary-button">Clear</button>
-                </div>
-                <p id="contactStatus" class="status-text" aria-live="polite"></p>
-              </form>
-
-              <div id="contactList" class="entity-list"></div>
-            </section>
-
             <section class="panel">
               <div class="panel-heading">
                 <h2>Events</h2>

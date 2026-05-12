@@ -29,6 +29,7 @@ create table if not exists public.team_contacts (
   email text,
   phone text,
   role text,
+  linked_players jsonb not null default '[]'::jsonb,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

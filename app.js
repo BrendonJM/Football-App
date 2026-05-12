@@ -99,6 +99,7 @@ const contactNameInput = document.querySelector("#contactName");
 const contactEmailInput = document.querySelector("#contactEmail");
 const contactPhoneInput = document.querySelector("#contactPhone");
 const contactRoleInput = document.querySelector("#contactRole");
+const contactLinkedPlayers = document.querySelector("#contactLinkedPlayers");
 const contactNotesInput = document.querySelector("#contactNotes");
 const resetContactButton = document.querySelector("#resetContact");
 const contactStatus = document.querySelector("#contactStatus");
@@ -169,6 +170,11 @@ playersOnFieldInput.addEventListener("change", () => {
     ? validExisting
     : getSuggestedFormations(playersOnField).slice(0, 3);
   renderFormationChoices();
+  renderContactLinkedPlayerOptions();
+});
+
+playerNamesInput.addEventListener("input", () => {
+  renderContactLinkedPlayerOptions();
 });
 
 addFormationButton.addEventListener("click", () => {
@@ -1440,6 +1446,7 @@ function applyConfigToForm(config) {
   playerNamesInput.value = config.players.join("\n");
   formationDraft = [...config.formations];
   renderFormationChoices();
+  renderContactLinkedPlayerOptions();
 }
 
 function renderFormationChoices() {
@@ -1484,6 +1491,7 @@ function renderAll() {
   renderBench();
   renderPitch();
   renderContacts();
+  renderContactLinkedPlayerOptions();
   renderEvents();
   renderEventMessaging();
   renderTrainingView();
@@ -1561,6 +1569,7 @@ function renderContacts() {
               <div class="entity-card-meta">
                 ${contact.email ? `<span>Email: ${escapeHtml(contact.email)}</span>` : ""}
                 ${contact.phone ? `<span>Phone: ${escapeHtml(contact.phone)}</span>` : ""}
+                ${contact.linkedPlayers?.length ? `<span>Linked players: ${escapeHtml(contact.linkedPlayers.join(", "))}</span>` : ""}
                 ${contact.notes ? `<span>${escapeHtml(contact.notes)}</span>` : ""}
               </div>
               <div class="entity-card-actions">
@@ -1585,6 +1594,49 @@ function renderContacts() {
       }
     });
   });
+}
+
+function renderContactLinkedPlayerOptions() {
+  if (!contactLinkedPlayers) {
+    return;
+  }
+
+  const playerNames = getConfigFormPlayerNames();
+  const selectedNames = getSelectedLinkedPlayersFromForm();
+
+  contactLinkedPlayers.innerHTML = playerNames.length
+    ? playerNames
+        .map(
+          (playerName) => `
+            <label class="recipient-option">
+              <input
+                type="checkbox"
+                data-linked-player="${escapeHtml(playerName)}"
+                ${selectedNames.includes(playerName) ? "checked" : ""}
+              />
+              <span>
+                <strong>${escapeHtml(playerName)}</strong>
+              </span>
+            </label>
+          `,
+        )
+        .join("")
+    : '<div class="info-card"><strong>Add player names first</strong><p>Player links become available once the squad list is filled in.</p></div>';
+}
+
+function getConfigFormPlayerNames() {
+  const draftNames = dedupeNames(parsePlayerNames(playerNamesInput.value || ""));
+  return draftNames.length ? draftNames : dedupeNames(state.config.players || []);
+}
+
+function getSelectedLinkedPlayersFromForm() {
+  if (!contactLinkedPlayers) {
+    return [];
+  }
+
+  return Array.from(contactLinkedPlayers.querySelectorAll("[data-linked-player]:checked"))
+    .map((input) => input.dataset.linkedPlayer || "")
+    .filter(Boolean);
 }
 
 function renderEvents() {
@@ -1844,6 +1896,7 @@ function getSelectedEvent() {
 function resetContactForm() {
   contactForm.reset();
   contactIdInput.value = "";
+  renderContactLinkedPlayerOptions();
   clearStatus(contactStatus);
 }
 
@@ -1867,6 +1920,10 @@ function populateContactForm(contactId) {
   contactPhoneInput.value = contact.phone || "";
   contactRoleInput.value = contact.role || "";
   contactNotesInput.value = contact.notes || "";
+  renderContactLinkedPlayerOptions();
+  Array.from(contactLinkedPlayers?.querySelectorAll("[data-linked-player]") || []).forEach((input) => {
+    input.checked = contact.linkedPlayers?.includes(input.dataset.linkedPlayer || "") || false;
+  });
   setStatus(contactStatus, `Editing ${contact.contactName}.`, false);
 }
 
@@ -1975,6 +2032,7 @@ function buildContactFromForm() {
   const phone = contactPhoneInput.value.trim();
   const role = contactRoleInput.value.trim();
   const notes = contactNotesInput.value.trim();
+  const linkedPlayers = getSelectedLinkedPlayersFromForm();
 
   if (!contactName) {
     return { ok: false, message: "Add a contact name first." };
@@ -1994,6 +2052,7 @@ function buildContactFromForm() {
       email: email || null,
       phone: phone || null,
       role: role || null,
+      linked_players: linkedPlayers,
       notes: notes || null,
     },
   };
@@ -3608,6 +3667,7 @@ function mapDatabaseContactToRecord(row) {
     email: row.email || "",
     phone: row.phone || "",
     role: row.role || "",
+    linkedPlayers: Array.isArray(row.linked_players) ? row.linked_players : [],
     notes: row.notes || "",
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
