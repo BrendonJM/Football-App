@@ -182,13 +182,13 @@ addFormationButton.addEventListener("click", () => {
   const formation = normaliseFormation(customFormationInput.value);
 
   if (!formation) {
-    setStatus(configStatus, "Enter a formation before adding it.", true);
+    setStatus(formationHelp, "Enter a formation before adding it.", true);
     return;
   }
 
   if (!isValidFormation(formation, playersOnField)) {
     setStatus(
-      configStatus,
+      formationHelp,
       `Formation ${formation} is not valid for ${playersOnField} players on the field.`,
       true,
     );
@@ -201,7 +201,7 @@ addFormationButton.addEventListener("click", () => {
 
   customFormationInput.value = "";
   renderFormationChoices();
-  setStatus(configStatus, `${formation} added to your formation list.`, false);
+  setStatus(formationHelp, `${formation} added to your formation list.`, false);
 });
 
 signupForm.addEventListener("submit", async (event) => {
@@ -1472,6 +1472,7 @@ function renderFormationChoices() {
     .join("");
 
   formationHelp.textContent = `Every formation must add up to ${playersOnField - 1} outfield players, plus 1 goalkeeper.`;
+  formationHelp.classList.remove("is-error");
 
   Array.from(formationSuggestions.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
     input.addEventListener("change", () => {

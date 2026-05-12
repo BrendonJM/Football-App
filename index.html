@@ -150,7 +150,7 @@
             <section class="panel">
               <div class="panel-heading">
                 <h2>Team Setup</h2>
-                <p>Enter your squad, pick how many players are on the field, and choose which formations should be available.</p>
+                <p>Enter your squad and choose how many players are on the field.</p>
               </div>
 
               <form id="configForm" class="stack-form">
@@ -173,26 +173,6 @@
                     placeholder="Enter one player name per line"
                   ></textarea>
                 </label>
-
-                <section class="formation-builder" aria-labelledby="formationBuilderTitle">
-                  <div class="formation-builder-header">
-                    <div>
-                      <h3 id="formationBuilderTitle">Formations</h3>
-                      <p>Select the shapes you want available on the team management page.</p>
-                    </div>
-                  </div>
-
-                  <div id="formationSuggestions" class="formation-list"></div>
-
-                  <div class="custom-formation-row">
-                    <label class="field compact-field">
-                      <span>Add a custom formation</span>
-                      <input id="customFormation" type="text" placeholder="3-2-3" />
-                    </label>
-                    <button id="addFormation" type="button" class="secondary-button">Add</button>
-                  </div>
-                  <p id="formationHelp" class="helper-text"></p>
-                </section>
 
                 <div class="button-row">
                   <button type="submit" class="primary-button">Save And Open Team Board</button>
@@ -262,6 +242,26 @@
                 <span>Formation</span>
                 <select id="formationSelect"></select>
               </label>
+
+              <section class="formation-builder" aria-labelledby="formationBuilderTitle">
+                <div class="formation-builder-header">
+                  <div>
+                    <h3 id="formationBuilderTitle">Available formations</h3>
+                    <p>Choose which shapes are available for match day and add custom ones if needed.</p>
+                  </div>
+                </div>
+
+                <div id="formationSuggestions" class="formation-list"></div>
+
+                <div class="custom-formation-row">
+                  <label class="field compact-field">
+                    <span>Add a custom formation</span>
+                    <input id="customFormation" type="text" placeholder="3-2-3" />
+                  </label>
+                  <button id="addFormation" type="button" class="secondary-button">Add</button>
+                </div>
+                <p id="formationHelp" class="helper-text"></p>
+              </section>
 
               <div class="button-row">
                 <button id="fillEmptyPositions" type="button" class="secondary-button">Fill Empty Spots</button>
