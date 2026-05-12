@@ -15,12 +15,16 @@ module.exports = async (request, response) => {
     return;
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY || "";
-  const resendFromEmail = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+  const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const resendFromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
 
-  if (!resendApiKey) {
+  if (!resendApiKey || !resendFromEmail) {
+    console.warn("[Feedback] Resend is not fully configured", {
+      hasApiKey: Boolean(resendApiKey),
+      hasFromEmail: Boolean(resendFromEmail),
+    });
     response.status(500).json({
-      error: "RESEND_API_KEY is not configured yet.",
+      error: "Email sending is not configured yet. Add RESEND_API_KEY and RESEND_FROM_EMAIL for TeamPro email sending.",
     });
     return;
   }
@@ -66,6 +70,8 @@ module.exports = async (request, response) => {
     console.error("[Feedback] Email send failed", {
       error,
       message: error?.message || String(error),
+      hasApiKey: Boolean(resendApiKey),
+      fromEmail: resendFromEmail || null,
     });
     response.status(500).json({
       error: error?.message || "Feedback email failed to send.",

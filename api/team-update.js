@@ -13,8 +13,8 @@ module.exports = async (request, response) => {
     return;
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY || "";
-  const resendFromEmail = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+  const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const resendFromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
   const payload = request.body || {};
   const teamName = String(payload.teamName || "TeamPro").trim();
   const messageText = String(payload.messageText || "").trim();
@@ -42,6 +42,10 @@ module.exports = async (request, response) => {
   }
 
   if (!resendApiKey || !resendFromEmail) {
+    console.warn("[Updates] Resend is not fully configured", {
+      hasApiKey: Boolean(resendApiKey),
+      hasFromEmail: Boolean(resendFromEmail),
+    });
     response.status(200).json({
       ok: true,
       sent: false,
@@ -87,6 +91,9 @@ module.exports = async (request, response) => {
     console.error("[Updates] Email send failed", {
       error,
       message: error?.message || String(error),
+      hasApiKey: Boolean(resendApiKey),
+      fromEmail: resendFromEmail || null,
+      recipientCount: emailRecipients.length,
     });
     response.status(500).json({
       error: error?.message || "Event update email failed to send.",

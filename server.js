@@ -8,8 +8,8 @@ const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "TeamPro <onboarding@resend.dev>";
+const RESEND_API_KEY = String(process.env.RESEND_API_KEY || "").trim();
+const RESEND_FROM_EMAIL = String(process.env.RESEND_FROM_EMAIL || "").trim();
 const FEEDBACK_TO_EMAIL = "brendonjmoore@gmail.com";
 const rootDir = __dirname;
 
@@ -330,9 +330,13 @@ async function handleFeedbackRequest(request, response) {
       return;
     }
 
-    if (!RESEND_API_KEY) {
+    if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+      console.warn("[Feedback] Resend is not fully configured", {
+        hasApiKey: Boolean(RESEND_API_KEY),
+        hasFromEmail: Boolean(RESEND_FROM_EMAIL),
+      });
       sendJson(response, 500, {
-        error: "RESEND_API_KEY is not configured yet.",
+        error: "Email sending is not configured yet. Add RESEND_API_KEY and RESEND_FROM_EMAIL for TeamPro email sending.",
       });
       return;
     }
@@ -366,6 +370,8 @@ async function handleFeedbackRequest(request, response) {
     console.error("[Feedback] Email send failed", {
       error,
       message: error.message || String(error),
+      hasApiKey: Boolean(RESEND_API_KEY),
+      fromEmail: RESEND_FROM_EMAIL || null,
     });
     sendJson(response, 500, {
       error: error.message || "Feedback email failed to send.",
@@ -443,6 +449,10 @@ async function handleTeamUpdateRequest(request, response) {
     }
 
     if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+      console.warn("[Updates] Resend is not fully configured", {
+        hasApiKey: Boolean(RESEND_API_KEY),
+        hasFromEmail: Boolean(RESEND_FROM_EMAIL),
+      });
       sendJson(response, 200, {
         ok: true,
         sent: false,
@@ -487,6 +497,8 @@ async function handleTeamUpdateRequest(request, response) {
     console.error("[Updates] Email send failed", {
       error,
       message: error?.message || String(error),
+      hasApiKey: Boolean(RESEND_API_KEY),
+      fromEmail: RESEND_FROM_EMAIL || null,
     });
     sendJson(response, 500, {
       error: error?.message || "Event update email failed to send.",
