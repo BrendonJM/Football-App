@@ -34,7 +34,11 @@ const userStateStoragePrefix = "football-team-board-user-state";
 const configEndpoint = "/api/config";
 const feedbackEndpoint = "/api/feedback";
 const trainingPlanEndpoint = "/api/training-plan";
+const teamUpdateEndpoint = "/api/team-update";
 const teamsTableName = "teams";
+const teamContactsTableName = "team_contacts";
+const teamEventsTableName = "team_events";
+const eventUpdateLogsTableName = "event_update_logs";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -87,6 +91,36 @@ const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench")
 const benchList = document.querySelector("#benchList");
 const pitch = document.querySelector("#pitch");
 const pitchTitle = document.querySelector("#pitchTitle");
+const contactForm = document.querySelector("#contactForm");
+const contactIdInput = document.querySelector("#contactId");
+const contactNameInput = document.querySelector("#contactName");
+const contactEmailInput = document.querySelector("#contactEmail");
+const contactPhoneInput = document.querySelector("#contactPhone");
+const contactRoleInput = document.querySelector("#contactRole");
+const contactNotesInput = document.querySelector("#contactNotes");
+const resetContactButton = document.querySelector("#resetContact");
+const contactStatus = document.querySelector("#contactStatus");
+const contactList = document.querySelector("#contactList");
+const eventForm = document.querySelector("#eventForm");
+const eventIdInput = document.querySelector("#eventId");
+const eventTitleInput = document.querySelector("#eventTitle");
+const eventDateInput = document.querySelector("#eventDate");
+const eventTimeInput = document.querySelector("#eventTime");
+const eventLocationInput = document.querySelector("#eventLocation");
+const eventStatusInput = document.querySelector("#eventStatus");
+const eventNotesInput = document.querySelector("#eventNotes");
+const resetEventButton = document.querySelector("#resetEvent");
+const eventStatusMessage = document.querySelector("#eventStatusMessage");
+const eventList = document.querySelector("#eventList");
+const messageEventSelect = document.querySelector("#messageEventSelect");
+const selectAllContactsButton = document.querySelector("#selectAllContacts");
+const clearSelectedContactsButton = document.querySelector("#clearSelectedContacts");
+const messageRecipientList = document.querySelector("#messageRecipientList");
+const messagePreview = document.querySelector("#messagePreview");
+const smsPreview = document.querySelector("#smsPreview");
+const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
+const sendEventEmailButton = document.querySelector("#sendEventEmail");
+const messageStatus = document.querySelector("#messageStatus");
 const trainingFocusSelect = document.querySelector("#trainingFocus");
 const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
 const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
@@ -109,6 +143,7 @@ let supabaseProjectUrl = "";
 let supabaseAnonKey = "";
 let supabaseAccessToken = "";
 let saveNowInFlight = false;
+let sendingEventUpdate = false;
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -179,6 +214,24 @@ feedbackForm.addEventListener("submit", async (event) => {
   await submitFeedback();
 });
 
+contactForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveContactFromForm();
+});
+
+resetContactButton.addEventListener("click", () => {
+  resetContactForm();
+});
+
+eventForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveEventFromForm();
+});
+
+resetEventButton.addEventListener("click", () => {
+  resetEventForm();
+});
+
 navAccount.addEventListener("click", () => {
   state.page = "account";
   persistState();
@@ -234,6 +287,38 @@ copyImageButton.addEventListener("click", async () => {
 
 saveNowButton.addEventListener("click", async () => {
   await saveActiveTeamNow();
+});
+
+messageEventSelect.addEventListener("change", () => {
+  state.selectedEventId = messageEventSelect.value || null;
+  persistState();
+  renderEventMessaging();
+});
+
+selectAllContactsButton.addEventListener("click", () => {
+  selectAllContactsForMessaging();
+});
+
+clearSelectedContactsButton.addEventListener("click", () => {
+  clearSelectedContactsForMessaging();
+});
+
+messageRecipientList.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("input[type='checkbox'][data-contact-id]");
+
+  if (!checkbox) {
+    return;
+  }
+
+  toggleMessageRecipient(checkbox.dataset.contactId, checkbox.checked);
+});
+
+copyMessagePreviewButton.addEventListener("click", async () => {
+  await copyEventMessagePreview();
+});
+
+sendEventEmailButton.addEventListener("click", async () => {
+  await sendEventUpdateEmail();
 });
 
 toggleAvailabilityButton.addEventListener("click", () => {
@@ -522,6 +607,10 @@ async function applyAuthSession(session) {
       page: "account",
       activeTeamId: null,
       teams: [],
+      contactsByTeamId: {},
+      eventsByTeamId: {},
+      selectedEventId: null,
+      selectedContactIds: [],
     });
     persistCachedStateOnly();
     syncFormFromState();
@@ -581,17 +670,98 @@ async function hydrateStateFromSupabase() {
     query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
 
-  const teamsUrl = new URL(`${supabaseProjectUrl}/rest/v1/teams`);
-  teamsUrl.searchParams.set("select", "*");
-  teamsUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
-  teamsUrl.searchParams.set("order", "updated_at.desc");
+  const [teamRows, contactRows, eventRows] = await Promise.all([
+    fetchUserOwnedRowsFromSupabase({
+      tableName: teamsTableName,
+      orderBy: "updated_at.desc",
+      logLabel: "Teams",
+    }),
+    fetchUserOwnedRowsFromSupabase({
+      tableName: teamContactsTableName,
+      orderBy: "contact_name.asc",
+      logLabel: "Contacts",
+    }),
+    fetchUserOwnedRowsFromSupabase({
+      tableName: teamEventsTableName,
+      orderBy: "event_date.asc",
+      logLabel: "Events",
+    }),
+  ]);
+
+  console.info("[Supabase] Teams fetched after login", {
+    userId: supabaseUserId,
+    rowCount: teamRows.length,
+    rows: teamRows,
+  });
+
+  const remoteTeams = teamRows.map(mapDatabaseTeamToRecord);
+  const contactsByTeamId = groupRowsByTeamId(contactRows.map(mapDatabaseContactToRecord));
+  const eventsByTeamId = groupRowsByTeamId(eventRows.map(mapDatabaseEventToRecord));
+  const cachedState = loadState();
+
+  console.info("[Supabase] Source-of-truth check", {
+    usesSupabaseSourceOfTruth: true,
+    remoteTeamCount: remoteTeams.length,
+  });
+
+  if (remoteTeams.length === 0) {
+    state = createStateFromPersisted({
+      page: cachedState.page,
+      activeTeamId: cachedState.activeTeamId,
+      teams: [],
+      contactsByTeamId: {},
+      eventsByTeamId: {},
+      selectedEventId: null,
+      selectedContactIds: [],
+    });
+    persistCachedStateOnly();
+    syncFormFromState();
+    renderAll();
+    return;
+  }
+
+  state = createStateFromPersisted({
+    page: cachedState.page,
+    activeTeamId:
+      cachedState.activeTeamId && remoteTeams.some((team) => team.id === cachedState.activeTeamId)
+        ? cachedState.activeTeamId
+        : remoteTeams[0].id,
+    teams: remoteTeams,
+    contactsByTeamId,
+    eventsByTeamId,
+    selectedEventId: chooseNextSelectedEventId({
+      currentSelectedEventId: cachedState.selectedEventId,
+      activeTeamId:
+        cachedState.activeTeamId && remoteTeams.some((team) => team.id === cachedState.activeTeamId)
+          ? cachedState.activeTeamId
+          : remoteTeams[0].id,
+      eventsByTeamId,
+    }),
+    selectedContactIds: Array.isArray(cachedState.selectedContactIds) ? cachedState.selectedContactIds : [],
+  });
+
+  persistCachedStateOnly();
+  persistUserScopedState();
+  syncFormFromState();
+  renderAll();
+  clearStatus(configStatus);
+}
+
+async function fetchUserOwnedRowsFromSupabase({ tableName, orderBy, logLabel }) {
+  const tableUrl = new URL(`${supabaseProjectUrl}/rest/v1/${tableName}`);
+  tableUrl.searchParams.set("select", "*");
+  tableUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
+
+  if (orderBy) {
+    tableUrl.searchParams.set("order", orderBy);
+  }
 
   let response;
   let responseText = "";
   let responseData = null;
 
   try {
-    response = await fetch(teamsUrl.toString(), {
+    response = await fetch(tableUrl.toString(), {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -609,7 +779,7 @@ async function hydrateStateFromSupabase() {
       }
     }
   } catch (error) {
-    console.error("[Supabase] Teams query failed", {
+    console.error(`[Supabase] ${logLabel} query failed`, {
       userId: supabaseUserId,
       error,
       message: error?.message || String(error),
@@ -624,9 +794,9 @@ async function hydrateStateFromSupabase() {
       responseData?.details ||
       responseText ||
       response.statusText ||
-      "Supabase team fetch failed.",
+      `Supabase ${logLabel.toLowerCase()} fetch failed.`,
     );
-    console.error("[Supabase] Teams query failed", {
+    console.error(`[Supabase] ${logLabel} query failed`, {
       userId: supabaseUserId,
       error,
       responseStatus: response.status,
@@ -635,46 +805,38 @@ async function hydrateStateFromSupabase() {
     throw error;
   }
 
-  console.info("[Supabase] Teams fetched after login", {
+  console.info(`[Supabase] ${logLabel} fetched after login`, {
     userId: supabaseUserId,
     rowCount: Array.isArray(responseData) ? responseData.length : 0,
     rows: Array.isArray(responseData) ? responseData : [],
   });
 
-  const remoteTeams = (Array.isArray(responseData) ? responseData : []).map(mapDatabaseTeamToRecord);
-  const cachedState = loadState();
+  return Array.isArray(responseData) ? responseData : [];
+}
 
-  console.info("[Supabase] Source-of-truth check", {
-    usesSupabaseSourceOfTruth: true,
-    remoteTeamCount: remoteTeams.length,
-  });
+function groupRowsByTeamId(rows) {
+  return rows.reduce((accumulator, row) => {
+    if (!row?.teamId) {
+      return accumulator;
+    }
 
-  if (remoteTeams.length === 0) {
-    state = createStateFromPersisted({
-      page: cachedState.page,
-      activeTeamId: cachedState.activeTeamId,
-      teams: [],
-    });
-    persistCachedStateOnly();
-    syncFormFromState();
-    renderAll();
-    return;
+    if (!accumulator[row.teamId]) {
+      accumulator[row.teamId] = [];
+    }
+
+    accumulator[row.teamId].push(row);
+    return accumulator;
+  }, {});
+}
+
+function chooseNextSelectedEventId({ currentSelectedEventId, activeTeamId, eventsByTeamId }) {
+  const activeEvents = eventsByTeamId[activeTeamId] || [];
+
+  if (currentSelectedEventId && activeEvents.some((event) => event.id === currentSelectedEventId)) {
+    return currentSelectedEventId;
   }
 
-  state = createStateFromPersisted({
-    page: cachedState.page,
-    activeTeamId:
-      cachedState.activeTeamId && remoteTeams.some((team) => team.id === cachedState.activeTeamId)
-        ? cachedState.activeTeamId
-        : remoteTeams[0].id,
-    teams: remoteTeams,
-  });
-
-  persistCachedStateOnly();
-  persistUserScopedState();
-  syncFormFromState();
-  renderAll();
-  clearStatus(configStatus);
+  return activeEvents[0]?.id || null;
 }
 
 async function signUpWithEmail() {
@@ -953,7 +1115,7 @@ function describeSupabaseError(error) {
   }
 
   if (message.includes("row-level security") || message.includes("permission denied")) {
-    return "Supabase RLS is blocking this request. Update your policies to allow anon access for this public app.";
+    return "Supabase RLS is blocking this request. Confirm the authenticated user policies were created for teams, contacts, and events.";
   }
 
   if (message.includes("Config endpoint unavailable")) {
@@ -1003,6 +1165,10 @@ function loadState() {
         page: "config",
         activeTeamId: fallbackTeam.id,
         teams: [fallbackTeam],
+        contactsByTeamId: {},
+        eventsByTeamId: {},
+        selectedEventId: null,
+        selectedContactIds: [],
       });
     }
 
@@ -1026,6 +1192,10 @@ function loadState() {
         page: parsed.page === "manage" ? "manage" : "config",
         activeTeamId: migratedTeam.id,
         teams: [migratedTeam],
+        contactsByTeamId: {},
+        eventsByTeamId: {},
+        selectedEventId: null,
+        selectedContactIds: [],
       });
     }
 
@@ -1061,8 +1231,22 @@ function createStateFromPersisted(saved) {
     config: runtime.config,
     players: runtime.players,
     lineup: runtime.lineup,
+    contactsByTeamId: sanitiseEntityMap(saved.contactsByTeamId),
+    eventsByTeamId: sanitiseEntityMap(saved.eventsByTeamId),
+    selectedEventId: saved.selectedEventId || null,
+    selectedContactIds: Array.isArray(saved.selectedContactIds) ? saved.selectedContactIds.filter(Boolean) : [],
     selectedTarget: null,
   };
+}
+
+function sanitiseEntityMap(entityMap) {
+  if (!entityMap || typeof entityMap !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(entityMap).map(([teamId, rows]) => [teamId, Array.isArray(rows) ? rows.filter(Boolean) : []]),
+  );
 }
 
 function hydrateTeamRuntime(teamRecord) {
@@ -1291,6 +1475,9 @@ function renderAll() {
   renderManagerControls();
   renderBench();
   renderPitch();
+  renderContacts();
+  renderEvents();
+  renderEventMessaging();
   renderTrainingView();
 }
 
@@ -1344,6 +1531,141 @@ function renderManagerControls() {
 
   saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
   renderAvailabilityControl();
+}
+
+function renderContacts() {
+  const contacts = getActiveTeamContacts();
+
+  contactList.innerHTML = contacts.length
+    ? contacts
+        .map(
+          (contact) => `
+            <div class="entity-card">
+              <div class="entity-card-header">
+                <div>
+                  <strong>${escapeHtml(contact.contactName)}</strong>
+                  ${contact.role ? `<span class="pill">${escapeHtml(contact.role)}</span>` : ""}
+                </div>
+              </div>
+              <div class="entity-card-meta">
+                ${contact.email ? `<span>Email: ${escapeHtml(contact.email)}</span>` : ""}
+                ${contact.phone ? `<span>Phone: ${escapeHtml(contact.phone)}</span>` : ""}
+                ${contact.notes ? `<span>${escapeHtml(contact.notes)}</span>` : ""}
+              </div>
+              <div class="entity-card-actions">
+                <button type="button" class="secondary-button" data-contact-action="edit" data-contact-id="${contact.id}">Edit</button>
+                <button type="button" class="danger-button" data-contact-action="delete" data-contact-id="${contact.id}">Delete</button>
+              </div>
+            </div>
+          `,
+        )
+        .join("")
+    : '<div class="info-card"><strong>No contacts yet</strong><p>Add team contacts here so they are ready for updates.</p></div>';
+
+  Array.from(contactList.querySelectorAll("[data-contact-action]")).forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.contactAction;
+      const contactId = button.dataset.contactId;
+
+      if (action === "edit") {
+        populateContactForm(contactId);
+      } else if (action === "delete") {
+        void deleteContact(contactId);
+      }
+    });
+  });
+}
+
+function renderEvents() {
+  const events = getActiveTeamEvents();
+
+  eventList.innerHTML = events.length
+    ? events
+        .map(
+          (eventRecord) => `
+            <div class="entity-card">
+              <div class="entity-card-header">
+                <div>
+                  <strong>${escapeHtml(eventRecord.eventTitle)}</strong>
+                  <span class="pill ${eventRecord.status === "cancelled" ? "is-cancelled" : ""}">${escapeHtml(eventRecord.status)}</span>
+                </div>
+              </div>
+              <div class="entity-card-meta">
+                <span>${escapeHtml(formatEventDate(eventRecord.eventDate))}${eventRecord.eventTime ? ` | ${escapeHtml(formatEventTime(eventRecord.eventTime))}` : ""}</span>
+                ${eventRecord.location ? `<span>${escapeHtml(eventRecord.location)}</span>` : ""}
+                ${eventRecord.notes ? `<span>${escapeHtml(eventRecord.notes)}</span>` : ""}
+              </div>
+              <div class="entity-card-actions">
+                <button type="button" class="secondary-button" data-event-action="edit" data-event-id="${eventRecord.id}">Edit</button>
+                <button type="button" class="danger-button" data-event-action="delete" data-event-id="${eventRecord.id}">Delete</button>
+              </div>
+            </div>
+          `,
+        )
+        .join("")
+    : '<div class="info-card"><strong>No events yet</strong><p>Add events so you can build and send team updates.</p></div>';
+
+  Array.from(eventList.querySelectorAll("[data-event-action]")).forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.eventAction;
+      const eventId = button.dataset.eventId;
+
+      if (action === "edit") {
+        populateEventForm(eventId);
+      } else if (action === "delete") {
+        void deleteEvent(eventId);
+      }
+    });
+  });
+}
+
+function renderEventMessaging() {
+  const contacts = getActiveTeamContacts();
+  const events = getActiveTeamEvents();
+  if (!state.selectedEventId && events.length) {
+    state.selectedEventId = events[0].id;
+  }
+  const selectedEvent = getSelectedEvent();
+  const emailContacts = contacts.filter((contact) => contact.email);
+  const phoneContacts = contacts.filter((contact) => contact.phone);
+
+  messageEventSelect.innerHTML = events.length
+    ? events
+        .map(
+          (eventRecord) => `<option value="${eventRecord.id}" ${eventRecord.id === state.selectedEventId ? "selected" : ""}>${escapeHtml(eventRecord.eventTitle)}</option>`,
+        )
+        .join("")
+    : '<option value="">No events available</option>';
+
+  messageEventSelect.disabled = events.length === 0;
+
+  messageRecipientList.innerHTML = emailContacts.length
+    ? emailContacts
+        .map(
+          (contact) => `
+            <label class="recipient-option">
+              <input type="checkbox" data-contact-id="${contact.id}" ${state.selectedContactIds.includes(contact.id) ? "checked" : ""} />
+              <span>
+                <strong>${escapeHtml(contact.contactName)}</strong>
+                <span>${escapeHtml(contact.email)}</span>
+                ${contact.role ? `<span>${escapeHtml(contact.role)}</span>` : ""}
+              </span>
+            </label>
+          `,
+        )
+        .join("")
+    : '<div class="info-card"><strong>No email contacts yet</strong><p>Add contacts with email addresses to send updates from TeamPro.</p></div>';
+
+  const messageText = buildEventMessageText(selectedEvent);
+  const smsText = buildSmsPreviewText(selectedEvent, phoneContacts);
+  messagePreview.value = messageText;
+  smsPreview.value = smsText;
+  copyMessagePreviewButton.disabled = !selectedEvent;
+  sendEventEmailButton.disabled = !selectedEvent || sendingEventUpdate || !emailContacts.length || !state.selectedContactIds.length;
+
+  if (!selectedEvent) {
+    clearStatus(messageStatus);
+  }
 }
 
 function renderAvailabilityControl() {
@@ -1479,6 +1801,533 @@ function normaliseMetricText(text) {
     .replace(/\byard\b/gi, "metre")
     .replace(/\bmeters\b/gi, "metres")
     .replace(/\bmeter\b/gi, "metre");
+}
+
+function getActiveTeamContacts() {
+  return [...(state.contactsByTeamId[state.activeTeamId] || [])].sort((left, right) =>
+    left.contactName.localeCompare(right.contactName),
+  );
+}
+
+function getActiveTeamEvents() {
+  return [...(state.eventsByTeamId[state.activeTeamId] || [])].sort(compareEvents);
+}
+
+function compareEvents(left, right) {
+  const leftKey = `${left.eventDate || ""}T${left.eventTime || "23:59"}`;
+  const rightKey = `${right.eventDate || ""}T${right.eventTime || "23:59"}`;
+  return leftKey.localeCompare(rightKey);
+}
+
+function getSelectedEvent() {
+  const events = getActiveTeamEvents();
+
+  if (!events.length) {
+    return null;
+  }
+
+  const selected = events.find((eventRecord) => eventRecord.id === state.selectedEventId);
+  return selected || events[0];
+}
+
+function resetContactForm() {
+  contactForm.reset();
+  contactIdInput.value = "";
+  clearStatus(contactStatus);
+}
+
+function resetEventForm() {
+  eventForm.reset();
+  eventIdInput.value = "";
+  eventStatusInput.value = "planned";
+  clearStatus(eventStatusMessage);
+}
+
+function populateContactForm(contactId) {
+  const contact = getActiveTeamContacts().find((item) => item.id === contactId);
+
+  if (!contact) {
+    return;
+  }
+
+  contactIdInput.value = contact.id;
+  contactNameInput.value = contact.contactName;
+  contactEmailInput.value = contact.email || "";
+  contactPhoneInput.value = contact.phone || "";
+  contactRoleInput.value = contact.role || "";
+  contactNotesInput.value = contact.notes || "";
+  setStatus(contactStatus, `Editing ${contact.contactName}.`, false);
+}
+
+function populateEventForm(eventId) {
+  const eventRecord = getActiveTeamEvents().find((item) => item.id === eventId);
+
+  if (!eventRecord) {
+    return;
+  }
+
+  eventIdInput.value = eventRecord.id;
+  eventTitleInput.value = eventRecord.eventTitle;
+  eventDateInput.value = eventRecord.eventDate || "";
+  eventTimeInput.value = eventRecord.eventTime || "";
+  eventLocationInput.value = eventRecord.location || "";
+  eventStatusInput.value = eventRecord.status || "planned";
+  eventNotesInput.value = eventRecord.notes || "";
+  setStatus(eventStatusMessage, `Editing ${eventRecord.eventTitle}.`, false);
+}
+
+async function saveContactFromForm() {
+  if (!supabaseUserId) {
+    setStatus(contactStatus, "Log in before saving contacts.", true);
+    return;
+  }
+
+  const contact = buildContactFromForm();
+
+  if (!contact.ok) {
+    setStatus(contactStatus, contact.message, true);
+    return;
+  }
+
+  const row = contact.value;
+  setStatus(contactStatus, "Saving contact...", false);
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: teamContactsTableName,
+      row,
+      statusElement: contactStatus,
+      pendingMessage: "Saving contact...",
+      successMessage: "Contact saved.",
+      label: "contact",
+    });
+    upsertContactInState(mapDatabaseContactToRecord(savedRow));
+    persistState();
+    resetContactForm();
+    renderAll();
+    setStatus(contactStatus, "Contact saved.", false);
+  } catch (error) {
+    console.error("[Supabase] contact save failed", {
+      error,
+      message: error?.message || String(error),
+      row,
+    });
+    setStatus(contactStatus, `Contact save failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+async function saveEventFromForm() {
+  if (!supabaseUserId) {
+    setStatus(eventStatusMessage, "Log in before saving events.", true);
+    return;
+  }
+
+  const eventRecord = buildEventFromForm();
+
+  if (!eventRecord.ok) {
+    setStatus(eventStatusMessage, eventRecord.message, true);
+    return;
+  }
+
+  const row = eventRecord.value;
+  setStatus(eventStatusMessage, "Saving event...", false);
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: teamEventsTableName,
+      row,
+      statusElement: eventStatusMessage,
+      pendingMessage: "Saving event...",
+      successMessage: "Event saved.",
+      label: "event",
+    });
+    const mappedEvent = mapDatabaseEventToRecord(savedRow);
+    upsertEventInState(mappedEvent);
+    state.selectedEventId = mappedEvent.id;
+    persistState();
+    resetEventForm();
+    renderAll();
+    setStatus(eventStatusMessage, "Event saved.", false);
+  } catch (error) {
+    console.error("[Supabase] event save failed", {
+      error,
+      message: error?.message || String(error),
+      row,
+    });
+    setStatus(eventStatusMessage, `Event save failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+function buildContactFromForm() {
+  const contactName = contactNameInput.value.trim();
+  const email = contactEmailInput.value.trim();
+  const phone = contactPhoneInput.value.trim();
+  const role = contactRoleInput.value.trim();
+  const notes = contactNotesInput.value.trim();
+
+  if (!contactName) {
+    return { ok: false, message: "Add a contact name first." };
+  }
+
+  if (!email && !phone) {
+    return { ok: false, message: "Add at least an email address or phone number." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      id: contactIdInput.value || createTeamStorageId(),
+      user_id: supabaseUserId,
+      team_id: state.activeTeamId,
+      contact_name: contactName,
+      email: email || null,
+      phone: phone || null,
+      role: role || null,
+      notes: notes || null,
+    },
+  };
+}
+
+function buildEventFromForm() {
+  const eventTitle = eventTitleInput.value.trim();
+  const eventDate = eventDateInput.value;
+
+  if (!eventTitle) {
+    return { ok: false, message: "Add an event title first." };
+  }
+
+  if (!eventDate) {
+    return { ok: false, message: "Choose the event date." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      id: eventIdInput.value || createTeamStorageId(),
+      user_id: supabaseUserId,
+      team_id: state.activeTeamId,
+      event_title: eventTitle,
+      event_date: eventDate,
+      event_time: eventTimeInput.value || null,
+      location: eventLocationInput.value.trim() || null,
+      notes: eventNotesInput.value.trim() || null,
+      status: eventStatusInput.value || "planned",
+    },
+  };
+}
+
+async function deleteContact(contactId) {
+  const contact = getActiveTeamContacts().find((item) => item.id === contactId);
+
+  if (!contact || !window.confirm(`Delete ${contact.contactName}?`)) {
+    return;
+  }
+
+  try {
+    await deleteRowFromSupabase({
+      tableName: teamContactsTableName,
+      rowId: contactId,
+      statusElement: contactStatus,
+      label: "contact",
+    });
+    state.contactsByTeamId[state.activeTeamId] = getActiveTeamContacts().filter((item) => item.id !== contactId);
+    state.selectedContactIds = state.selectedContactIds.filter((id) => id !== contactId);
+    persistState();
+    renderAll();
+    setStatus(contactStatus, "Contact deleted.", false);
+  } catch (error) {
+    console.error("[Supabase] contact delete failed", {
+      error,
+      message: error?.message || String(error),
+      contactId,
+    });
+    setStatus(contactStatus, `Contact delete failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+async function deleteEvent(eventId) {
+  const eventRecord = getActiveTeamEvents().find((item) => item.id === eventId);
+
+  if (!eventRecord || !window.confirm(`Delete ${eventRecord.eventTitle}?`)) {
+    return;
+  }
+
+  try {
+    await deleteRowFromSupabase({
+      tableName: teamEventsTableName,
+      rowId: eventId,
+      statusElement: eventStatusMessage,
+      label: "event",
+    });
+    state.eventsByTeamId[state.activeTeamId] = getActiveTeamEvents().filter((item) => item.id !== eventId);
+    if (state.selectedEventId === eventId) {
+      state.selectedEventId = state.eventsByTeamId[state.activeTeamId]?.[0]?.id || null;
+    }
+    persistState();
+    renderAll();
+    setStatus(eventStatusMessage, "Event deleted.", false);
+  } catch (error) {
+    console.error("[Supabase] event delete failed", {
+      error,
+      message: error?.message || String(error),
+      eventId,
+    });
+    setStatus(eventStatusMessage, `Event delete failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+function upsertContactInState(contact) {
+  const rows = getActiveTeamContacts();
+  const index = rows.findIndex((item) => item.id === contact.id);
+
+  if (index >= 0) {
+    rows[index] = contact;
+  } else {
+    rows.push(contact);
+  }
+
+  state.contactsByTeamId[state.activeTeamId] = rows.sort((left, right) => left.contactName.localeCompare(right.contactName));
+}
+
+function upsertEventInState(eventRecord) {
+  const rows = getActiveTeamEvents();
+  const index = rows.findIndex((item) => item.id === eventRecord.id);
+
+  if (index >= 0) {
+    rows[index] = eventRecord;
+  } else {
+    rows.push(eventRecord);
+  }
+
+  state.eventsByTeamId[state.activeTeamId] = rows.sort(compareEvents);
+}
+
+function selectAllContactsForMessaging() {
+  state.selectedContactIds = getActiveTeamContacts()
+    .filter((contact) => contact.email)
+    .map((contact) => contact.id);
+  persistState();
+  renderEventMessaging();
+}
+
+function clearSelectedContactsForMessaging() {
+  state.selectedContactIds = [];
+  persistState();
+  renderEventMessaging();
+}
+
+function toggleMessageRecipient(contactId, isSelected) {
+  if (isSelected) {
+    state.selectedContactIds = Array.from(new Set([...state.selectedContactIds, contactId]));
+  } else {
+    state.selectedContactIds = state.selectedContactIds.filter((id) => id !== contactId);
+  }
+
+  persistState();
+  renderEventMessaging();
+}
+
+function buildEventMessageText(eventRecord) {
+  if (!eventRecord) {
+    return "";
+  }
+
+  return [
+    `${state.config.teamName || "Team"} update`,
+    "",
+    `Event: ${eventRecord.eventTitle}`,
+    `Date: ${formatEventDate(eventRecord.eventDate)}`,
+    `Time: ${eventRecord.eventTime ? formatEventTime(eventRecord.eventTime) : "To be confirmed"}`,
+    `Location: ${eventRecord.location || "To be confirmed"}`,
+    eventRecord.notes ? `Notes: ${eventRecord.notes}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildSmsPreviewText(eventRecord, phoneContacts) {
+  if (!eventRecord) {
+    return "";
+  }
+
+  const header = `${state.config.teamName || "Team"}: ${eventRecord.eventTitle}`;
+  const lines = [
+    header,
+    `${formatEventDate(eventRecord.eventDate)}${eventRecord.eventTime ? `, ${formatEventTime(eventRecord.eventTime)}` : ""}`,
+    eventRecord.location || "Location TBC",
+    eventRecord.notes || null,
+  ].filter(Boolean);
+
+  if (phoneContacts.length) {
+    lines.push("", `Phone contacts on file: ${phoneContacts.map((contact) => contact.contactName).join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function copyEventMessagePreview() {
+  const selectedEvent = getSelectedEvent();
+
+  if (!selectedEvent) {
+    setStatus(messageStatus, "Choose an event first.", true);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(buildEventMessageText(selectedEvent));
+    setStatus(messageStatus, "Update copied to the clipboard.", false);
+  } catch (error) {
+    setStatus(messageStatus, "Could not copy the update right now.", true);
+  }
+}
+
+async function sendEventUpdateEmail() {
+  if (sendingEventUpdate) {
+    return;
+  }
+
+  const selectedEvent = getSelectedEvent();
+  const recipients = getActiveTeamContacts().filter(
+    (contact) => state.selectedContactIds.includes(contact.id) && contact.email,
+  );
+
+  if (!selectedEvent) {
+    setStatus(messageStatus, "Choose an event first.", true);
+    return;
+  }
+
+  if (!recipients.length) {
+    setStatus(messageStatus, "Select at least one contact with an email address.", true);
+    return;
+  }
+
+  sendingEventUpdate = true;
+  renderEventMessaging();
+  setStatus(messageStatus, "Sending update...", false);
+
+  try {
+    const response = await fetch(teamUpdateEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        teamName: state.config.teamName || "TeamPro team",
+        event: selectedEvent,
+        recipients: recipients.map((contact) => ({
+          name: contact.contactName,
+          email: contact.email,
+          phone: contact.phone || "",
+        })),
+        messageText: buildEventMessageText(selectedEvent),
+        sendEmail: true,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "Event update could not be sent.");
+    }
+
+    if (result.warning) {
+      setStatus(messageStatus, result.warning, false);
+    } else {
+      setStatus(messageStatus, `Email update sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`, false);
+    }
+
+    await logEventUpdate({
+      eventId: selectedEvent.id,
+      deliveryMethod: result.sent ? "email" : "copy",
+      recipientCount: recipients.length,
+      subject: result.subject || `${state.config.teamName || "Team"} update`,
+      messageText: buildEventMessageText(selectedEvent),
+    });
+
+    if (result.sent) {
+      await markEventAsSent(selectedEvent.id);
+    }
+  } catch (error) {
+    console.error("[Updates] Send failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(messageStatus, error?.message || "Event update could not be sent.", true);
+  } finally {
+    sendingEventUpdate = false;
+    renderEventMessaging();
+  }
+}
+
+async function markEventAsSent(eventId) {
+  const events = getActiveTeamEvents();
+  const index = events.findIndex((item) => item.id === eventId);
+
+  if (index === -1) {
+    return;
+  }
+
+  const nextEvent = {
+    ...events[index],
+    status: "sent",
+  };
+  events[index] = nextEvent;
+  state.eventsByTeamId[state.activeTeamId] = events;
+  persistState();
+  renderAll();
+
+  try {
+    await saveRowToSupabase({
+      tableName: teamEventsTableName,
+      row: {
+        id: nextEvent.id,
+        user_id: supabaseUserId,
+        team_id: nextEvent.teamId,
+        event_title: nextEvent.eventTitle,
+        event_date: nextEvent.eventDate,
+        event_time: nextEvent.eventTime || null,
+        location: nextEvent.location || null,
+        notes: nextEvent.notes || null,
+        status: nextEvent.status,
+      },
+      statusElement: messageStatus,
+      pendingMessage: "Updating event status...",
+      successMessage: "Event marked as sent.",
+      label: "event",
+    });
+  } catch (error) {
+    console.error("[Supabase] event sent status update failed", {
+      error,
+      message: error?.message || String(error),
+      eventId,
+    });
+  }
+}
+
+function formatEventDate(dateValue) {
+  if (!dateValue) {
+    return "Date to be confirmed";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("en-NZ", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(`${dateValue}T12:00:00`));
+  } catch (error) {
+    return dateValue;
+  }
+}
+
+function formatEventTime(timeValue) {
+  if (!timeValue) {
+    return "";
+  }
+
+  return timeValue;
 }
 
 function formatTrainingPlanAsText(plan) {
@@ -2126,9 +2975,13 @@ function switchTeam(teamId) {
   state.config = runtime.config;
   state.players = runtime.players;
   state.lineup = runtime.lineup;
+  state.selectedEventId = getActiveTeamEvents()[0]?.id || null;
+  state.selectedContactIds = [];
   state.selectedTarget = null;
   persistState();
   syncFormFromState();
+  resetContactForm();
+  resetEventForm();
   renderAll();
 }
 
@@ -2152,6 +3005,10 @@ function createNewTeamDraft() {
   state.config = normaliseConfig(blankConfig);
   state.players = [];
   state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
+  state.contactsByTeamId[state.activeTeamId] = [];
+  state.eventsByTeamId[state.activeTeamId] = [];
+  state.selectedEventId = null;
+  state.selectedContactIds = [];
   state.selectedTarget = null;
   state.page = "config";
   formationDraft = [...state.config.formations];
@@ -2196,6 +3053,11 @@ function deleteCurrentTeam() {
     });
   }
 
+  delete state.contactsByTeamId[state.activeTeamId];
+  delete state.eventsByTeamId[state.activeTeamId];
+  state.selectedContactIds = [];
+  state.selectedEventId = null;
+
   const remainingTeams = state.teams.filter((team) => team.id !== state.activeTeamId);
 
   if (remainingTeams.length === 0) {
@@ -2211,6 +3073,10 @@ function deleteCurrentTeam() {
     });
     state.players = [];
     state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
+    state.contactsByTeamId = {};
+    state.eventsByTeamId = {};
+    state.selectedEventId = null;
+    state.selectedContactIds = [];
     state.selectedTarget = null;
     state.page = "config";
     formationDraft = [...state.config.formations];
@@ -2228,8 +3094,12 @@ function deleteCurrentTeam() {
   state.config = runtime.config;
   state.players = runtime.players;
   state.lineup = runtime.lineup;
+  state.selectedEventId = (state.eventsByTeamId[nextTeam.id] || [])[0]?.id || null;
+  state.selectedContactIds = [];
   state.selectedTarget = null;
   syncFormFromState();
+  resetContactForm();
+  resetEventForm();
   persistState();
   renderAll();
   setStatus(configStatus, `${label} deleted.`, false);
@@ -2252,6 +3122,10 @@ function persistCachedStateOnly() {
     page: state.page,
     activeTeamId: state.activeTeamId,
     teams: state.teams,
+    contactsByTeamId: state.contactsByTeamId,
+    eventsByTeamId: state.eventsByTeamId,
+    selectedEventId: state.selectedEventId,
+    selectedContactIds: state.selectedContactIds,
   };
 
   localStorage.setItem(storageKey, JSON.stringify(saved));
@@ -2266,6 +3140,10 @@ function persistUserScopedState() {
     page: state.page,
     activeTeamId: state.activeTeamId,
     teams: state.teams,
+    contactsByTeamId: state.contactsByTeamId,
+    eventsByTeamId: state.eventsByTeamId,
+    selectedEventId: state.selectedEventId,
+    selectedContactIds: state.selectedContactIds,
     savedAt: Date.now(),
   };
 
@@ -2540,6 +3418,145 @@ async function deleteTeamFromSupabase(teamId) {
   }
 }
 
+async function saveRowToSupabase({ tableName, row, statusElement, pendingMessage, successMessage, label }) {
+  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
+    throw new Error("Supabase runtime config or session token is missing.");
+  }
+
+  setStatus(statusElement, pendingMessage, false);
+
+  console.info(`[Supabase] before ${label} upsert`, {
+    table: `public.${tableName}`,
+    userId: supabaseUserId,
+    row,
+  });
+
+  const response = await fetch(`${supabaseProjectUrl}/rest/v1/${tableName}?on_conflict=id`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAccessToken}`,
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify(row),
+  });
+
+  const responseText = await response.text();
+  let responseData = null;
+
+  if (responseText) {
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      responseData = responseText;
+    }
+  }
+
+  console.info(`[Supabase] ${label} upsert result`, {
+    table: `public.${tableName}`,
+    userId: supabaseUserId,
+    status: response.status,
+    ok: response.ok,
+    data: responseData,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      responseData?.message ||
+      responseData?.error_description ||
+      responseData?.details ||
+      responseText ||
+      response.statusText ||
+      `Supabase ${label} save failed.`,
+    );
+  }
+
+  const savedRow = Array.isArray(responseData) ? responseData[0] : responseData;
+  setStatus(statusElement, successMessage, false);
+  return savedRow || row;
+}
+
+async function deleteRowFromSupabase({ tableName, rowId, statusElement, label }) {
+  if (!supabaseProjectUrl || !supabaseAnonKey || !supabaseAccessToken) {
+    throw new Error("Supabase runtime config or session token is missing.");
+  }
+
+  setStatus(statusElement, `Deleting ${label}...`, false);
+
+  const deleteUrl = new URL(`${supabaseProjectUrl}/rest/v1/${tableName}`);
+  deleteUrl.searchParams.set("id", `eq.${rowId}`);
+  deleteUrl.searchParams.set("user_id", `eq.${supabaseUserId}`);
+
+  const response = await fetch(deleteUrl.toString(), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAccessToken}`,
+    },
+  });
+
+  const responseText = await response.text();
+  let responseData = null;
+
+  if (responseText) {
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      responseData = responseText;
+    }
+  }
+
+  console.info(`[Supabase] ${label} delete result`, {
+    table: `public.${tableName}`,
+    userId: supabaseUserId,
+    rowId,
+    status: response.status,
+    ok: response.ok,
+    data: responseData,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      responseData?.message ||
+      responseData?.error_description ||
+      responseData?.details ||
+      responseText ||
+      response.statusText ||
+      `Supabase ${label} delete failed.`,
+    );
+  }
+}
+
+async function logEventUpdate({ eventId, deliveryMethod, recipientCount, subject, messageText }) {
+  try {
+    await saveRowToSupabase({
+      tableName: eventUpdateLogsTableName,
+      row: {
+        id: createTeamStorageId(),
+        user_id: supabaseUserId,
+        team_id: state.activeTeamId,
+        event_id: eventId,
+        delivery_method: deliveryMethod,
+        recipient_count: recipientCount,
+        subject: subject || null,
+        message_text: messageText,
+      },
+      statusElement: messageStatus,
+      pendingMessage: "Recording update...",
+      successMessage: "Update logged.",
+      label: "event update log",
+    });
+  } catch (error) {
+    console.error("[Supabase] event update log failed", {
+      error,
+      message: error?.message || String(error),
+    });
+  }
+}
+
 function mapTeamRecordToDatabaseRow(team, userId) {
   return {
     id: team.id,
@@ -2569,6 +3586,35 @@ function mapDatabaseTeamToRecord(row) {
       selectedFormation: row.selected_formation,
     }),
     lineup: row.lineup || null,
+  };
+}
+
+function mapDatabaseContactToRecord(row) {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    contactName: row.contact_name || "",
+    email: row.email || "",
+    phone: row.phone || "",
+    role: row.role || "",
+    notes: row.notes || "",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function mapDatabaseEventToRecord(row) {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    eventTitle: row.event_title || "",
+    eventDate: row.event_date || "",
+    eventTime: row.event_time || "",
+    location: row.location || "",
+    notes: row.notes || "",
+    status: row.status || "planned",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
   };
 }
 

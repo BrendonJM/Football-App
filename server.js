@@ -199,6 +199,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "POST" && requestUrl.pathname === "/api/team-update") {
+    await handleTeamUpdateRequest(request, response);
+    return;
+  }
+
   if (request.method === "POST" && requestUrl.pathname === "/api/training-plan") {
     await handleTrainingPlanRequest(request, response);
     return;
@@ -405,6 +410,86 @@ async function handleTrainingPlanRequest(request, response) {
     });
     sendJson(response, 500, {
       error: error?.message || "Training plan request failed.",
+    });
+  }
+}
+
+async function handleTeamUpdateRequest(request, response) {
+  try {
+    const payload = await readJsonBody(request);
+    const teamName = String(payload.teamName || "TeamPro").trim();
+    const messageText = String(payload.messageText || "").trim();
+    const eventRecord = payload.event || {};
+    const recipients = Array.isArray(payload.recipients) ? payload.recipients : [];
+    const emailRecipients = recipients
+      .map((recipient) => ({
+        name: String(recipient.name || "").trim(),
+        email: String(recipient.email || "").trim(),
+      }))
+      .filter((recipient) => recipient.email);
+
+    if (!eventRecord.eventTitle || !messageText) {
+      sendJson(response, 400, {
+        error: "event and messageText are required.",
+      });
+      return;
+    }
+
+    if (!emailRecipients.length) {
+      sendJson(response, 400, {
+        error: "Select at least one contact with an email address.",
+      });
+      return;
+    }
+
+    if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+      sendJson(response, 200, {
+        ok: true,
+        sent: false,
+        warning: "Email sending is not configured yet. The message preview is ready to copy instead.",
+        subject: buildTeamUpdateSubject(teamName, eventRecord),
+      });
+      return;
+    }
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: emailRecipients.map((recipient) => recipient.email),
+        subject: buildTeamUpdateSubject(teamName, eventRecord),
+        text: messageText,
+        html: buildTeamUpdateHtml({
+          teamName,
+          eventRecord,
+          messageText,
+        }),
+      }),
+    });
+
+    if (!resendResponse.ok) {
+      const errorText = await resendResponse.text();
+      throw new Error(`Resend request failed: ${errorText}`);
+    }
+
+    const resendJson = await resendResponse.json();
+    sendJson(response, 200, {
+      ok: true,
+      sent: true,
+      id: resendJson.id || null,
+      subject: buildTeamUpdateSubject(teamName, eventRecord),
+    });
+  } catch (error) {
+    console.error("[Updates] Email send failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    sendJson(response, 500, {
+      error: error?.message || "Event update email failed to send.",
     });
   }
 }
@@ -956,6 +1041,23 @@ function buildFeedbackHtml({ message, userEmail, page, appName }) {
       <p><strong>Current page:</strong> ${escapeHtml(page || "Unknown")}</p>
       <p><strong>Feedback:</strong></p>
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(message)}</div>
+    </div>
+  `;
+}
+
+function buildTeamUpdateSubject(teamName, eventRecord) {
+  return `${teamName} update: ${eventRecord.eventTitle}`;
+}
+
+function buildTeamUpdateHtml({ teamName, eventRecord, messageText }) {
+  return `
+    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+      <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} update</h2>
+      <p><strong>Event:</strong> ${escapeHtml(String(eventRecord.eventTitle || ""))}</p>
+      ${eventRecord.eventDate ? `<p><strong>Date:</strong> ${escapeHtml(String(eventRecord.eventDate))}</p>` : ""}
+      ${eventRecord.eventTime ? `<p><strong>Time:</strong> ${escapeHtml(String(eventRecord.eventTime))}</p>` : ""}
+      ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
+      <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
     </div>
   `;
 }

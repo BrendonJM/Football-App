@@ -250,6 +250,16 @@ p {
   align-items: start;
 }
 
+.manage-main-column,
+.team-admin-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.team-admin-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .panel {
   border-radius: var(--radius);
   background: var(--surface);
@@ -714,6 +724,97 @@ textarea {
   background: rgba(24, 33, 43, 0.9);
 }
 
+.split-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.entity-list,
+.recipient-list {
+  display: grid;
+  gap: 12px;
+}
+
+.entity-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(26, 35, 48, 0.74);
+}
+
+.entity-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entity-card-header strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+}
+
+.entity-card-meta {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.entity-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pill.is-cancelled {
+  background: rgba(228, 134, 118, 0.16);
+  color: var(--danger);
+}
+
+.recipient-option {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(26, 35, 48, 0.52);
+}
+
+.recipient-option input {
+  margin-top: 4px;
+}
+
+.recipient-option strong {
+  display: block;
+  margin-bottom: 3px;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.recipient-option span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .training-plan-block-header {
   display: flex;
   flex-wrap: wrap;
@@ -759,6 +860,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .team-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pitch-panel {
     min-height: auto;
   }
@@ -797,6 +902,10 @@ textarea {
 
   .pitch {
     min-height: 640px;
+  }
+
+  .split-fields {
+    grid-template-columns: 1fr;
   }
 
   .slot {
