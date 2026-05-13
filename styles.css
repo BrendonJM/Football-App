@@ -409,6 +409,10 @@ textarea {
   background: rgba(26, 35, 48, 0.74);
 }
 
+.compact-info-card {
+  padding: 14px 16px;
+}
+
 .info-card strong,
 .summary-block strong {
   display: block;
@@ -717,6 +721,21 @@ textarea {
   gap: 12px;
 }
 
+.event-list-scroll {
+  max-height: 720px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.event-list-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.event-list-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(151, 165, 182, 0.28);
+}
+
 .entity-card {
   display: grid;
   gap: 10px;
@@ -730,6 +749,11 @@ textarea {
   border-color: rgba(197, 164, 109, 0.42);
   box-shadow: inset 0 0 0 1px rgba(197, 164, 109, 0.22);
   background: rgba(30, 40, 54, 0.86);
+}
+
+.entity-card-compact {
+  gap: 8px;
+  padding: 14px;
 }
 
 .entity-card-header {
@@ -749,6 +773,11 @@ textarea {
   gap: 4px;
   color: var(--muted);
   font-size: 0.95rem;
+}
+
+.entity-card-compact .entity-card-meta {
+  gap: 2px;
+  font-size: 0.88rem;
 }
 
 .response-summary-grid {
@@ -774,6 +803,18 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.entity-card-compact .entity-card-actions {
+  gap: 8px;
+}
+
+.entity-card-compact .secondary-button,
+.entity-card-compact .danger-button {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 0.92rem;
 }
 
 .pill {

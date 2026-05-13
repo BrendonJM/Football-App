@@ -123,6 +123,7 @@ const eventNotesInput = document.querySelector("#eventNotes");
 const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
+const eventListSummary = document.querySelector("#eventListSummary");
 const nextEventSummary = document.querySelector("#nextEventSummary");
 const useNextEventButton = document.querySelector("#useNextEvent");
 const selectedEventDetails = document.querySelector("#selectedEventDetails");
@@ -1774,11 +1775,19 @@ function getSelectedLinkedPlayersFromForm() {
 function renderEvents() {
   const events = getActiveTeamEvents();
 
+  if (eventListSummary) {
+    const plannedCount = events.filter((eventRecord) => eventRecord.status === "planned").length;
+    eventListSummary.innerHTML = `
+      <strong>${events.length} event${events.length === 1 ? "" : "s"}</strong>
+      <p>${plannedCount} planned${events.length ? " | Scroll the list to manage each event individually." : " | Create your first event to get started."}</p>
+    `;
+  }
+
   eventList.innerHTML = events.length
     ? events
         .map(
           (eventRecord) => `
-            <div class="entity-card ${eventRecord.id === state.selectedEventId ? "is-selected" : ""}">
+            <div class="entity-card entity-card-compact ${eventRecord.id === state.selectedEventId ? "is-selected" : ""}">
               <div class="entity-card-header">
                 <div>
                   <strong>${escapeHtml(eventRecord.eventTitle)}</strong>
