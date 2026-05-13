@@ -168,42 +168,15 @@ p {
   line-height: 1.55;
 }
 
-.topbar-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
 .team-switcher {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
 }
 
-.topbar-stats div,
 .panel,
 .nav-button {
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
-}
-
-.topbar-stats div {
-  padding: 16px;
-  border-radius: 18px;
-  background: var(--surface);
-  backdrop-filter: blur(14px);
-}
-
-.topbar-stats span {
-  display: block;
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.topbar-stats p {
-  margin-bottom: 0;
-  color: var(--muted);
-  font-weight: 600;
 }
 
 .page-nav {

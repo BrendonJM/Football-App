@@ -77,10 +77,6 @@ const teamSwitcher = document.querySelector("#teamSwitcher");
 const newTeamButton = document.querySelector("#newTeam");
 const deleteTeamButton = document.querySelector("#deleteTeam");
 
-const statPlayers = document.querySelector("#statPlayers");
-const statOnField = document.querySelector("#statOnField");
-const statFormationCount = document.querySelector("#statFormationCount");
-
 const teamNameSummary = document.querySelector("#teamNameSummary");
 const formationSelect = document.querySelector("#formationSelect");
 const fillEmptyPositionsButton = document.querySelector("#fillEmptyPositions");
@@ -1535,7 +1531,6 @@ function renderFormationChoices() {
 function renderAll() {
   renderTeamSwitcher();
   renderPage();
-  renderStats();
   renderManagerControls();
   renderBench();
   renderPitch();
@@ -1576,12 +1571,6 @@ function renderPage() {
   navManage.classList.toggle("is-active", manageActive);
   navComms.classList.toggle("is-active", commsActive);
   navTraining.classList.toggle("is-active", trainingActive);
-}
-
-function renderStats() {
-  statPlayers.textContent = String(state.players.length);
-  statOnField.textContent = String(state.config.playersOnField);
-  statFormationCount.textContent = String(state.config.formations.length);
 }
 
 function renderManagerControls() {
