@@ -301,8 +301,9 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
     `${teamName} update`,
     "",
     `Event: ${eventRecord.event_title}`,
+    `Type: ${formatEventTypeLabel(eventRecord.event_type)}`,
     `Date: ${eventRecord.event_date || "To be confirmed"}`,
-    `Time: ${eventRecord.event_time || "To be confirmed"}`,
+    `Time: ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) || "To be confirmed"}`,
     `Location: ${eventRecord.location || "To be confirmed"}`,
     eventRecord.notes ? `Notes: ${eventRecord.notes}` : null,
     "",
@@ -333,8 +334,9 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
       <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} update</h2>
       <p>Hello ${escapeHtml(contact.contact_name || "there")},</p>
       <p><strong>Event:</strong> ${escapeHtml(String(eventRecord.event_title || ""))}</p>
+      ${eventRecord.event_type ? `<p><strong>Type:</strong> ${escapeHtml(formatEventTypeLabel(String(eventRecord.event_type || "")))}</p>` : ""}
       ${eventRecord.event_date ? `<p><strong>Date:</strong> ${escapeHtml(String(eventRecord.event_date))}</p>` : ""}
-      ${eventRecord.event_time ? `<p><strong>Time:</strong> ${escapeHtml(String(eventRecord.event_time))}</p>` : ""}
+      ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) ? `<p><strong>Time:</strong> ${escapeHtml(formatEventTimeRange(eventRecord.start_time, eventRecord.end_time))}</p>` : ""}
       ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
       <div style="margin-top: 20px;">
@@ -364,4 +366,21 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
       </div>
     </div>
   `;
+}
+
+function formatEventTimeRange(startTime, endTime) {
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  return startTime || "";
+}
+
+function formatEventTypeLabel(eventType) {
+  return {
+    training: "Training",
+    game: "Game",
+    tournament: "Tournament",
+    other: "Other",
+  }[eventType] || "Other";
 }

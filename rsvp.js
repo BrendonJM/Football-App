@@ -69,7 +69,7 @@ function renderRsvpDetails() {
   rsvpEventSummary.textContent = [
     currentRsvp.event_title || "Event",
     currentRsvp.event_date || "Date TBC",
-    currentRsvp.event_time || "Time TBC",
+    formatRsvpTimeRange(currentRsvp.start_time, currentRsvp.end_time) || "Time TBC",
   ]
     .filter(Boolean)
     .join(" | ");
@@ -128,4 +128,12 @@ function showError(message) {
 function setStatus(message, isError) {
   rsvpStatus.textContent = message;
   rsvpStatus.classList.toggle("is-error", Boolean(isError));
+}
+
+function formatRsvpTimeRange(startTime, endTime) {
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  return startTime || "";
 }

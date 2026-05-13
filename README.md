@@ -169,20 +169,24 @@ Then add the same environment variables in Vercel and redeploy if needed.
 ## Notes
 
 - Team, contact, and event data are stored in Supabase and scoped by authenticated user ID.
+- Events can be one-off or generated as weekly repeating occurrences, with one row per occurrence so RSVP responses stay event-specific.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
 
-## Manual RSVP test
+## Manual event and RSVP test
 
 1. Sign in to TeamPro.
 2. Create or choose a team with at least one contact that has an email address.
-3. Create an event in `Team Comms`.
-4. Send an event update email to that contact.
-5. Open the RSVP link from the email and submit `Yes`, `No`, or `Maybe`.
-6. Confirm the `event_rsvps` table in Supabase now contains the response.
-7. Refresh TeamPro and return to `Team Comms`.
-8. Confirm the `Availability` section shows the RSVP status, note, and response time.
+3. Create a one-off event in `Team Comms`.
+4. Create a weekly repeating training event with a repeat end date and confirm multiple event rows are created.
+5. In `Send Update`, use the next planned event and send the update email to the contact.
+6. Open the RSVP link from the email and submit `Yes`, `No`, or `Maybe`.
+7. Confirm the `event_rsvps` table in Supabase contains the response against the correct `event_id`.
+8. Refresh TeamPro and return to `Team Comms`.
+9. Confirm the `Availability` section shows the RSVP status, note, response time, and counts for that event.
+10. Select a different future event and confirm it has its own separate RSVP records and counts.
+11. Log out and back in, then confirm the saved events and RSVP states still load correctly.
 
 ## Good next additions
 

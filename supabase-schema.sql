@@ -40,14 +40,25 @@ create table if not exists public.team_events (
   user_id uuid not null references auth.users(id) on delete cascade,
   team_id text not null references public.teams(id) on delete cascade,
   event_title text not null,
+  event_type text not null default 'other',
   event_date date not null,
-  event_time text,
+  start_time text,
+  end_time text,
   location text,
   notes text,
   status text not null default 'planned',
+  repeat_pattern text not null default 'once',
+  repeat_end_date date,
+  repeat_day_of_week integer,
+  series_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint team_events_status_check check (status in ('planned', 'sent', 'cancelled'))
+  constraint team_events_status_check check (status in ('planned', 'sent', 'cancelled', 'completed')),
+  constraint team_events_event_type_check check (event_type in ('training', 'game', 'tournament', 'other')),
+  constraint team_events_repeat_pattern_check check (repeat_pattern in ('once', 'weekly')),
+  constraint team_events_repeat_day_of_week_check check (
+    repeat_day_of_week is null or repeat_day_of_week between 0 and 6
+  )
 );
 
 create table if not exists public.event_update_logs (
@@ -104,6 +115,15 @@ create index if not exists team_events_team_id_idx
 create index if not exists team_events_user_team_idx
   on public.team_events (user_id, team_id);
 
+create index if not exists team_events_series_id_idx
+  on public.team_events (series_id);
+
+create index if not exists team_events_team_date_idx
+  on public.team_events (team_id, event_date);
+
+create index if not exists team_events_user_date_idx
+  on public.team_events (user_id, event_date);
+
 create index if not exists event_update_logs_user_id_idx
   on public.event_update_logs (user_id);
 
@@ -134,6 +154,9 @@ create index if not exists event_rsvps_event_id_idx
 
 create index if not exists event_rsvps_contact_id_idx
   on public.event_rsvps (contact_id);
+
+create index if not exists event_rsvps_event_response_idx
+  on public.event_rsvps (event_id, response);
 
 alter table public.teams enable row level security;
 alter table public.team_contacts enable row level security;

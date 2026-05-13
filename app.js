@@ -104,14 +104,21 @@ const contactList = document.querySelector("#contactList");
 const eventForm = document.querySelector("#eventForm");
 const eventIdInput = document.querySelector("#eventId");
 const eventTitleInput = document.querySelector("#eventTitle");
+const eventTypeInput = document.querySelector("#eventType");
 const eventDateInput = document.querySelector("#eventDate");
-const eventTimeInput = document.querySelector("#eventTime");
+const eventStartTimeInput = document.querySelector("#eventStartTime");
+const eventEndTimeInput = document.querySelector("#eventEndTime");
 const eventLocationInput = document.querySelector("#eventLocation");
 const eventStatusInput = document.querySelector("#eventStatus");
+const eventRepeatPatternInput = document.querySelector("#eventRepeatPattern");
+const eventRepeatEndDateInput = document.querySelector("#eventRepeatEndDate");
+const eventRepeatDayOfWeekInput = document.querySelector("#eventRepeatDayOfWeek");
 const eventNotesInput = document.querySelector("#eventNotes");
 const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
+const nextEventSummary = document.querySelector("#nextEventSummary");
+const useNextEventButton = document.querySelector("#useNextEvent");
 const messageEventSelect = document.querySelector("#messageEventSelect");
 const selectAllContactsButton = document.querySelector("#selectAllContacts");
 const clearSelectedContactsButton = document.querySelector("#clearSelectedContacts");
@@ -121,6 +128,7 @@ const smsPreview = document.querySelector("#smsPreview");
 const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
 const sendEventEmailButton = document.querySelector("#sendEventEmail");
 const messageStatus = document.querySelector("#messageStatus");
+const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
 const eventRsvpList = document.querySelector("#eventRsvpList");
 const eventRsvpStatus = document.querySelector("#eventRsvpStatus");
 const trainingFocusSelect = document.querySelector("#trainingFocus");
@@ -239,6 +247,10 @@ resetEventButton.addEventListener("click", () => {
   resetEventForm();
 });
 
+eventRepeatPatternInput?.addEventListener("change", () => {
+  renderEventRepeatInputs();
+});
+
 navAccount.addEventListener("click", () => {
   state.page = "account";
   persistState();
@@ -307,6 +319,10 @@ messageEventSelect.addEventListener("change", () => {
   persistState();
   renderEventMessaging();
   renderEventRsvps();
+});
+
+useNextEventButton?.addEventListener("click", () => {
+  useNextPlannedEventForMessaging();
 });
 
 selectAllContactsButton.addEventListener("click", () => {
@@ -1536,6 +1552,7 @@ function renderAll() {
   renderPitch();
   renderContacts();
   renderContactLinkedPlayerOptions();
+  renderEventRepeatInputs();
   renderEvents();
   renderEventMessaging();
   renderEventRsvps();
@@ -1689,12 +1706,14 @@ function renderEvents() {
               <div class="entity-card-header">
                 <div>
                   <strong>${escapeHtml(eventRecord.eventTitle)}</strong>
+                  <span class="pill">${escapeHtml(formatEventTypeLabel(eventRecord.eventType))}</span>
                   <span class="pill ${eventRecord.status === "cancelled" ? "is-cancelled" : ""}">${escapeHtml(eventRecord.status)}</span>
                 </div>
               </div>
               <div class="entity-card-meta">
-                <span>${escapeHtml(formatEventDate(eventRecord.eventDate))}${eventRecord.eventTime ? ` | ${escapeHtml(formatEventTime(eventRecord.eventTime))}` : ""}</span>
+                <span>${escapeHtml(formatEventDate(eventRecord.eventDate))}${getEventTimingLabel(eventRecord) ? ` | ${escapeHtml(getEventTimingLabel(eventRecord))}` : ""}</span>
                 ${eventRecord.location ? `<span>${escapeHtml(eventRecord.location)}</span>` : ""}
+                ${eventRecord.repeatPattern === "weekly" ? `<span>${escapeHtml(formatRepeatPatternLabel(eventRecord))}</span>` : ""}
                 ${eventRecord.notes ? `<span>${escapeHtml(eventRecord.notes)}</span>` : ""}
               </div>
               <div class="entity-card-actions">
@@ -1725,16 +1744,30 @@ function renderEventMessaging() {
   const contacts = getActiveTeamContacts();
   const events = getActiveTeamEvents();
   if (!state.selectedEventId && events.length) {
-    state.selectedEventId = events[0].id;
+    state.selectedEventId = getNextPlannedEvent()?.id || events[0].id;
   }
   const selectedEvent = getSelectedEvent();
+  if (selectedEvent && state.selectedEventId !== selectedEvent.id) {
+    state.selectedEventId = selectedEvent.id;
+  }
+  const nextEvent = getNextPlannedEvent();
   const emailContacts = contacts.filter((contact) => contact.email);
   const phoneContacts = contacts.filter((contact) => contact.phone);
+
+  if (nextEventSummary) {
+    nextEventSummary.textContent = nextEvent
+      ? `${nextEvent.eventTitle} | ${formatEventDate(nextEvent.eventDate)}${getEventTimingLabel(nextEvent) ? ` | ${getEventTimingLabel(nextEvent)}` : ""}${nextEvent.location ? ` | ${nextEvent.location}` : ""}`
+      : "No upcoming planned event found for this team.";
+  }
+
+  if (useNextEventButton) {
+    useNextEventButton.disabled = !nextEvent || sendingEventUpdate;
+  }
 
   messageEventSelect.innerHTML = events.length
     ? events
         .map(
-          (eventRecord) => `<option value="${eventRecord.id}" ${eventRecord.id === state.selectedEventId ? "selected" : ""}>${escapeHtml(eventRecord.eventTitle)}</option>`,
+          (eventRecord) => `<option value="${eventRecord.id}" ${eventRecord.id === state.selectedEventId ? "selected" : ""}>${escapeHtml(formatEventOptionLabel(eventRecord))}</option>`,
         )
         .join("")
     : '<option value="">No events available</option>';
@@ -1780,8 +1813,26 @@ function renderEventRsvps() {
   const rsvps = getSelectedEventRsvps();
 
   if (!selectedEvent) {
+    if (eventRsvpSummary) {
+      eventRsvpSummary.innerHTML = "<strong>No event selected</strong><p>Choose an event to see attendance.</p>";
+    }
     eventRsvpList.innerHTML = '<div class="info-card"><strong>No event selected</strong><p>Create or choose an event to view availability.</p></div>';
     return;
+  }
+
+  const responseCounts = {
+    yes: rsvps.filter((rsvp) => rsvp.response === "yes").length,
+    no: rsvps.filter((rsvp) => rsvp.response === "no").length,
+    maybe: rsvps.filter((rsvp) => rsvp.response === "maybe").length,
+    no_response: rsvps.filter((rsvp) => rsvp.response === "no_response").length,
+  };
+
+  if (eventRsvpSummary) {
+    eventRsvpSummary.innerHTML = `
+      <strong>${escapeHtml(selectedEvent.eventTitle)}</strong>
+      <p>${escapeHtml(formatEventDate(selectedEvent.eventDate))}${getEventTimingLabel(selectedEvent) ? ` | ${escapeHtml(getEventTimingLabel(selectedEvent))}` : ""}</p>
+      <p>Yes: ${responseCounts.yes} | No: ${responseCounts.no} | Maybe: ${responseCounts.maybe} | No response: ${responseCounts.no_response}</p>
+    `;
   }
 
   if (!rsvps.length) {
@@ -1801,6 +1852,8 @@ function renderEventRsvps() {
             <span class="pill ${getRsvpStatusClassName(rsvp.response)}">${escapeHtml(formatRsvpResponseLabel(rsvp.response))}</span>
           </div>
           <div class="entity-card-meta">
+            ${rsvp.email ? `<span>${escapeHtml(rsvp.email)}</span>` : ""}
+            ${rsvp.phone ? `<span>${escapeHtml(rsvp.phone)}</span>` : ""}
             ${rsvp.respondedAt ? `<span>Responded: ${escapeHtml(formatRsvpTimestamp(rsvp.respondedAt))}</span>` : "<span>No reply yet</span>"}
             ${rsvp.responseNote ? `<span>${escapeHtml(rsvp.responseNote)}</span>` : ""}
           </div>
@@ -1987,8 +2040,8 @@ function getSelectedEventRsvps() {
 }
 
 function compareEvents(left, right) {
-  const leftKey = `${left.eventDate || ""}T${left.eventTime || "23:59"}`;
-  const rightKey = `${right.eventDate || ""}T${right.eventTime || "23:59"}`;
+  const leftKey = `${left.eventDate || ""}T${left.startTime || "23:59"}`;
+  const rightKey = `${right.eventDate || ""}T${right.startTime || "23:59"}`;
   return leftKey.localeCompare(rightKey);
 }
 
@@ -2013,7 +2066,12 @@ function resetContactForm() {
 function resetEventForm() {
   eventForm.reset();
   eventIdInput.value = "";
+  eventTypeInput.value = "training";
   eventStatusInput.value = "planned";
+  eventRepeatPatternInput.value = "once";
+  eventRepeatEndDateInput.value = "";
+  eventRepeatDayOfWeekInput.value = "";
+  renderEventRepeatInputs();
   clearStatus(eventStatusMessage);
 }
 
@@ -2046,11 +2104,19 @@ function populateEventForm(eventId) {
 
   eventIdInput.value = eventRecord.id;
   eventTitleInput.value = eventRecord.eventTitle;
+  eventTypeInput.value = eventRecord.eventType || "other";
   eventDateInput.value = eventRecord.eventDate || "";
-  eventTimeInput.value = eventRecord.eventTime || "";
+  eventStartTimeInput.value = eventRecord.startTime || "";
+  eventEndTimeInput.value = eventRecord.endTime || "";
   eventLocationInput.value = eventRecord.location || "";
   eventStatusInput.value = eventRecord.status || "planned";
+  eventRepeatPatternInput.value = eventRecord.repeatPattern || "once";
+  eventRepeatEndDateInput.value = eventRecord.repeatEndDate || "";
+  eventRepeatDayOfWeekInput.value = Number.isInteger(eventRecord.repeatDayOfWeek)
+    ? String(eventRecord.repeatDayOfWeek)
+    : "";
   eventNotesInput.value = eventRecord.notes || "";
+  renderEventRepeatInputs();
   setStatus(eventStatusMessage, `Editing ${eventRecord.eventTitle}.`, false);
 }
 
@@ -2102,37 +2168,46 @@ async function saveEventFromForm() {
     return;
   }
 
-  const eventRecord = buildEventFromForm();
+  const eventRecord = buildEventRowsFromForm();
 
   if (!eventRecord.ok) {
     setStatus(eventStatusMessage, eventRecord.message, true);
     return;
   }
 
-  const row = eventRecord.value;
   setStatus(eventStatusMessage, "Saving event...", false);
 
   try {
-    const savedRow = await saveRowToSupabase({
-      tableName: teamEventsTableName,
-      row,
-      statusElement: eventStatusMessage,
-      pendingMessage: "Saving event...",
-      successMessage: "Event saved.",
-      label: "event",
-    });
-    const mappedEvent = mapDatabaseEventToRecord(savedRow);
-    upsertEventInState(mappedEvent);
-    state.selectedEventId = mappedEvent.id;
+    const savedRows = [];
+
+    for (const row of eventRecord.value) {
+      const savedRow = await saveRowToSupabase({
+        tableName: teamEventsTableName,
+        row,
+        statusElement: eventStatusMessage,
+        pendingMessage: "Saving event...",
+        successMessage: "Event saved.",
+        label: "event",
+      });
+      savedRows.push(savedRow);
+    }
+
+    const mappedEvents = savedRows.map(mapDatabaseEventToRecord);
+    mappedEvents.forEach(upsertEventInState);
+    state.selectedEventId = mappedEvents[0]?.id || state.selectedEventId;
     persistState();
     resetEventForm();
     renderAll();
-    setStatus(eventStatusMessage, "Event saved.", false);
+    setStatus(
+      eventStatusMessage,
+      mappedEvents.length === 1 ? "Event saved." : `${mappedEvents.length} events saved.`,
+      false,
+    );
   } catch (error) {
     console.error("[Supabase] event save failed", {
       error,
       message: error?.message || String(error),
-      row,
+      rows: eventRecord.value,
     });
     setStatus(eventStatusMessage, `Event save failed: ${describeSupabaseError(error)}`, true);
   }
@@ -2170,9 +2245,21 @@ function buildContactFromForm() {
   };
 }
 
-function buildEventFromForm() {
+function buildEventRowsFromForm() {
   const eventTitle = eventTitleInput.value.trim();
   const eventDate = eventDateInput.value;
+  const eventType = eventTypeInput.value || "other";
+  const startTime = eventStartTimeInput.value || null;
+  const endTime = eventEndTimeInput.value || null;
+  const repeatPattern = eventRepeatPatternInput.value || "once";
+  const repeatEndDate = eventRepeatEndDateInput.value || null;
+  const repeatDayOfWeek = eventRepeatDayOfWeekInput.value === ""
+    ? null
+    : Number(eventRepeatDayOfWeekInput.value);
+  const baseId = eventIdInput.value || createTeamStorageId();
+  const seriesId = repeatPattern === "weekly"
+    ? (eventIdInput.value ? null : createTeamStorageId())
+    : null;
 
   if (!eventTitle) {
     return { ok: false, message: "Add an event title first." };
@@ -2182,19 +2269,72 @@ function buildEventFromForm() {
     return { ok: false, message: "Choose the event date." };
   }
 
+  if (endTime && startTime && endTime < startTime) {
+    return { ok: false, message: "End time must be after the start time." };
+  }
+
+  if (repeatPattern === "weekly" && !eventIdInput.value) {
+    if (!repeatEndDate) {
+      return { ok: false, message: "Choose a repeat end date for weekly events." };
+    }
+
+    if (repeatEndDate < eventDate) {
+      return { ok: false, message: "Repeat end date must be on or after the first event date." };
+    }
+  }
+
+  const buildRow = (id, occurrenceDate) => ({
+    id,
+    user_id: supabaseUserId,
+    team_id: state.activeTeamId,
+    event_title: eventTitle,
+    event_type: eventType,
+    event_date: occurrenceDate,
+    start_time: startTime,
+    end_time: endTime,
+    location: eventLocationInput.value.trim() || null,
+    notes: eventNotesInput.value.trim() || null,
+    status: eventStatusInput.value || "planned",
+    repeat_pattern: repeatPattern,
+    repeat_end_date: repeatPattern === "weekly" ? repeatEndDate : null,
+    repeat_day_of_week: repeatPattern === "weekly"
+      ? (repeatDayOfWeek ?? new Date(`${eventDate}T12:00:00`).getDay())
+      : null,
+    series_id: seriesId,
+  });
+
+  if (repeatPattern !== "weekly" || eventIdInput.value) {
+    return {
+      ok: true,
+      value: [buildRow(baseId, eventDate)],
+    };
+  }
+
+  const rows = [];
+  let cursor = new Date(`${eventDate}T12:00:00`);
+  const endCursor = new Date(`${repeatEndDate}T12:00:00`);
+  const targetDay = repeatDayOfWeek ?? cursor.getDay();
+
+  while (cursor.getDay() !== targetDay) {
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  while (cursor.getTime() <= endCursor.getTime()) {
+    const occurrenceDate = cursor.toISOString().slice(0, 10);
+    rows.push(buildRow(rows.length === 0 ? baseId : createTeamStorageId(), occurrenceDate));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
+  if (!rows.length) {
+    return {
+      ok: false,
+      message: "That weekly repeat range does not produce any event dates. Adjust the start date, repeat day, or end date.",
+    };
+  }
+
   return {
     ok: true,
-    value: {
-      id: eventIdInput.value || createTeamStorageId(),
-      user_id: supabaseUserId,
-      team_id: state.activeTeamId,
-      event_title: eventTitle,
-      event_date: eventDate,
-      event_time: eventTimeInput.value || null,
-      location: eventLocationInput.value.trim() || null,
-      notes: eventNotesInput.value.trim() || null,
-      status: eventStatusInput.value || "planned",
-    },
+    value: rows,
   };
 }
 
@@ -2345,8 +2485,9 @@ function buildEventMessageText(eventRecord) {
     `${state.config.teamName || "Team"} update`,
     "",
     `Event: ${eventRecord.eventTitle}`,
+    `Type: ${formatEventTypeLabel(eventRecord.eventType)}`,
     `Date: ${formatEventDate(eventRecord.eventDate)}`,
-    `Time: ${eventRecord.eventTime ? formatEventTime(eventRecord.eventTime) : "To be confirmed"}`,
+    `Time: ${getEventTimingLabel(eventRecord) || "To be confirmed"}`,
     `Location: ${eventRecord.location || "To be confirmed"}`,
     eventRecord.notes ? `Notes: ${eventRecord.notes}` : null,
   ]
@@ -2362,7 +2503,7 @@ function buildSmsPreviewText(eventRecord, phoneContacts) {
   const header = `${state.config.teamName || "Team"}: ${eventRecord.eventTitle}`;
   const lines = [
     header,
-    `${formatEventDate(eventRecord.eventDate)}${eventRecord.eventTime ? `, ${formatEventTime(eventRecord.eventTime)}` : ""}`,
+    `${formatEventDate(eventRecord.eventDate)}${getEventTimingLabel(eventRecord) ? `, ${getEventTimingLabel(eventRecord)}` : ""}`,
     eventRecord.location || "Location TBC",
     eventRecord.notes || null,
   ].filter(Boolean);
@@ -2559,11 +2700,17 @@ async function markEventAsSent(eventId) {
         user_id: supabaseUserId,
         team_id: nextEvent.teamId,
         event_title: nextEvent.eventTitle,
+        event_type: nextEvent.eventType,
         event_date: nextEvent.eventDate,
-        event_time: nextEvent.eventTime || null,
+        start_time: nextEvent.startTime || null,
+        end_time: nextEvent.endTime || null,
         location: nextEvent.location || null,
         notes: nextEvent.notes || null,
         status: nextEvent.status,
+        repeat_pattern: nextEvent.repeatPattern || "once",
+        repeat_end_date: nextEvent.repeatEndDate || null,
+        repeat_day_of_week: Number.isInteger(nextEvent.repeatDayOfWeek) ? nextEvent.repeatDayOfWeek : null,
+        series_id: nextEvent.seriesId || null,
       },
       statusElement: messageStatus,
       pendingMessage: "Updating event status...",
@@ -2602,6 +2749,82 @@ function formatEventTime(timeValue) {
   }
 
   return timeValue;
+}
+
+function formatEventTimeRange(startTime, endTime) {
+  if (startTime && endTime) {
+    return `${formatEventTime(startTime)} - ${formatEventTime(endTime)}`;
+  }
+
+  return startTime ? formatEventTime(startTime) : "";
+}
+
+function getEventTimingLabel(eventRecord) {
+  return formatEventTimeRange(eventRecord.startTime, eventRecord.endTime);
+}
+
+function formatEventTypeLabel(eventType) {
+  return {
+    training: "Training",
+    game: "Game",
+    tournament: "Tournament",
+    other: "Other",
+  }[eventType] || "Other";
+}
+
+function formatRepeatPatternLabel(eventRecord) {
+  if (eventRecord.repeatPattern !== "weekly") {
+    return "One-off event";
+  }
+
+  return eventRecord.repeatEndDate
+    ? `Weekly until ${formatEventDate(eventRecord.repeatEndDate)}`
+    : "Weekly repeating event";
+}
+
+function formatEventOptionLabel(eventRecord) {
+  return `${eventRecord.eventTitle} | ${formatEventDate(eventRecord.eventDate)}${getEventTimingLabel(eventRecord) ? ` | ${getEventTimingLabel(eventRecord)}` : ""}`;
+}
+
+function getNextPlannedEvent() {
+  const now = new Date();
+  return getActiveTeamEvents()
+    .filter((eventRecord) => eventRecord.status === "planned")
+    .filter((eventRecord) => {
+      if (!eventRecord.eventDate) {
+        return false;
+      }
+
+      const eventDateTime = new Date(`${eventRecord.eventDate}T${eventRecord.startTime || "23:59"}`);
+      return eventDateTime.getTime() >= now.getTime();
+    })[0] || null;
+}
+
+function useNextPlannedEventForMessaging() {
+  const nextEvent = getNextPlannedEvent();
+
+  if (!nextEvent) {
+    setStatus(messageStatus, "No planned upcoming event is available.", true);
+    return;
+  }
+
+  state.selectedEventId = nextEvent.id;
+  persistState();
+  renderEventMessaging();
+  renderEventRsvps();
+  setStatus(messageStatus, `Using ${nextEvent.eventTitle} for the next event update.`, false);
+}
+
+function renderEventRepeatInputs() {
+  const isWeekly = eventRepeatPatternInput?.value === "weekly";
+
+  if (eventRepeatEndDateInput) {
+    eventRepeatEndDateInput.disabled = !isWeekly;
+  }
+
+  if (eventRepeatDayOfWeekInput) {
+    eventRepeatDayOfWeekInput.disabled = !isWeekly;
+  }
 }
 
 function formatRsvpResponseLabel(response) {
@@ -3939,11 +4162,17 @@ function mapDatabaseEventToRecord(row) {
     id: row.id,
     teamId: row.team_id,
     eventTitle: row.event_title || "",
+    eventType: row.event_type || "other",
     eventDate: row.event_date || "",
-    eventTime: row.event_time || "",
+    startTime: row.start_time || row.event_time || "",
+    endTime: row.end_time || "",
     location: row.location || "",
     notes: row.notes || "",
     status: row.status || "planned",
+    repeatPattern: row.repeat_pattern || "once",
+    repeatEndDate: row.repeat_end_date || "",
+    repeatDayOfWeek: Number.isInteger(row.repeat_day_of_week) ? row.repeat_day_of_week : (typeof row.repeat_day_of_week === "number" ? row.repeat_day_of_week : null),
+    seriesId: row.series_id || "",
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
   };
@@ -3957,6 +4186,8 @@ function mapDatabaseRsvpToRecord(row) {
     eventId: row.event_id,
     contactId: row.contact_id,
     contactName: row.contact_name || row.contact?.contact_name || "",
+    email: row.contact_email || row.contact?.email || "",
+    phone: row.contact_phone || row.contact?.phone || "",
     playerName: row.player_name || "",
     response: row.response || "no_response",
     responseNote: row.response_note || "",
