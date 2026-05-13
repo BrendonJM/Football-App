@@ -3,6 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { spawnSync } = require("child_process");
+const feedbackApiHandler = require("./api/feedback");
+const teamUpdateApiHandler = require("./api/team-update");
+const rsvpApiHandler = require("./api/rsvp");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -195,12 +198,17 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && requestUrl.pathname === "/api/feedback") {
-    await handleFeedbackRequest(request, response);
+    await invokeApiHandler(feedbackApiHandler, request, response, requestUrl);
     return;
   }
 
-  if (request.method === "POST" && requestUrl.pathname === "/api/team-update") {
-    await handleTeamUpdateRequest(request, response);
+  if ((request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/team-update") {
+    await invokeApiHandler(teamUpdateApiHandler, request, response, requestUrl);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/rsvp") {
+    await invokeApiHandler(rsvpApiHandler, request, response, requestUrl);
     return;
   }
 
@@ -1104,7 +1112,7 @@ function readJsonBody(request) {
 }
 
 function serveStaticFile(pathname, response) {
-  const safePath = pathname === "/" ? "/index.html" : pathname;
+  const safePath = pathname === "/" ? "/index.html" : (pathname === "/rsvp" ? "/rsvp.html" : pathname);
   const normalizedPath = path.normalize(safePath).replace(/^(\.\.[/\\])+/, "");
   const filePath = path.join(rootDir, normalizedPath);
 
@@ -1126,6 +1134,43 @@ function serveStaticFile(pathname, response) {
     });
     response.end(content);
   });
+}
+
+async function invokeApiHandler(handler, request, response, requestUrl) {
+  const parsedBody = request.method === "GET" || request.method === "OPTIONS"
+    ? undefined
+    : await readJsonBody(request).catch(() => ({}));
+
+  const responseAdapter = createResponseAdapter(response);
+  await handler(
+    {
+      method: request.method,
+      headers: request.headers,
+      body: parsedBody,
+      query: Object.fromEntries(requestUrl.searchParams.entries()),
+    },
+    responseAdapter,
+  );
+}
+
+function createResponseAdapter(response) {
+  return {
+    statusCode: 200,
+    setHeader(name, value) {
+      response.setHeader(name, value);
+    },
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      sendJson(response, this.statusCode, payload);
+    },
+    end(payload) {
+      response.writeHead(this.statusCode);
+      response.end(payload);
+    },
+  };
 }
 
 function sendJson(response, statusCode, payload) {

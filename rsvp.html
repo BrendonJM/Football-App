@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeamPro RSVP</title>
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <link rel="apple-touch-icon" href="./favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell rsvp-shell">
+      <main>
+        <section class="layout-grid single-panel-layout">
+          <section class="panel">
+            <div class="panel-heading">
+              <div class="brandmark" aria-label="TeamPro">
+                <span class="brandmark-team">Team</span><span class="brandmark-pro">Pro</span>
+              </div>
+              <h2>RSVP</h2>
+              <p>Reply to this event update without logging in.</p>
+            </div>
+
+            <div id="rsvpLoading" class="info-card">
+              <strong>Loading RSVP details</strong>
+              <p>Please wait while TeamPro checks your link.</p>
+            </div>
+
+            <div id="rsvpError" class="info-card hidden">
+              <strong>We couldn’t load this RSVP link</strong>
+              <p id="rsvpErrorText"></p>
+            </div>
+
+            <div id="rsvpContent" class="stack-form hidden">
+              <div class="info-card">
+                <strong id="rsvpTeamName">Team</strong>
+                <p id="rsvpContactLabel"></p>
+                <p id="rsvpEventSummary"></p>
+                <p id="rsvpEventLocation"></p>
+                <p id="rsvpEventNotes"></p>
+              </div>
+
+              <div class="field">
+                <span>Your response</span>
+                <div class="button-row rsvp-choice-row">
+                  <button type="button" class="secondary-button" data-rsvp-response="yes">Available / Yes</button>
+                  <button type="button" class="secondary-button" data-rsvp-response="no">Unavailable / No</button>
+                  <button type="button" class="secondary-button" data-rsvp-response="maybe">Maybe / Unsure</button>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Optional note</span>
+                <textarea id="rsvpNote" rows="4" placeholder="Anything the coach should know?"></textarea>
+              </label>
+
+              <div class="button-row">
+                <button id="submitRsvp" type="button" class="primary-button">Submit RSVP</button>
+              </div>
+
+              <p id="rsvpStatus" class="status-text" aria-live="polite"></p>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./rsvp.js"></script>
+  </body>
+</html>

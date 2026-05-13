@@ -14,6 +14,8 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Lets you manage team contacts for each saved squad
 - Lets you create team events with dates, times, locations, and notes
 - Lets you preview, copy, and email event updates to selected contacts
+- Lets contacts RSVP from event emails without logging in
+- Shows RSVP availability, notes, and response times back inside TeamPro
 - Supports clipboard image copy where the browser allows it
 - Includes a feedback form that can email thoughts to the TeamPro inbox
 - Uses Supabase Auth so each user only sees their own teams, contacts, and events
@@ -27,6 +29,8 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
 - `api/feedback.js` sends feedback emails from the Account page
 - `api/team-update.js` sends event update emails through Resend when configured
+- `api/rsvp.js` powers the public RSVP lookup and submission flow
+- `rsvp.html` and `rsvp.js` provide the public RSVP page
 - `public-config.js` is the generated public runtime config consumed by the browser
 - `build-config.js` writes the public Supabase config file during Vercel builds
 - `supabase-schema.sql` contains the authenticated user-scoped schema and RLS policies for Supabase
@@ -50,6 +54,7 @@ Important:
 
 - `SUPABASE_ANON_KEY` is safe to expose to the browser.
 - Never use the Supabase `service_role` key in frontend code.
+- `SUPABASE_SERVICE_ROLE_KEY` is required server-side for RSVP links and public RSVP updates.
 - This app uses Supabase Auth and user-based RLS.
 
 Local environment variables:
@@ -57,6 +62,7 @@ Local environment variables:
 ```bash
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-side-service-role-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
 RESEND_API_KEY=re_xxxxxxxxx
 RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
@@ -67,6 +73,7 @@ Resend is optional for event updates:
 
 - If `RESEND_API_KEY` or `RESEND_FROM_EMAIL` is missing, coaches can still preview and copy event messages.
 - Email sending is only enabled when Resend is configured.
+- If `SUPABASE_SERVICE_ROLE_KEY` is missing, RSVP links and public RSVP updates will not work.
 
 ## Share on GitHub
 
@@ -113,6 +120,7 @@ Recommended settings:
 ```bash
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-side-service-role-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
 RESEND_API_KEY=re_xxxxxxxxx
 RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
@@ -125,6 +133,7 @@ RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
 - `/api/config` returns your Supabase public config
 - teams can be created and switched
 - contacts and events save and reload after sign-in
+- RSVP links from event emails load and submit successfully
 - a page refresh still shows the same saved teams, contacts, and events
 
 ### Troubleshooting deployed Supabase connection errors
@@ -137,7 +146,7 @@ If the app shows a Supabase connection warning:
    It should return JSON with non-empty `supabaseUrl` and `supabaseAnonKey`.
 3. In Supabase, confirm:
    - `supabase-schema.sql` has been run successfully
-   - the `teams`, `team_contacts`, `team_events`, and `event_update_logs` tables exist
+   - the `teams`, `team_contacts`, `team_events`, `event_update_logs`, and `event_rsvps` tables exist
    - the authenticated RLS policies from `supabase-schema.sql` were created
 4. If the schema changed after an earlier deploy, redeploy on Vercel after updating env vars.
 
@@ -160,8 +169,20 @@ Then add the same environment variables in Vercel and redeploy if needed.
 ## Notes
 
 - Team, contact, and event data are stored in Supabase and scoped by authenticated user ID.
+- Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
+
+## Manual RSVP test
+
+1. Sign in to TeamPro.
+2. Create or choose a team with at least one contact that has an email address.
+3. Create an event in `Team Comms`.
+4. Send an event update email to that contact.
+5. Open the RSVP link from the email and submit `Yes`, `No`, or `Maybe`.
+6. Confirm the `event_rsvps` table in Supabase now contains the response.
+7. Refresh TeamPro and return to `Team Comms`.
+8. Confirm the `Availability` section shows the RSVP status, note, and response time.
 
 ## Good next additions
 

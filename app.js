@@ -39,6 +39,7 @@ const teamsTableName = "teams";
 const teamContactsTableName = "team_contacts";
 const teamEventsTableName = "team_events";
 const eventUpdateLogsTableName = "event_update_logs";
+const eventRsvpsTableName = "event_rsvps";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -124,6 +125,8 @@ const smsPreview = document.querySelector("#smsPreview");
 const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
 const sendEventEmailButton = document.querySelector("#sendEventEmail");
 const messageStatus = document.querySelector("#messageStatus");
+const eventRsvpList = document.querySelector("#eventRsvpList");
+const eventRsvpStatus = document.querySelector("#eventRsvpStatus");
 const trainingFocusSelect = document.querySelector("#trainingFocus");
 const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
 const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
@@ -307,6 +310,7 @@ messageEventSelect.addEventListener("change", () => {
   state.selectedEventId = messageEventSelect.value || null;
   persistState();
   renderEventMessaging();
+  renderEventRsvps();
 });
 
 selectAllContactsButton.addEventListener("click", () => {
@@ -325,6 +329,16 @@ messageRecipientList.addEventListener("change", (event) => {
   }
 
   toggleMessageRecipient(checkbox.dataset.contactId, checkbox.checked);
+});
+
+eventRsvpList?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-rsvp-action='save']");
+
+  if (!button) {
+    return;
+  }
+
+  await saveManualRsvpOverride(button.dataset.rsvpId || "");
 });
 
 copyMessagePreviewButton.addEventListener("click", async () => {
@@ -623,6 +637,7 @@ async function applyAuthSession(session) {
       teams: [],
       contactsByTeamId: {},
       eventsByTeamId: {},
+      rsvpsByEventId: {},
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -684,7 +699,7 @@ async function hydrateStateFromSupabase() {
     query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
 
-  const [teamRows, contactRows, eventRows] = await Promise.all([
+  const [teamRows, contactRows, eventRows, rsvpRows] = await Promise.all([
     fetchUserOwnedRowsFromSupabase({
       tableName: teamsTableName,
       orderBy: "updated_at.desc",
@@ -700,6 +715,11 @@ async function hydrateStateFromSupabase() {
       orderBy: "event_date.asc",
       logLabel: "Events",
     }),
+    fetchUserOwnedRowsFromSupabase({
+      tableName: eventRsvpsTableName,
+      orderBy: "created_at.asc",
+      logLabel: "RSVPs",
+    }),
   ]);
 
   console.info("[Supabase] Teams fetched after login", {
@@ -709,8 +729,16 @@ async function hydrateStateFromSupabase() {
   });
 
   const remoteTeams = teamRows.map(mapDatabaseTeamToRecord);
-  const contactsByTeamId = groupRowsByTeamId(contactRows.map(mapDatabaseContactToRecord));
+  const mappedContacts = contactRows.map(mapDatabaseContactToRecord);
+  const contactsByTeamId = groupRowsByTeamId(mappedContacts);
   const eventsByTeamId = groupRowsByTeamId(eventRows.map(mapDatabaseEventToRecord));
+  const contactNameById = Object.fromEntries(mappedContacts.map((contact) => [contact.id, contact.contactName]));
+  const rsvpsByEventId = groupRowsByEventId(
+    rsvpRows.map((row) => mapDatabaseRsvpToRecord({
+      ...row,
+      contact_name: contactNameById[row.contact_id] || row.contact_name || "",
+    })),
+  );
   const cachedState = loadState();
 
   console.info("[Supabase] Source-of-truth check", {
@@ -725,6 +753,7 @@ async function hydrateStateFromSupabase() {
       teams: [],
       contactsByTeamId: {},
       eventsByTeamId: {},
+      rsvpsByEventId: {},
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -743,6 +772,7 @@ async function hydrateStateFromSupabase() {
     teams: remoteTeams,
     contactsByTeamId,
     eventsByTeamId,
+    rsvpsByEventId,
     selectedEventId: chooseNextSelectedEventId({
       currentSelectedEventId: cachedState.selectedEventId,
       activeTeamId:
@@ -839,6 +869,21 @@ function groupRowsByTeamId(rows) {
     }
 
     accumulator[row.teamId].push(row);
+    return accumulator;
+  }, {});
+}
+
+function groupRowsByEventId(rows) {
+  return rows.reduce((accumulator, row) => {
+    if (!row?.eventId) {
+      return accumulator;
+    }
+
+    if (!accumulator[row.eventId]) {
+      accumulator[row.eventId] = [];
+    }
+
+    accumulator[row.eventId].push(row);
     return accumulator;
   }, {});
 }
@@ -1181,6 +1226,7 @@ function loadState() {
         teams: [fallbackTeam],
         contactsByTeamId: {},
         eventsByTeamId: {},
+        rsvpsByEventId: {},
         selectedEventId: null,
         selectedContactIds: [],
       });
@@ -1208,6 +1254,7 @@ function loadState() {
         teams: [migratedTeam],
         contactsByTeamId: {},
         eventsByTeamId: {},
+        rsvpsByEventId: {},
         selectedEventId: null,
         selectedContactIds: [],
       });
@@ -1247,6 +1294,7 @@ function createStateFromPersisted(saved) {
     lineup: runtime.lineup,
     contactsByTeamId: sanitiseEntityMap(saved.contactsByTeamId),
     eventsByTeamId: sanitiseEntityMap(saved.eventsByTeamId),
+    rsvpsByEventId: sanitiseEntityMap(saved.rsvpsByEventId),
     selectedEventId: saved.selectedEventId || null,
     selectedContactIds: Array.isArray(saved.selectedContactIds) ? saved.selectedContactIds.filter(Boolean) : [],
     selectedTarget: null,
@@ -1495,6 +1543,7 @@ function renderAll() {
   renderContactLinkedPlayerOptions();
   renderEvents();
   renderEventMessaging();
+  renderEventRsvps();
   renderTrainingView();
 }
 
@@ -1732,6 +1781,65 @@ function renderEventMessaging() {
   }
 }
 
+function renderEventRsvps() {
+  if (!eventRsvpList) {
+    return;
+  }
+
+  clearStatus(eventRsvpStatus);
+  const selectedEvent = getSelectedEvent();
+  const rsvps = getSelectedEventRsvps();
+
+  if (!selectedEvent) {
+    eventRsvpList.innerHTML = '<div class="info-card"><strong>No event selected</strong><p>Create or choose an event to view availability.</p></div>';
+    return;
+  }
+
+  if (!rsvps.length) {
+    eventRsvpList.innerHTML = '<div class="info-card"><strong>No RSVPs yet</strong><p>Send an event update email to generate RSVP links and start collecting responses.</p></div>';
+    return;
+  }
+
+  eventRsvpList.innerHTML = rsvps
+    .map(
+      (rsvp) => `
+        <div class="entity-card">
+          <div class="entity-card-header">
+            <div>
+              <strong>${escapeHtml(rsvp.contactName)}</strong>
+              ${rsvp.playerName ? `<span class="pill">${escapeHtml(rsvp.playerName)}</span>` : ""}
+            </div>
+            <span class="pill ${getRsvpStatusClassName(rsvp.response)}">${escapeHtml(formatRsvpResponseLabel(rsvp.response))}</span>
+          </div>
+          <div class="entity-card-meta">
+            ${rsvp.respondedAt ? `<span>Responded: ${escapeHtml(formatRsvpTimestamp(rsvp.respondedAt))}</span>` : "<span>No reply yet</span>"}
+            ${rsvp.responseNote ? `<span>${escapeHtml(rsvp.responseNote)}</span>` : ""}
+          </div>
+          <div class="stack-form compact-stack">
+            <label class="field">
+              <span>Manual status</span>
+              <select data-rsvp-field="response" data-rsvp-id="${rsvp.id}">
+                ${["no_response", "yes", "no", "maybe"]
+                  .map(
+                    (value) => `<option value="${value}" ${value === rsvp.response ? "selected" : ""}>${escapeHtml(formatRsvpResponseLabel(value))}</option>`,
+                  )
+                  .join("")}
+              </select>
+            </label>
+            <label class="field">
+              <span>Coach note</span>
+              <textarea data-rsvp-field="note" data-rsvp-id="${rsvp.id}" rows="2" placeholder="Optional note">${escapeHtml(rsvp.responseNote || "")}</textarea>
+            </label>
+            <div class="button-row">
+              <button type="button" class="secondary-button" data-rsvp-action="save" data-rsvp-id="${rsvp.id}">Save RSVP</button>
+            </div>
+          </div>
+        </div>
+      `,
+    )
+    .join("");
+}
+
 function renderAvailabilityControl() {
   const selectedPlayer = getSelectedPlayer();
 
@@ -1877,6 +1985,18 @@ function getActiveTeamEvents() {
   return [...(state.eventsByTeamId[state.activeTeamId] || [])].sort(compareEvents);
 }
 
+function getSelectedEventRsvps() {
+  if (!state.selectedEventId) {
+    return [];
+  }
+
+  return [...(state.rsvpsByEventId[state.selectedEventId] || [])].sort((left, right) => {
+    const leftLabel = `${left.playerName || ""}${left.contactName || ""}`;
+    const rightLabel = `${right.playerName || ""}${right.contactName || ""}`;
+    return leftLabel.localeCompare(rightLabel);
+  });
+}
+
 function compareEvents(left, right) {
   const leftKey = `${left.eventDate || ""}T${left.eventTime || "23:59"}`;
   const rightKey = `${right.eventDate || ""}T${right.eventTime || "23:59"}`;
@@ -1970,7 +2090,9 @@ async function saveContactFromForm() {
       successMessage: "Contact saved.",
       label: "contact",
     });
-    upsertContactInState(mapDatabaseContactToRecord(savedRow));
+    const mappedContact = mapDatabaseContactToRecord(savedRow);
+    upsertContactInState(mappedContact);
+    syncRsvpContactName(mappedContact.id, mappedContact.contactName);
     persistState();
     resetContactForm();
     renderAll();
@@ -2103,6 +2225,9 @@ async function deleteContact(contactId) {
     });
     state.contactsByTeamId[state.activeTeamId] = getActiveTeamContacts().filter((item) => item.id !== contactId);
     state.selectedContactIds = state.selectedContactIds.filter((id) => id !== contactId);
+    Object.keys(state.rsvpsByEventId || {}).forEach((eventId) => {
+      state.rsvpsByEventId[eventId] = (state.rsvpsByEventId[eventId] || []).filter((row) => row.contactId !== contactId);
+    });
     persistState();
     renderAll();
     setStatus(contactStatus, "Contact deleted.", false);
@@ -2131,6 +2256,7 @@ async function deleteEvent(eventId) {
       label: "event",
     });
     state.eventsByTeamId[state.activeTeamId] = getActiveTeamEvents().filter((item) => item.id !== eventId);
+    delete state.rsvpsByEventId[eventId];
     if (state.selectedEventId === eventId) {
       state.selectedEventId = state.eventsByTeamId[state.activeTeamId]?.[0]?.id || null;
     }
@@ -2171,6 +2297,29 @@ function upsertEventInState(eventRecord) {
   }
 
   state.eventsByTeamId[state.activeTeamId] = rows.sort(compareEvents);
+}
+
+function upsertRsvpInState(rsvpRecord) {
+  const rows = [...(state.rsvpsByEventId[rsvpRecord.eventId] || [])];
+  const index = rows.findIndex((item) => item.id === rsvpRecord.id);
+
+  if (index >= 0) {
+    rows[index] = rsvpRecord;
+  } else {
+    rows.push(rsvpRecord);
+  }
+
+  state.rsvpsByEventId[rsvpRecord.eventId] = rows;
+}
+
+function syncRsvpContactName(contactId, contactName) {
+  Object.keys(state.rsvpsByEventId || {}).forEach((eventId) => {
+    state.rsvpsByEventId[eventId] = (state.rsvpsByEventId[eventId] || []).map((row) =>
+      row.contactId === contactId
+        ? { ...row, contactName }
+        : row,
+    );
+  });
 }
 
 function selectAllContactsForMessaging() {
@@ -2284,15 +2433,13 @@ async function sendEventUpdateEmail() {
         Accept: "application/json",
       },
       body: JSON.stringify({
+        accessToken: supabaseAccessToken,
+        teamId: state.activeTeamId,
+        eventId: selectedEvent.id,
+        contactIds: recipients.map((contact) => contact.id),
         teamName: state.config.teamName || "TeamPro team",
-        event: selectedEvent,
-        recipients: recipients.map((contact) => ({
-          name: contact.contactName,
-          email: contact.email,
-          phone: contact.phone || "",
-        })),
         messageText: buildEventMessageText(selectedEvent),
-        sendEmail: true,
+        baseUrl: window.location.origin,
       }),
     });
 
@@ -2306,6 +2453,17 @@ async function sendEventUpdateEmail() {
       setStatus(messageStatus, result.warning, false);
     } else {
       setStatus(messageStatus, `Email update sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`, false);
+    }
+
+    if (Array.isArray(result.rsvps)) {
+      const contactNameById = Object.fromEntries(recipients.map((contact) => [contact.id, contact.contactName]));
+      result.rsvps
+        .map((row) => mapDatabaseRsvpToRecord({
+          ...row,
+          contact_name: contactNameById[row.contact_id] || "",
+        }))
+        .forEach(upsertRsvpInState);
+      renderEventRsvps();
     }
 
     await logEventUpdate({
@@ -2328,6 +2486,62 @@ async function sendEventUpdateEmail() {
   } finally {
     sendingEventUpdate = false;
     renderEventMessaging();
+  }
+}
+
+async function saveManualRsvpOverride(rsvpId) {
+  if (!supabaseUserId) {
+    setStatus(eventRsvpStatus, "Log in before updating availability.", true);
+    return;
+  }
+
+  const rsvpRecord = getSelectedEventRsvps().find((item) => item.id === rsvpId);
+
+  if (!rsvpRecord) {
+    setStatus(eventRsvpStatus, "That RSVP could not be found.", true);
+    return;
+  }
+
+  const responseInput = eventRsvpList.querySelector(`[data-rsvp-field="response"][data-rsvp-id="${rsvpId}"]`);
+  const noteInput = eventRsvpList.querySelector(`[data-rsvp-field="note"][data-rsvp-id="${rsvpId}"]`);
+  const nextResponse = responseInput?.value || "no_response";
+  const nextNote = noteInput?.value.trim() || "";
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: eventRsvpsTableName,
+      row: {
+        id: rsvpRecord.id,
+        user_id: supabaseUserId,
+        team_id: rsvpRecord.teamId,
+        event_id: rsvpRecord.eventId,
+        contact_id: rsvpRecord.contactId,
+        player_name: rsvpRecord.playerName || null,
+        response: nextResponse,
+        response_note: nextNote || null,
+        token: rsvpRecord.token,
+        token_expires_at: rsvpRecord.tokenExpiresAt,
+        responded_at: nextResponse === "no_response" ? null : new Date().toISOString(),
+      },
+      statusElement: eventRsvpStatus,
+      pendingMessage: "Saving RSVP...",
+      successMessage: "RSVP updated.",
+      label: "rsvp",
+    });
+    upsertRsvpInState(mapDatabaseRsvpToRecord({
+      ...savedRow,
+      contact_name: rsvpRecord.contactName,
+    }));
+    persistState();
+    renderEventRsvps();
+    setStatus(eventRsvpStatus, "RSVP updated.", false);
+  } catch (error) {
+    console.error("[Supabase] rsvp save failed", {
+      error,
+      message: error?.message || String(error),
+      rsvpId,
+    });
+    setStatus(eventRsvpStatus, `RSVP save failed: ${describeSupabaseError(error)}`, true);
   }
 }
 
@@ -2399,6 +2613,52 @@ function formatEventTime(timeValue) {
   }
 
   return timeValue;
+}
+
+function formatRsvpResponseLabel(response) {
+  switch (response) {
+    case "yes":
+      return "Available";
+    case "no":
+      return "Unavailable";
+    case "maybe":
+      return "Maybe";
+    default:
+      return "No response";
+  }
+}
+
+function getRsvpStatusClassName(response) {
+  if (response === "yes") {
+    return "is-rsvp-yes";
+  }
+
+  if (response === "no") {
+    return "is-rsvp-no";
+  }
+
+  if (response === "maybe") {
+    return "is-rsvp-maybe";
+  }
+
+  return "";
+}
+
+function formatRsvpTimestamp(value) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("en-NZ", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch (_error) {
+    return value;
+  }
 }
 
 function formatTrainingPlanAsText(plan) {
@@ -3078,6 +3338,7 @@ function createNewTeamDraft() {
   state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
   state.contactsByTeamId[state.activeTeamId] = [];
   state.eventsByTeamId[state.activeTeamId] = [];
+  state.rsvpsByEventId = state.rsvpsByEventId || {};
   state.selectedEventId = null;
   state.selectedContactIds = [];
   state.selectedTarget = null;
@@ -3126,6 +3387,12 @@ function deleteCurrentTeam() {
 
   delete state.contactsByTeamId[state.activeTeamId];
   delete state.eventsByTeamId[state.activeTeamId];
+  Object.keys(state.rsvpsByEventId || {}).forEach((eventId) => {
+    const rsvpRows = state.rsvpsByEventId[eventId] || [];
+    if (rsvpRows.some((row) => row.teamId === state.activeTeamId)) {
+      delete state.rsvpsByEventId[eventId];
+    }
+  });
   state.selectedContactIds = [];
   state.selectedEventId = null;
 
@@ -3146,6 +3413,7 @@ function deleteCurrentTeam() {
     state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
     state.contactsByTeamId = {};
     state.eventsByTeamId = {};
+    state.rsvpsByEventId = {};
     state.selectedEventId = null;
     state.selectedContactIds = [];
     state.selectedTarget = null;
@@ -3195,6 +3463,7 @@ function persistCachedStateOnly() {
     teams: state.teams,
     contactsByTeamId: state.contactsByTeamId,
     eventsByTeamId: state.eventsByTeamId,
+    rsvpsByEventId: state.rsvpsByEventId,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
   };
@@ -3213,6 +3482,7 @@ function persistUserScopedState() {
     teams: state.teams,
     contactsByTeamId: state.contactsByTeamId,
     eventsByTeamId: state.eventsByTeamId,
+    rsvpsByEventId: state.rsvpsByEventId,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
     savedAt: Date.now(),
@@ -3685,6 +3955,25 @@ function mapDatabaseEventToRecord(row) {
     location: row.location || "",
     notes: row.notes || "",
     status: row.status || "planned",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function mapDatabaseRsvpToRecord(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    teamId: row.team_id,
+    eventId: row.event_id,
+    contactId: row.contact_id,
+    contactName: row.contact_name || row.contact?.contact_name || "",
+    playerName: row.player_name || "",
+    response: row.response || "no_response",
+    responseNote: row.response_note || "",
+    token: row.token || "",
+    tokenExpiresAt: row.token_expires_at || "",
+    respondedAt: row.responded_at || "",
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
   };

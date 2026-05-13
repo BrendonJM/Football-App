@@ -789,6 +789,21 @@ textarea {
   color: var(--danger);
 }
 
+.pill.is-rsvp-yes {
+  background: rgba(33, 122, 69, 0.18);
+  color: #6dd09a;
+}
+
+.pill.is-rsvp-no {
+  background: rgba(180, 35, 24, 0.16);
+  color: #f0a097;
+}
+
+.pill.is-rsvp-maybe {
+  background: rgba(197, 164, 109, 0.2);
+  color: var(--brand-strong);
+}
+
 .recipient-option {
   display: flex;
   align-items: start;
@@ -842,6 +857,19 @@ textarea {
   margin: 0;
   padding-left: 18px;
   color: var(--muted);
+}
+
+.compact-stack {
+  gap: 10px;
+}
+
+.rsvp-shell {
+  padding-top: 40px;
+}
+
+.rsvp-choice-row .secondary-button.is-active {
+  background: linear-gradient(135deg, #b69258 0%, #d7bc88 100%);
+  color: #121820;
 }
 
 .training-plan-points li + li {
