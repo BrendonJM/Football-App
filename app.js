@@ -114,8 +114,9 @@ const eventEndTimeInput = document.querySelector("#eventEndTime");
 const eventLocationInput = document.querySelector("#eventLocation");
 const eventStatusInput = document.querySelector("#eventStatus");
 const eventRepeatPatternInput = document.querySelector("#eventRepeatPattern");
+const eventRecurringOptions = document.querySelector("#eventRecurringOptions");
+const eventRecurringDays = document.querySelector("#eventRecurringDays");
 const eventRepeatEndDateInput = document.querySelector("#eventRepeatEndDate");
-const eventRepeatDayOfWeekInput = document.querySelector("#eventRepeatDayOfWeek");
 const eventNotesInput = document.querySelector("#eventNotes");
 const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
@@ -1711,7 +1712,6 @@ function renderEvents() {
               <div class="entity-card-meta">
                 <span>${escapeHtml(formatEventDate(eventRecord.eventDate))}${getEventTimingLabel(eventRecord) ? ` | ${escapeHtml(getEventTimingLabel(eventRecord))}` : ""}</span>
                 ${eventRecord.location ? `<span>${escapeHtml(eventRecord.location)}</span>` : ""}
-                ${eventRecord.repeatPattern === "weekly" ? `<span>${escapeHtml(formatRepeatPatternLabel(eventRecord))}</span>` : ""}
                 ${eventRecord.notes ? `<span>${escapeHtml(eventRecord.notes)}</span>` : ""}
               </div>
               <div class="entity-card-actions">
@@ -2093,7 +2093,7 @@ function resetEventForm() {
   eventStatusInput.value = "planned";
   eventRepeatPatternInput.value = "once";
   eventRepeatEndDateInput.value = "";
-  eventRepeatDayOfWeekInput.value = "";
+  clearSelectedRecurringDays();
   renderEventRepeatInputs();
   clearStatus(eventStatusMessage);
   closeEventForm();
@@ -2136,9 +2136,14 @@ function populateEventForm(eventId) {
   eventStatusInput.value = eventRecord.status || "planned";
   eventRepeatPatternInput.value = eventRecord.repeatPattern || "once";
   eventRepeatEndDateInput.value = eventRecord.repeatEndDate || "";
-  eventRepeatDayOfWeekInput.value = Number.isInteger(eventRecord.repeatDayOfWeek)
-    ? String(eventRecord.repeatDayOfWeek)
-    : "";
+  clearSelectedRecurringDays();
+  if (eventRecord.repeatPattern === "weekly") {
+    setSelectedRecurringDays([
+      Number.isInteger(eventRecord.repeatDayOfWeek)
+        ? eventRecord.repeatDayOfWeek
+        : new Date(`${eventRecord.eventDate}T12:00:00`).getDay(),
+    ]);
+  }
   eventNotesInput.value = eventRecord.notes || "";
   renderEventRepeatInputs();
   eventFormOpen = true;
@@ -2305,10 +2310,8 @@ function buildEventRowsFromForm() {
   const startTime = eventStartTimeInput.value || null;
   const endTime = eventEndTimeInput.value || null;
   const repeatPattern = eventRepeatPatternInput.value || "once";
+  const recurringDays = getSelectedRecurringDaysFromForm();
   const repeatEndDate = eventRepeatEndDateInput.value || null;
-  const repeatDayOfWeek = eventRepeatDayOfWeekInput.value === ""
-    ? null
-    : Number(eventRepeatDayOfWeekInput.value);
   const baseId = eventIdInput.value || createTeamStorageId();
   const seriesId = repeatPattern === "weekly"
     ? (eventIdInput.value ? null : createTeamStorageId())
@@ -2327,6 +2330,10 @@ function buildEventRowsFromForm() {
   }
 
   if (repeatPattern === "weekly" && !eventIdInput.value) {
+    if (!recurringDays.length) {
+      return { ok: false, message: "Choose at least one recurring day." };
+    }
+
     if (!repeatEndDate) {
       return { ok: false, message: "Choose a repeat end date for weekly events." };
     }
@@ -2336,7 +2343,7 @@ function buildEventRowsFromForm() {
     }
   }
 
-  const buildRow = (id, occurrenceDate) => ({
+  const buildRow = (id, occurrenceDate, repeatDayOfWeek) => ({
     id,
     user_id: supabaseUserId,
     team_id: state.activeTeamId,
@@ -2351,7 +2358,7 @@ function buildEventRowsFromForm() {
     repeat_pattern: repeatPattern,
     repeat_end_date: repeatPattern === "weekly" ? repeatEndDate : null,
     repeat_day_of_week: repeatPattern === "weekly"
-      ? (repeatDayOfWeek ?? new Date(`${eventDate}T12:00:00`).getDay())
+      ? repeatDayOfWeek
       : null,
     series_id: seriesId,
   });
@@ -2359,24 +2366,36 @@ function buildEventRowsFromForm() {
   if (repeatPattern !== "weekly" || eventIdInput.value) {
     return {
       ok: true,
-      value: [buildRow(baseId, eventDate)],
+      value: [buildRow(baseId, eventDate, new Date(`${eventDate}T12:00:00`).getDay())],
     };
   }
 
   const rows = [];
-  let cursor = new Date(`${eventDate}T12:00:00`);
   const endCursor = new Date(`${repeatEndDate}T12:00:00`);
-  const targetDay = repeatDayOfWeek ?? cursor.getDay();
 
-  while (cursor.getDay() !== targetDay) {
-    cursor.setDate(cursor.getDate() + 1);
-  }
+  recurringDays
+    .sort((left, right) => left - right)
+    .forEach((targetDay, dayIndex) => {
+      const cursor = new Date(`${eventDate}T12:00:00`);
 
-  while (cursor.getTime() <= endCursor.getTime()) {
-    const occurrenceDate = cursor.toISOString().slice(0, 10);
-    rows.push(buildRow(rows.length === 0 ? baseId : createTeamStorageId(), occurrenceDate));
-    cursor.setDate(cursor.getDate() + 7);
-  }
+      while (cursor.getDay() !== targetDay) {
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      while (cursor.getTime() <= endCursor.getTime()) {
+        const occurrenceDate = cursor.toISOString().slice(0, 10);
+        rows.push(
+          buildRow(
+            rows.length === 0 && dayIndex === 0 ? baseId : createTeamStorageId(),
+            occurrenceDate,
+            targetDay,
+          ),
+        );
+        cursor.setDate(cursor.getDate() + 7);
+      }
+    });
+
+  rows.sort((left, right) => compareEvents(mapDatabaseEventToRecord(left), mapDatabaseEventToRecord(right)));
 
   if (!rows.length) {
     return {
@@ -2853,16 +2872,6 @@ function formatEventTypeLabel(eventType) {
   }[eventType] || "Other";
 }
 
-function formatRepeatPatternLabel(eventRecord) {
-  if (eventRecord.repeatPattern !== "weekly") {
-    return "One-off event";
-  }
-
-  return eventRecord.repeatEndDate
-    ? `Weekly until ${formatEventDate(eventRecord.repeatEndDate)}`
-    : "Weekly repeating event";
-}
-
 function formatEventOptionLabel(eventRecord) {
   return `${eventRecord.eventTitle} | ${formatEventDate(eventRecord.eventDate)}${getEventTimingLabel(eventRecord) ? ` | ${getEventTimingLabel(eventRecord)}` : ""}`;
 }
@@ -2900,13 +2909,44 @@ function useNextPlannedEventForMessaging() {
 function renderEventRepeatInputs() {
   const isWeekly = eventRepeatPatternInput?.value === "weekly";
 
+  if (eventRecurringOptions) {
+    eventRecurringOptions.classList.toggle("hidden", !isWeekly);
+  }
+
   if (eventRepeatEndDateInput) {
     eventRepeatEndDateInput.disabled = !isWeekly;
   }
+}
 
-  if (eventRepeatDayOfWeekInput) {
-    eventRepeatDayOfWeekInput.disabled = !isWeekly;
+function getSelectedRecurringDaysFromForm() {
+  if (!eventRecurringDays) {
+    return [];
   }
+
+  return Array.from(eventRecurringDays.querySelectorAll("input[type='checkbox']:checked"))
+    .map((input) => Number(input.value))
+    .filter((value) => Number.isInteger(value));
+}
+
+function clearSelectedRecurringDays() {
+  if (!eventRecurringDays) {
+    return;
+  }
+
+  Array.from(eventRecurringDays.querySelectorAll("input[type='checkbox']")).forEach((input) => {
+    input.checked = false;
+  });
+}
+
+function setSelectedRecurringDays(days) {
+  if (!eventRecurringDays) {
+    return;
+  }
+
+  const selectedDays = new Set(days);
+  Array.from(eventRecurringDays.querySelectorAll("input[type='checkbox']")).forEach((input) => {
+    input.checked = selectedDays.has(Number(input.value));
+  });
 }
 
 function formatRsvpResponseLabel(response) {

@@ -316,6 +316,13 @@
                 <form id="eventForm" class="stack-form">
                   <input id="eventId" type="hidden" />
                   <label class="field">
+                    <span>Event schedule</span>
+                    <select id="eventRepeatPattern">
+                      <option value="once">One-off event</option>
+                      <option value="weekly">Recurring event</option>
+                    </select>
+                  </label>
+                  <label class="field">
                     <span>Event title</span>
                     <input id="eventTitle" type="text" placeholder="Saturday match vs Rangers" />
                   </label>
@@ -355,32 +362,45 @@
                     <span>Location</span>
                     <input id="eventLocation" type="text" placeholder="North Harbour Domain" />
                   </label>
-                  <div class="split-fields">
-                    <label class="field">
-                      <span>Repeat</span>
-                      <select id="eventRepeatPattern">
-                        <option value="once">One-off event</option>
-                        <option value="weekly">Weekly repeating event</option>
-                      </select>
-                    </label>
+                  <div id="eventRecurringOptions" class="stack-form hidden">
+                    <div class="field">
+                      <span>Recurring days</span>
+                      <div id="eventRecurringDays" class="checkbox-grid">
+                        <label class="recipient-option">
+                          <input type="checkbox" value="0" />
+                          <span><strong>Sunday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="1" />
+                          <span><strong>Monday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="2" />
+                          <span><strong>Tuesday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="3" />
+                          <span><strong>Wednesday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="4" />
+                          <span><strong>Thursday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="5" />
+                          <span><strong>Friday</strong></span>
+                        </label>
+                        <label class="recipient-option">
+                          <input type="checkbox" value="6" />
+                          <span><strong>Saturday</strong></span>
+                        </label>
+                      </div>
+                    </div>
                     <label class="field">
                       <span>Repeat end date</span>
                       <input id="eventRepeatEndDate" type="date" />
                     </label>
                   </div>
-                  <label class="field">
-                    <span>Repeat day of week</span>
-                    <select id="eventRepeatDayOfWeek">
-                      <option value="">Use event date day</option>
-                      <option value="0">Sunday</option>
-                      <option value="1">Monday</option>
-                      <option value="2">Tuesday</option>
-                      <option value="3">Wednesday</option>
-                      <option value="4">Thursday</option>
-                      <option value="5">Friday</option>
-                      <option value="6">Saturday</option>
-                    </select>
-                  </label>
                   <label class="field">
                     <span>Additional information</span>
                     <textarea id="eventNotes" rows="4" placeholder="Parking, kit reminder, arrival time"></textarea>
