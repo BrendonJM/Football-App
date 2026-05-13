@@ -26,7 +26,7 @@
             <button id="navAccount" class="nav-button is-active" type="button">Account</button>
             <button id="navConfig" class="nav-button" type="button">Team Set Up</button>
             <button id="navManage" class="nav-button" type="button">Manage Team</button>
-            <button id="navComms" class="nav-button" type="button">Team Comms</button>
+            <button id="navComms" class="nav-button" type="button">Events</button>
             <button id="navTraining" class="nav-button" type="button">Training</button>
           </nav>
         </div>
@@ -296,11 +296,11 @@
         </section>
 
         <section id="commsPage" class="page-section hidden">
-          <div class="team-admin-grid">
+          <div class="team-admin-grid events-admin-grid">
             <section class="panel">
               <div class="panel-heading">
                 <h2>Events</h2>
-                <p>Create and manage team events for this squad.</p>
+                <p>Create new events and manage the list for this team.</p>
               </div>
 
               <form id="eventForm" class="stack-form">
@@ -389,8 +389,8 @@
 
             <section class="panel">
               <div class="panel-heading">
-                <h2>Send Update</h2>
-                <p>Preview a message for an event, copy it, or email selected contacts.</p>
+                <h2>Selected Event</h2>
+                <p>Choose one event to send updates, reminders, and review responses.</p>
               </div>
 
               <div class="stack-form">
@@ -402,18 +402,19 @@
                   </div>
                 </div>
 
-                <label class="field">
-                  <span>Selected event</span>
-                  <select id="messageEventSelect"></select>
-                </label>
+                <div id="selectedEventDetails" class="info-card">
+                  <strong>No event selected</strong>
+                  <p>Pick an event from the list to preview the RSVP message and track availability.</p>
+                </div>
 
                 <div class="info-card">
-                  <strong>Email recipients</strong>
+                  <strong>Update actions</strong>
+                  <p id="messageRecipientSummary">Choose an event to see who will receive the RSVP message.</p>
                   <div class="button-row">
-                    <button id="selectAllContacts" type="button" class="secondary-button">Select All</button>
-                    <button id="clearSelectedContacts" type="button" class="secondary-button">Clear</button>
+                    <button id="copyMessagePreview" type="button" class="primary-button">Copy Update</button>
+                    <button id="sendEventEmail" type="button" class="secondary-button">Send Event Update</button>
+                    <button id="sendReminderEmail" type="button" class="secondary-button">Send Reminder</button>
                   </div>
-                  <div id="messageRecipientList" class="recipient-list"></div>
                 </div>
 
                 <label class="field">
@@ -421,29 +422,17 @@
                   <textarea id="messagePreview" rows="8" readonly></textarea>
                 </label>
 
-                <label class="field">
-                  <span>SMS / phone-friendly version</span>
-                  <textarea id="smsPreview" rows="5" readonly></textarea>
-                </label>
+                <p id="messageStatus" class="status-text" aria-live="polite"></p>
 
-                <div class="button-row">
-                  <button id="copyMessagePreview" type="button" class="primary-button">Copy Update</button>
-                  <button id="sendEventEmail" type="button" class="secondary-button">Send Email Update</button>
+                <div class="panel-heading compact-panel-heading">
+                  <h2>Responses</h2>
+                  <p>Track who has accepted, declined, maybe, or not replied yet.</p>
                 </div>
 
-                <p id="messageStatus" class="status-text" aria-live="polite"></p>
+                <div id="eventRsvpSummary" class="info-card"></div>
+                <div id="eventRsvpList" class="entity-list"></div>
+                <p id="eventRsvpStatus" class="status-text" aria-live="polite"></p>
               </div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Availability</h2>
-                <p>See event RSVP responses and update them manually if needed.</p>
-              </div>
-
-              <div id="eventRsvpSummary" class="info-card"></div>
-              <div id="eventRsvpList" class="entity-list"></div>
-              <p id="eventRsvpStatus" class="status-text" aria-live="polite"></p>
             </section>
           </div>
         </section>

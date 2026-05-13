@@ -119,14 +119,12 @@ const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
 const nextEventSummary = document.querySelector("#nextEventSummary");
 const useNextEventButton = document.querySelector("#useNextEvent");
-const messageEventSelect = document.querySelector("#messageEventSelect");
-const selectAllContactsButton = document.querySelector("#selectAllContacts");
-const clearSelectedContactsButton = document.querySelector("#clearSelectedContacts");
-const messageRecipientList = document.querySelector("#messageRecipientList");
+const selectedEventDetails = document.querySelector("#selectedEventDetails");
+const messageRecipientSummary = document.querySelector("#messageRecipientSummary");
 const messagePreview = document.querySelector("#messagePreview");
-const smsPreview = document.querySelector("#smsPreview");
 const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
 const sendEventEmailButton = document.querySelector("#sendEventEmail");
+const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
 const messageStatus = document.querySelector("#messageStatus");
 const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
 const eventRsvpList = document.querySelector("#eventRsvpList");
@@ -314,33 +312,8 @@ saveNowButton.addEventListener("click", async () => {
   await saveActiveTeamNow();
 });
 
-messageEventSelect.addEventListener("change", () => {
-  state.selectedEventId = messageEventSelect.value || null;
-  persistState();
-  renderEventMessaging();
-  renderEventRsvps();
-});
-
 useNextEventButton?.addEventListener("click", () => {
   useNextPlannedEventForMessaging();
-});
-
-selectAllContactsButton.addEventListener("click", () => {
-  selectAllContactsForMessaging();
-});
-
-clearSelectedContactsButton.addEventListener("click", () => {
-  clearSelectedContactsForMessaging();
-});
-
-messageRecipientList.addEventListener("change", (event) => {
-  const checkbox = event.target.closest("input[type='checkbox'][data-contact-id]");
-
-  if (!checkbox) {
-    return;
-  }
-
-  toggleMessageRecipient(checkbox.dataset.contactId, checkbox.checked);
 });
 
 eventRsvpList?.addEventListener("click", async (event) => {
@@ -358,7 +331,11 @@ copyMessagePreviewButton.addEventListener("click", async () => {
 });
 
 sendEventEmailButton.addEventListener("click", async () => {
-  await sendEventUpdateEmail();
+  await sendEventUpdateEmail("all");
+});
+
+sendReminderEmailButton?.addEventListener("click", async () => {
+  await sendEventUpdateEmail("reminder");
 });
 
 toggleAvailabilityButton.addEventListener("click", () => {
@@ -1702,7 +1679,7 @@ function renderEvents() {
     ? events
         .map(
           (eventRecord) => `
-            <div class="entity-card">
+            <div class="entity-card ${eventRecord.id === state.selectedEventId ? "is-selected" : ""}">
               <div class="entity-card-header">
                 <div>
                   <strong>${escapeHtml(eventRecord.eventTitle)}</strong>
@@ -1717,6 +1694,7 @@ function renderEvents() {
                 ${eventRecord.notes ? `<span>${escapeHtml(eventRecord.notes)}</span>` : ""}
               </div>
               <div class="entity-card-actions">
+                <button type="button" class="secondary-button" data-event-action="select" data-event-id="${eventRecord.id}">Open</button>
                 <button type="button" class="secondary-button" data-event-action="edit" data-event-id="${eventRecord.id}">Edit</button>
                 <button type="button" class="danger-button" data-event-action="delete" data-event-id="${eventRecord.id}">Delete</button>
               </div>
@@ -1731,7 +1709,13 @@ function renderEvents() {
       const action = button.dataset.eventAction;
       const eventId = button.dataset.eventId;
 
-      if (action === "edit") {
+      if (action === "select") {
+        state.selectedEventId = eventId || null;
+        persistState();
+        renderEvents();
+        renderEventMessaging();
+        renderEventRsvps();
+      } else if (action === "edit") {
         populateEventForm(eventId);
       } else if (action === "delete") {
         void deleteEvent(eventId);
@@ -1752,7 +1736,8 @@ function renderEventMessaging() {
   }
   const nextEvent = getNextPlannedEvent();
   const emailContacts = contacts.filter((contact) => contact.email);
-  const phoneContacts = contacts.filter((contact) => contact.phone);
+  const allRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "all");
+  const reminderRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "reminder");
 
   if (nextEventSummary) {
     nextEventSummary.textContent = nextEvent
@@ -1764,39 +1749,35 @@ function renderEventMessaging() {
     useNextEventButton.disabled = !nextEvent || sendingEventUpdate;
   }
 
-  messageEventSelect.innerHTML = events.length
-    ? events
-        .map(
-          (eventRecord) => `<option value="${eventRecord.id}" ${eventRecord.id === state.selectedEventId ? "selected" : ""}>${escapeHtml(formatEventOptionLabel(eventRecord))}</option>`,
-        )
-        .join("")
-    : '<option value="">No events available</option>';
+  if (selectedEventDetails) {
+    selectedEventDetails.innerHTML = selectedEvent
+      ? `
+          <strong>${escapeHtml(selectedEvent.eventTitle)}</strong>
+          <p>${escapeHtml(formatEventDate(selectedEvent.eventDate))}${getEventTimingLabel(selectedEvent) ? ` | ${escapeHtml(getEventTimingLabel(selectedEvent))}` : ""}</p>
+          <p>${escapeHtml(formatEventTypeLabel(selectedEvent.eventType))} | ${escapeHtml(selectedEvent.status)}</p>
+          ${selectedEvent.location ? `<p>${escapeHtml(selectedEvent.location)}</p>` : ""}
+          ${selectedEvent.notes ? `<p>${escapeHtml(selectedEvent.notes)}</p>` : ""}
+        `
+      : "<strong>No event selected</strong><p>Pick an event from the list to preview the RSVP message and track availability.</p>";
+  }
 
-  messageEventSelect.disabled = events.length === 0;
-
-  messageRecipientList.innerHTML = emailContacts.length
-    ? emailContacts
-        .map(
-          (contact) => `
-            <label class="recipient-option">
-              <input type="checkbox" data-contact-id="${contact.id}" ${state.selectedContactIds.includes(contact.id) ? "checked" : ""} />
-              <span>
-                <strong>${escapeHtml(contact.contactName)}</strong>
-                <span>${escapeHtml(contact.email)}</span>
-                ${contact.role ? `<span>${escapeHtml(contact.role)}</span>` : ""}
-              </span>
-            </label>
-          `,
-        )
-        .join("")
-    : '<div class="info-card"><strong>No email contacts yet</strong><p>Add contacts with email addresses to send updates from TeamPro.</p></div>';
+  if (messageRecipientSummary) {
+    if (!selectedEvent) {
+      messageRecipientSummary.textContent = "Choose an event to see who will receive the RSVP message.";
+    } else if (!emailContacts.length) {
+      messageRecipientSummary.textContent = "No contacts with email addresses are available for this team yet.";
+    } else {
+      messageRecipientSummary.textContent = `${allRecipientContacts.length} contact${allRecipientContacts.length === 1 ? "" : "s"} will receive the event update. ${reminderRecipientContacts.length} still need a reminder.`;
+    }
+  }
 
   const messageText = buildEventMessageText(selectedEvent);
-  const smsText = buildSmsPreviewText(selectedEvent, phoneContacts);
   messagePreview.value = messageText;
-  smsPreview.value = smsText;
   copyMessagePreviewButton.disabled = !selectedEvent;
-  sendEventEmailButton.disabled = !selectedEvent || sendingEventUpdate || !emailContacts.length || !state.selectedContactIds.length;
+  sendEventEmailButton.disabled = !selectedEvent || sendingEventUpdate || !allRecipientContacts.length;
+  if (sendReminderEmailButton) {
+    sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !reminderRecipientContacts.length;
+  }
 
   if (!selectedEvent) {
     clearStatus(messageStatus);
@@ -2476,6 +2457,26 @@ function toggleMessageRecipient(contactId, isSelected) {
   renderEventMessaging();
 }
 
+function getRecipientsForEventUpdate(eventRecord, mode = "all") {
+  const contacts = getActiveTeamContacts().filter((contact) => contact.email);
+
+  if (!eventRecord) {
+    return [];
+  }
+
+  if (mode !== "reminder") {
+    return contacts;
+  }
+
+  const reminderContactIds = new Set(
+    getSelectedEventRsvps()
+      .filter((rsvp) => rsvp.response === "no_response")
+      .map((rsvp) => rsvp.contactId),
+  );
+
+  return contacts.filter((contact) => reminderContactIds.has(contact.id));
+}
+
 function buildEventMessageText(eventRecord) {
   if (!eventRecord) {
     return "";
@@ -2531,15 +2532,13 @@ async function copyEventMessagePreview() {
   }
 }
 
-async function sendEventUpdateEmail() {
+async function sendEventUpdateEmail(mode = "all") {
   if (sendingEventUpdate) {
     return;
   }
 
   const selectedEvent = getSelectedEvent();
-  const recipients = getActiveTeamContacts().filter(
-    (contact) => state.selectedContactIds.includes(contact.id) && contact.email,
-  );
+  const recipients = getRecipientsForEventUpdate(selectedEvent, mode);
 
   if (!selectedEvent) {
     setStatus(messageStatus, "Choose an event first.", true);
@@ -2547,13 +2546,19 @@ async function sendEventUpdateEmail() {
   }
 
   if (!recipients.length) {
-    setStatus(messageStatus, "Select at least one contact with an email address.", true);
+    setStatus(
+      messageStatus,
+      mode === "reminder"
+        ? "No outstanding RSVP reminders are needed for this event."
+        : "No contacts with email addresses are available for this event.",
+      true,
+    );
     return;
   }
 
   sendingEventUpdate = true;
   renderEventMessaging();
-  setStatus(messageStatus, "Sending update...", false);
+  setStatus(messageStatus, mode === "reminder" ? "Sending reminder..." : "Sending update...", false);
 
   try {
     const response = await fetch(teamUpdateEndpoint, {
@@ -2582,7 +2587,11 @@ async function sendEventUpdateEmail() {
     if (result.warning) {
       setStatus(messageStatus, result.warning, false);
     } else {
-      setStatus(messageStatus, `Email update sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`, false);
+      setStatus(
+        messageStatus,
+        `${mode === "reminder" ? "Reminder" : "Email update"} sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`,
+        false,
+      );
     }
 
     if (Array.isArray(result.rsvps)) {

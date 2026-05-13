@@ -233,6 +233,10 @@ p {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.events-admin-grid {
+  grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
+}
+
 .panel {
   border-radius: var(--radius);
   background: var(--surface);
@@ -246,6 +250,10 @@ p {
 .selection-card p,
 .info-card p {
   color: var(--muted);
+}
+
+.compact-panel-heading {
+  margin-top: 6px;
 }
 
 .stack-form,
@@ -718,6 +726,12 @@ textarea {
   background: rgba(26, 35, 48, 0.74);
 }
 
+.entity-card.is-selected {
+  border-color: rgba(197, 164, 109, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(197, 164, 109, 0.22);
+  background: rgba(30, 40, 54, 0.86);
+}
+
 .entity-card-header {
   display: flex;
   align-items: start;
@@ -867,6 +881,10 @@ textarea {
   }
 
   .team-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .events-admin-grid {
     grid-template-columns: 1fr;
   }
 
