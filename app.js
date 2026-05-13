@@ -35,11 +35,13 @@ const configEndpoint = "/api/config";
 const feedbackEndpoint = "/api/feedback";
 const trainingPlanEndpoint = "/api/training-plan";
 const teamUpdateEndpoint = "/api/team-update";
+const aiCommunicationDraftEndpoint = "/api/ai/communication-draft";
 const teamsTableName = "teams";
 const teamContactsTableName = "team_contacts";
 const teamEventsTableName = "team_events";
 const eventUpdateLogsTableName = "event_update_logs";
 const eventRsvpsTableName = "event_rsvps";
+const aiCommunicationDraftsTableName = "ai_communication_drafts";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -124,6 +126,38 @@ const eventList = document.querySelector("#eventList");
 const nextEventSummary = document.querySelector("#nextEventSummary");
 const useNextEventButton = document.querySelector("#useNextEvent");
 const selectedEventDetails = document.querySelector("#selectedEventDetails");
+const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
+const generateAiDraftButton = document.querySelector("#generateAiDraft");
+const aiDraftStatus = document.querySelector("#aiDraftStatus");
+const aiDraftReview = document.querySelector("#aiDraftReview");
+const aiDraftIntent = document.querySelector("#aiDraftIntent");
+const aiDraftConfidence = document.querySelector("#aiDraftConfidence");
+const aiDraftRecipients = document.querySelector("#aiDraftRecipients");
+const aiDraftRsvp = document.querySelector("#aiDraftRsvp");
+const aiDraftFollowUp = document.querySelector("#aiDraftFollowUp");
+const aiDraftMissingInfo = document.querySelector("#aiDraftMissingInfo");
+const aiDraftEventTitleInput = document.querySelector("#aiDraftEventTitle");
+const aiDraftEventTypeInput = document.querySelector("#aiDraftEventType");
+const aiDraftEventDateInput = document.querySelector("#aiDraftEventDate");
+const aiDraftEventLocationInput = document.querySelector("#aiDraftEventLocation");
+const aiDraftStartTimeInput = document.querySelector("#aiDraftStartTime");
+const aiDraftEndTimeInput = document.querySelector("#aiDraftEndTime");
+const aiDraftEventNotesInput = document.querySelector("#aiDraftEventNotes");
+const aiDraftEventMatchRow = document.querySelector("#aiDraftEventMatchRow");
+const aiDraftEventMatchInput = document.querySelector("#aiDraftEventMatch");
+const aiDraftEmailSubjectInput = document.querySelector("#aiDraftEmailSubject");
+const aiDraftEmailBodyInput = document.querySelector("#aiDraftEmailBody");
+const aiDraftSmsBodyInput = document.querySelector("#aiDraftSmsBody");
+const aiDraftRecipientGroupInput = document.querySelector("#aiDraftRecipientGroup");
+const aiDraftRsvpRequiredInput = document.querySelector("#aiDraftRsvpRequired");
+const aiDraftRsvpDeadlineInput = document.querySelector("#aiDraftRsvpDeadline");
+const aiCopyEmailDraftButton = document.querySelector("#aiCopyEmailDraft");
+const aiCopySmsDraftButton = document.querySelector("#aiCopySmsDraft");
+const aiSendDraftEmailButton = document.querySelector("#aiSendDraftEmail");
+const aiCreateEventFromDraftButton = document.querySelector("#aiCreateEventFromDraft");
+const aiApplyEventUpdateButton = document.querySelector("#aiApplyEventUpdate");
+const aiApplyEventCancellationButton = document.querySelector("#aiApplyEventCancellation");
+const aiDiscardDraftButton = document.querySelector("#aiDiscardDraft");
 const messageRecipientSummary = document.querySelector("#messageRecipientSummary");
 const messagePreview = document.querySelector("#messagePreview");
 const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
@@ -158,6 +192,11 @@ let saveNowInFlight = false;
 let sendingEventUpdate = false;
 let eventFormOpen = false;
 let eventRsvpDetailsOpen = false;
+let aiDraftState = {
+  loading: false,
+  draftId: null,
+  data: null,
+};
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -357,6 +396,38 @@ sendEventEmailButton.addEventListener("click", async () => {
 
 sendReminderEmailButton?.addEventListener("click", async () => {
   await sendEventUpdateEmail("reminder");
+});
+
+generateAiDraftButton?.addEventListener("click", async () => {
+  await generateAiCommunicationDraft();
+});
+
+aiCopyEmailDraftButton?.addEventListener("click", async () => {
+  await copyAiDraftText("email");
+});
+
+aiCopySmsDraftButton?.addEventListener("click", async () => {
+  await copyAiDraftText("sms");
+});
+
+aiSendDraftEmailButton?.addEventListener("click", async () => {
+  await sendAiDraftEmail();
+});
+
+aiCreateEventFromDraftButton?.addEventListener("click", async () => {
+  await createEventFromAiDraft();
+});
+
+aiApplyEventUpdateButton?.addEventListener("click", async () => {
+  await applyAiDraftToExistingEvent("update");
+});
+
+aiApplyEventCancellationButton?.addEventListener("click", async () => {
+  await applyAiDraftToExistingEvent("cancel");
+});
+
+aiDiscardDraftButton?.addEventListener("click", async () => {
+  await discardAiDraft();
 });
 
 toggleAvailabilityButton.addEventListener("click", () => {
@@ -641,6 +712,11 @@ async function applyAuthSession(session) {
 
   if (!supabaseUserId) {
     console.info("[Supabase] No authenticated user session");
+    aiDraftState = {
+      loading: false,
+      draftId: null,
+      data: null,
+    };
     state = createStateFromPersisted({
       page: "account",
       activeTeamId: null,
@@ -1555,6 +1631,7 @@ function renderAll() {
   renderEvents();
   renderEventMessaging();
   renderEventRsvps();
+  renderAiAssistant();
   renderTrainingView();
 }
 
@@ -1737,6 +1814,7 @@ function renderEvents() {
         renderEvents();
         renderEventMessaging();
         renderEventRsvps();
+        renderAiAssistant();
       } else if (action === "edit") {
         populateEventForm(eventId);
       } else if (action === "delete") {
@@ -1903,6 +1981,108 @@ function renderEventRsvps() {
       `,
     )
     .join("");
+}
+
+function renderAiAssistant() {
+  if (!aiDraftReview) {
+    return;
+  }
+
+  const draft = aiDraftState.data;
+  generateAiDraftButton.disabled = aiDraftState.loading || !supabaseUserId;
+  aiAssistantPromptInput.disabled = aiDraftState.loading;
+
+  if (!draft) {
+    aiDraftReview.classList.add("hidden");
+    aiSendDraftEmailButton.disabled = true;
+    return;
+  }
+
+  aiDraftReview.classList.remove("hidden");
+
+  aiDraftIntent.textContent = formatAiIntentLabel(draft.intent_type || "general_update");
+  aiDraftConfidence.textContent = `Confidence ${formatAiConfidence(draft.confidence)}`;
+  aiDraftRecipients.textContent = formatRecipientGroupLabel(draft.recipients?.suggested_group || "all_contacts");
+  aiDraftRsvp.textContent = draft.rsvp?.rsvp_required ? "RSVP suggested" : "No RSVP suggested";
+  aiDraftFollowUp.textContent = draft.follow_up?.reminder_recommended
+    ? `Follow-up: ${draft.follow_up.suggested_reminder_timing || "Reminder recommended."}`
+    : "Follow-up: No reminder recommended yet.";
+
+  const missingInformation = Array.isArray(draft.missing_information)
+    ? draft.missing_information.filter(Boolean)
+    : [];
+
+  aiDraftMissingInfo.classList.toggle("hidden", missingInformation.length === 0);
+  aiDraftMissingInfo.innerHTML = missingInformation.length
+    ? `
+        <strong>Things to confirm</strong>
+        <ul>${missingInformation.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      `
+    : "";
+
+  aiDraftEventTitleInput.value = draft.event_action?.suggested_event_title || "";
+  aiDraftEventTypeInput.value = draft.event_action?.event_type || "other";
+  aiDraftEventDateInput.value = draft.event_action?.event_date || "";
+  aiDraftEventLocationInput.value = draft.event_action?.location || "";
+  aiDraftStartTimeInput.value = draft.event_action?.start_time || "";
+  aiDraftEndTimeInput.value = draft.event_action?.end_time || "";
+  aiDraftEventNotesInput.value = draft.event_action?.notes || "";
+  aiDraftEmailSubjectInput.value = draft.message?.email_subject || "";
+  aiDraftEmailBodyInput.value = draft.message?.email_body || "";
+  aiDraftSmsBodyInput.value = draft.message?.sms_body || "";
+  aiDraftRecipientGroupInput.value = draft.recipients?.suggested_group || "all_contacts";
+  aiDraftRsvpRequiredInput.checked = Boolean(draft.rsvp?.rsvp_required);
+  aiDraftRsvpDeadlineInput.value = draft.rsvp?.suggested_deadline || "";
+
+  renderAiDraftEventMatchOptions();
+  renderAiDraftActionButtons();
+}
+
+function renderAiDraftEventMatchOptions() {
+  if (!aiDraftEventMatchInput || !aiDraftEventMatchRow) {
+    return;
+  }
+
+  const draft = aiDraftState.data;
+  const requiresExistingEvent = Boolean(
+    draft?.event_action?.update_existing_event || draft?.event_action?.cancel_existing_event,
+  );
+  const events = getActiveTeamEvents();
+
+  aiDraftEventMatchRow.classList.toggle("hidden", !requiresExistingEvent);
+
+  if (!requiresExistingEvent) {
+    aiDraftEventMatchInput.innerHTML = "";
+    return;
+  }
+
+  aiDraftEventMatchInput.innerHTML = events.length
+    ? events
+        .map(
+          (eventRecord) => `
+            <option value="${eventRecord.id}" ${eventRecord.id === state.selectedEventId ? "selected" : ""}>
+              ${escapeHtml(formatEventOptionLabel(eventRecord))}
+            </option>
+          `,
+        )
+        .join("")
+    : '<option value="">No upcoming events available</option>';
+}
+
+function renderAiDraftActionButtons() {
+  const draft = aiDraftState.data;
+  if (!draft) {
+    return;
+  }
+
+  const intent = draft.event_action || {};
+  const hasSelectedEvent = Boolean(getAiDraftTargetEventId());
+  aiCreateEventFromDraftButton.classList.toggle("hidden", !intent.create_new_event);
+  aiApplyEventUpdateButton.classList.toggle("hidden", !intent.update_existing_event);
+  aiApplyEventCancellationButton.classList.toggle("hidden", !intent.cancel_existing_event);
+  aiApplyEventUpdateButton.disabled = !hasSelectedEvent;
+  aiApplyEventCancellationButton.disabled = !hasSelectedEvent;
+  aiSendDraftEmailButton.disabled = !getSelectedEvent() || aiDraftState.loading;
 }
 
 function renderAvailabilityControl() {
@@ -2607,6 +2787,520 @@ function buildSmsPreviewText(eventRecord, phoneContacts) {
   return lines.join("\n");
 }
 
+async function generateAiCommunicationDraft() {
+  if (aiDraftState.loading) {
+    return;
+  }
+
+  if (!supabaseUserId) {
+    setStatus(aiDraftStatus, "Log in before using the AI assistant.", true);
+    return;
+  }
+
+  const prompt = aiAssistantPromptInput.value.trim();
+
+  if (!prompt) {
+    setStatus(aiDraftStatus, "Add a short instruction for TeamPro first.", true);
+    return;
+  }
+
+  aiDraftState.loading = true;
+  renderAiAssistant();
+  setStatus(aiDraftStatus, "Generating AI draft...", false);
+
+  try {
+    const response = await fetch(aiCommunicationDraftEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: supabaseAccessToken,
+        teamId: state.activeTeamId,
+        teamName: state.config.teamName || "Untitled team",
+        instruction: prompt,
+        selectedEventId: state.selectedEventId || null,
+        contacts: getActiveTeamContacts().map((contact) => ({
+          id: contact.id,
+          name: contact.contactName,
+          role: contact.role,
+          linkedPlayers: contact.linkedPlayers || [],
+          hasEmail: Boolean(contact.email),
+          hasPhone: Boolean(contact.phone),
+        })),
+        upcomingEvents: getActiveTeamEvents().slice(0, 8).map((eventRecord) => ({
+          id: eventRecord.id,
+          title: eventRecord.eventTitle,
+          eventType: eventRecord.eventType,
+          eventDate: eventRecord.eventDate,
+          startTime: eventRecord.startTime,
+          endTime: eventRecord.endTime,
+          location: eventRecord.location,
+          status: eventRecord.status,
+        })),
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "AI draft generation failed.");
+    }
+
+    aiDraftState = {
+      loading: false,
+      draftId: result.draftId || null,
+      data: normaliseAiDraft(result.draft),
+    };
+    renderAiAssistant();
+    setStatus(aiDraftStatus, "Draft ready for review.", false);
+  } catch (error) {
+    console.error("[AI Draft] Generation failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    aiDraftState.loading = false;
+    renderAiAssistant();
+    setStatus(aiDraftStatus, error?.message || "AI draft generation failed.", true);
+  }
+}
+
+function normaliseAiDraft(draft) {
+  const safeDraft = draft && typeof draft === "object" ? draft : {};
+  return {
+    intent_type: safeDraft.intent_type || "general_update",
+    confidence: typeof safeDraft.confidence === "number" ? safeDraft.confidence : 0.5,
+    event_action: {
+      create_new_event: Boolean(safeDraft.event_action?.create_new_event),
+      update_existing_event: Boolean(safeDraft.event_action?.update_existing_event),
+      cancel_existing_event: Boolean(safeDraft.event_action?.cancel_existing_event),
+      suggested_event_title: safeDraft.event_action?.suggested_event_title || "",
+      event_type: safeDraft.event_action?.event_type || "other",
+      event_date: safeDraft.event_action?.event_date || "",
+      start_time: safeDraft.event_action?.start_time || "",
+      end_time: safeDraft.event_action?.end_time || "",
+      location: safeDraft.event_action?.location || "",
+      notes: safeDraft.event_action?.notes || "",
+    },
+    message: {
+      email_subject: safeDraft.message?.email_subject || "",
+      email_body: safeDraft.message?.email_body || "",
+      sms_body: safeDraft.message?.sms_body || "",
+    },
+    rsvp: {
+      rsvp_required: Boolean(safeDraft.rsvp?.rsvp_required),
+      suggested_deadline: safeDraft.rsvp?.suggested_deadline || "",
+    },
+    recipients: {
+      suggested_group: safeRecipientGroup(safeDraft.recipients?.suggested_group),
+    },
+    follow_up: {
+      reminder_recommended: Boolean(safeDraft.follow_up?.reminder_recommended),
+      suggested_reminder_timing: safeDraft.follow_up?.suggested_reminder_timing || "",
+    },
+    missing_information: Array.isArray(safeDraft.missing_information)
+      ? safeDraft.missing_information.filter(Boolean)
+      : [],
+  };
+}
+
+function safeRecipientGroup(value) {
+  return ["all_contacts", "non_responders", "available_players", "unavailable_players", "custom"].includes(value)
+    ? value
+    : "all_contacts";
+}
+
+async function copyAiDraftText(type) {
+  syncAiDraftStateFromInputs();
+  const text = type === "sms"
+    ? aiDraftSmsBodyInput.value.trim()
+    : `${aiDraftEmailSubjectInput.value.trim()}\n\n${aiDraftEmailBodyInput.value.trim()}`.trim();
+
+  if (!text) {
+    setStatus(aiDraftStatus, `There is no ${type.toUpperCase()} draft to copy yet.`, true);
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus(aiDraftStatus, `${type === "sms" ? "SMS" : "Email"} draft copied.`, false);
+  } catch (error) {
+    setStatus(aiDraftStatus, `Could not copy the ${type.toUpperCase()} draft right now.`, true);
+  }
+}
+
+async function createEventFromAiDraft() {
+  if (!supabaseUserId || !aiDraftState.data) {
+    return;
+  }
+
+  syncAiDraftStateFromInputs();
+
+  const row = buildSingleEventRowFromAiDraft();
+
+  if (!row.ok) {
+    setStatus(aiDraftStatus, row.message, true);
+    return;
+  }
+
+  setStatus(aiDraftStatus, "Creating event from draft...", false);
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: teamEventsTableName,
+      row: row.value,
+      statusElement: aiDraftStatus,
+      pendingMessage: "Creating event from draft...",
+      successMessage: "Event created from draft.",
+      label: "event",
+    });
+    const mapped = mapDatabaseEventToRecord(savedRow);
+    upsertEventInState(mapped);
+    state.selectedEventId = mapped.id;
+    persistState();
+    await saveAiDraftStatus("used", mapped.id);
+    renderAll();
+    setStatus(aiDraftStatus, "Event created from draft.", false);
+  } catch (error) {
+    console.error("[AI Draft] Event creation failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(aiDraftStatus, `Draft event creation failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+async function applyAiDraftToExistingEvent(mode) {
+  if (!supabaseUserId || !aiDraftState.data) {
+    return;
+  }
+
+  syncAiDraftStateFromInputs();
+
+  const targetEventId = getAiDraftTargetEventId();
+  const existingEvent = getActiveTeamEvents().find((eventRecord) => eventRecord.id === targetEventId);
+
+  if (!existingEvent) {
+    setStatus(aiDraftStatus, "Choose an existing event first.", true);
+    return;
+  }
+
+  const row = buildSingleEventRowFromAiDraft(existingEvent, mode === "cancel" ? "cancelled" : null);
+
+  if (!row.ok) {
+    setStatus(aiDraftStatus, row.message, true);
+    return;
+  }
+
+  setStatus(aiDraftStatus, mode === "cancel" ? "Cancelling event..." : "Updating event from draft...", false);
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: teamEventsTableName,
+      row: row.value,
+      statusElement: aiDraftStatus,
+      pendingMessage: mode === "cancel" ? "Cancelling event..." : "Updating event from draft...",
+      successMessage: mode === "cancel" ? "Event cancelled from draft." : "Event updated from draft.",
+      label: "event",
+    });
+    const mapped = mapDatabaseEventToRecord(savedRow);
+    upsertEventInState(mapped);
+    state.selectedEventId = mapped.id;
+    persistState();
+    await saveAiDraftStatus("used", mapped.id);
+    renderAll();
+    setStatus(aiDraftStatus, mode === "cancel" ? "Event cancelled from draft." : "Event updated from draft.", false);
+  } catch (error) {
+    console.error("[AI Draft] Event update failed", {
+      error,
+      message: error?.message || String(error),
+      mode,
+    });
+    setStatus(aiDraftStatus, `Draft event update failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+function buildSingleEventRowFromAiDraft(existingEvent = null, forcedStatus = null) {
+  const title = aiDraftEventTitleInput.value.trim();
+  const eventDate = aiDraftEventDateInput.value;
+  const eventType = aiDraftEventTypeInput.value || "other";
+  const startTime = aiDraftStartTimeInput.value || null;
+  const endTime = aiDraftEndTimeInput.value || null;
+
+  if (!title) {
+    return { ok: false, message: "Confirm the event title before saving the AI draft." };
+  }
+
+  if (!eventDate) {
+    return { ok: false, message: "Confirm the event date before saving the AI draft." };
+  }
+
+  if (endTime && startTime && endTime < startTime) {
+    return { ok: false, message: "End time must be after start time." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      id: existingEvent?.id || createTeamStorageId(),
+      user_id: supabaseUserId,
+      team_id: state.activeTeamId,
+      event_title: title,
+      event_type: eventType,
+      event_date: eventDate,
+      start_time: startTime,
+      end_time: endTime,
+      location: aiDraftEventLocationInput.value.trim() || null,
+      notes: aiDraftEventNotesInput.value.trim() || null,
+      status: forcedStatus || existingEvent?.status || "planned",
+      repeat_pattern: existingEvent?.repeatPattern || "once",
+      repeat_end_date: existingEvent?.repeatEndDate || null,
+      repeat_day_of_week: Number.isInteger(existingEvent?.repeatDayOfWeek) ? existingEvent.repeatDayOfWeek : null,
+      series_id: existingEvent?.seriesId || null,
+    },
+  };
+}
+
+async function sendAiDraftEmail() {
+  if (sendingEventUpdate || aiDraftState.loading) {
+    return;
+  }
+
+  syncAiDraftStateFromInputs();
+
+  const selectedEvent = getSelectedEvent();
+
+  if (!selectedEvent) {
+    setStatus(aiDraftStatus, "Create or choose an event before sending the AI draft.", true);
+    return;
+  }
+
+  const recipients = getAiDraftRecipients(selectedEvent);
+
+  if (!recipients.length) {
+    setStatus(aiDraftStatus, "No matching recipients are available for this AI draft.", true);
+    return;
+  }
+
+  sendingEventUpdate = true;
+  renderAiAssistant();
+  setStatus(aiDraftStatus, "Sending AI draft email...", false);
+
+  try {
+    const response = await fetch(teamUpdateEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: supabaseAccessToken,
+        teamId: state.activeTeamId,
+        eventId: selectedEvent.id,
+        contactIds: recipients.map((contact) => contact.id),
+        teamName: state.config.teamName || "TeamPro team",
+        messageText: aiDraftEmailBodyInput.value.trim(),
+        subject: aiDraftEmailSubjectInput.value.trim(),
+        includeRsvp: Boolean(aiDraftRsvpRequiredInput.checked),
+        baseUrl: window.location.origin,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "AI draft email could not be sent.");
+    }
+
+    if (Array.isArray(result.rsvps)) {
+      const contactNameById = Object.fromEntries(recipients.map((contact) => [contact.id, contact.contactName]));
+      result.rsvps
+        .map((row) => mapDatabaseRsvpToRecord({
+          ...row,
+          contact_name: contactNameById[row.contact_id] || "",
+        }))
+        .forEach(upsertRsvpInState);
+    }
+
+    await logEventUpdate({
+      eventId: selectedEvent.id,
+      deliveryMethod: result.sent ? "email" : "copy",
+      recipientCount: recipients.length,
+      subject: aiDraftEmailSubjectInput.value.trim() || `${state.config.teamName || "Team"} update`,
+      messageText: aiDraftEmailBodyInput.value.trim(),
+    });
+
+    await saveAiDraftStatus("used", selectedEvent.id);
+    renderAll();
+    setStatus(
+      aiDraftStatus,
+      result.sent
+        ? `AI draft email sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`
+        : (result.warning || "Email sending is not configured yet. Copy the draft instead."),
+      false,
+    );
+  } catch (error) {
+    console.error("[AI Draft] Send failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(aiDraftStatus, error?.message || "AI draft email could not be sent.", true);
+  } finally {
+    sendingEventUpdate = false;
+    renderAiAssistant();
+  }
+}
+
+function getAiDraftRecipients(selectedEvent) {
+  const group = aiDraftRecipientGroupInput.value || "all_contacts";
+  const contacts = getActiveTeamContacts();
+  const rsvps = getSelectedEventRsvps();
+
+  switch (group) {
+    case "non_responders": {
+      const pendingIds = new Set(rsvps.filter((row) => row.response === "no_response").map((row) => row.contactId));
+      return contacts.filter((contact) => contact.email && pendingIds.has(contact.id));
+    }
+    case "available_players": {
+      const yesIds = new Set(rsvps.filter((row) => row.response === "yes").map((row) => row.contactId));
+      return contacts.filter((contact) => contact.email && yesIds.has(contact.id));
+    }
+    case "unavailable_players": {
+      const noIds = new Set(rsvps.filter((row) => row.response === "no").map((row) => row.contactId));
+      return contacts.filter((contact) => contact.email && noIds.has(contact.id));
+    }
+    case "custom":
+      return contacts.filter((contact) => contact.email);
+    case "all_contacts":
+    default:
+      return contacts.filter((contact) => contact.email);
+  }
+}
+
+function getAiDraftTargetEventId() {
+  return aiDraftEventMatchInput?.value || state.selectedEventId || "";
+}
+
+async function discardAiDraft() {
+  if (aiDraftState.draftId) {
+    await saveAiDraftStatus("discarded", null).catch((error) => {
+      console.error("[AI Draft] Could not mark draft discarded", {
+        error,
+        message: error?.message || String(error),
+      });
+    });
+  }
+
+  aiDraftState = {
+    loading: false,
+    draftId: null,
+    data: null,
+  };
+  if (aiAssistantPromptInput) {
+    aiAssistantPromptInput.value = "";
+  }
+  clearStatus(aiDraftStatus);
+  renderAiAssistant();
+}
+
+async function saveAiDraftStatus(status, eventId) {
+  if (!aiDraftState.draftId || !aiDraftState.data || !supabaseUserId) {
+    return;
+  }
+
+  await saveRowToSupabase({
+    tableName: aiCommunicationDraftsTableName,
+    row: {
+      id: aiDraftState.draftId,
+      user_id: supabaseUserId,
+      team_id: state.activeTeamId,
+      event_id: eventId || null,
+      raw_prompt: aiAssistantPromptInput.value.trim(),
+      draft_json: buildAiDraftPayloadFromInputs(),
+      status,
+    },
+    statusElement: aiDraftStatus,
+    pendingMessage: "Saving draft status...",
+    successMessage: "Draft status saved.",
+    label: "ai draft",
+  });
+}
+
+function syncAiDraftStateFromInputs() {
+  if (!aiDraftState.data) {
+    return;
+  }
+
+  aiDraftState.data = {
+    ...aiDraftState.data,
+    ...buildAiDraftPayloadFromInputs(),
+  };
+}
+
+function buildAiDraftPayloadFromInputs() {
+  return {
+    intent_type: aiDraftState.data?.intent_type || "general_update",
+    confidence: aiDraftState.data?.confidence || 0.5,
+    event_action: {
+      create_new_event: Boolean(aiDraftState.data?.event_action?.create_new_event),
+      update_existing_event: Boolean(aiDraftState.data?.event_action?.update_existing_event),
+      cancel_existing_event: Boolean(aiDraftState.data?.event_action?.cancel_existing_event),
+      suggested_event_title: aiDraftEventTitleInput.value.trim(),
+      event_type: aiDraftEventTypeInput.value,
+      event_date: aiDraftEventDateInput.value || null,
+      start_time: aiDraftStartTimeInput.value || null,
+      end_time: aiDraftEndTimeInput.value || null,
+      location: aiDraftEventLocationInput.value.trim() || null,
+      notes: aiDraftEventNotesInput.value.trim() || null,
+    },
+    message: {
+      email_subject: aiDraftEmailSubjectInput.value.trim(),
+      email_body: aiDraftEmailBodyInput.value.trim(),
+      sms_body: aiDraftSmsBodyInput.value.trim(),
+    },
+    rsvp: {
+      rsvp_required: Boolean(aiDraftRsvpRequiredInput.checked),
+      suggested_deadline: aiDraftRsvpDeadlineInput.value.trim() || null,
+    },
+    recipients: {
+      suggested_group: aiDraftRecipientGroupInput.value || "all_contacts",
+    },
+    follow_up: {
+      reminder_recommended: Boolean(aiDraftState.data?.follow_up?.reminder_recommended),
+      suggested_reminder_timing: aiDraftState.data?.follow_up?.suggested_reminder_timing || "",
+    },
+    missing_information: Array.isArray(aiDraftState.data?.missing_information)
+      ? aiDraftState.data.missing_information
+      : [],
+  };
+}
+
+function formatAiIntentLabel(intent) {
+  return {
+    create_event: "Create event",
+    update_event: "Update event",
+    cancel_event: "Cancel event",
+    send_reminder: "Send reminder",
+    general_update: "General update",
+  }[intent] || "General update";
+}
+
+function formatAiConfidence(confidence) {
+  const percentage = Math.max(0, Math.min(100, Math.round(Number(confidence || 0) * 100)));
+  return `${percentage}%`;
+}
+
+function formatRecipientGroupLabel(value) {
+  return {
+    all_contacts: "All contacts",
+    non_responders: "Non-responders",
+    available_players: "Available players",
+    unavailable_players: "Unavailable players",
+    custom: "Custom",
+  }[value] || "All contacts";
+}
+
 async function copyEventMessagePreview() {
   const selectedEvent = getSelectedEvent();
 
@@ -2903,6 +3597,7 @@ function useNextPlannedEventForMessaging() {
   persistState();
   renderEventMessaging();
   renderEventRsvps();
+  renderAiAssistant();
   setStatus(messageStatus, `Using ${nextEvent.eventTitle} for the next event update.`, false);
 }
 
@@ -3643,6 +4338,11 @@ function switchTeam(teamId) {
   state.selectedEventId = getActiveTeamEvents()[0]?.id || null;
   state.selectedContactIds = [];
   state.selectedTarget = null;
+  aiDraftState = {
+    loading: false,
+    draftId: null,
+    data: null,
+  };
   persistState();
   syncFormFromState();
   resetContactForm();
@@ -3677,6 +4377,11 @@ function createNewTeamDraft() {
   state.selectedContactIds = [];
   state.selectedTarget = null;
   state.page = "config";
+  aiDraftState = {
+    loading: false,
+    draftId: null,
+    data: null,
+  };
   formationDraft = [...state.config.formations];
   syncFormFromState();
   persistState();
@@ -3729,6 +4434,11 @@ function deleteCurrentTeam() {
   });
   state.selectedContactIds = [];
   state.selectedEventId = null;
+  aiDraftState = {
+    loading: false,
+    draftId: null,
+    data: null,
+  };
 
   const remainingTeams = state.teams.filter((team) => team.id !== state.activeTeamId);
 

@@ -436,6 +436,151 @@
                   <p>Pick an event from the list to preview the RSVP message and track availability.</p>
                 </div>
 
+                <div class="panel-heading compact-panel-heading">
+                  <h2>AI Assistant</h2>
+                  <p>Describe what is happening in plain English and let TeamPro prepare a coach-reviewed draft.</p>
+                </div>
+
+                <div class="info-card">
+                  <label class="field">
+                    <span>Coach instruction</span>
+                    <textarea
+                      id="aiAssistantPrompt"
+                      rows="5"
+                      placeholder="Training cancelled tonight due to weather. Move to Thursday 5pm at Grenada North if possible. Ask parents to confirm availability."
+                    ></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button id="generateAiDraft" type="button" class="primary-button">Generate Draft</button>
+                  </div>
+                  <p id="aiDraftStatus" class="status-text" aria-live="polite"></p>
+                </div>
+
+                <div id="aiDraftReview" class="stack-form hidden">
+                  <div class="info-card">
+                    <strong>Draft summary</strong>
+                    <div class="tag-row">
+                      <span id="aiDraftIntent" class="pill">Intent</span>
+                      <span id="aiDraftConfidence" class="pill">Confidence</span>
+                      <span id="aiDraftRecipients" class="pill">Recipients</span>
+                      <span id="aiDraftRsvp" class="pill">RSVP</span>
+                    </div>
+                    <p id="aiDraftFollowUp" class="helper-text"></p>
+                  </div>
+
+                  <div id="aiDraftMissingInfo" class="info-card hidden"></div>
+
+                  <div class="info-card">
+                    <strong>Event details</strong>
+                    <div class="stack-form compact-stack">
+                      <div class="split-fields">
+                        <label class="field">
+                          <span>Suggested title</span>
+                          <input id="aiDraftEventTitle" type="text" />
+                        </label>
+                        <label class="field">
+                          <span>Event type</span>
+                          <select id="aiDraftEventType">
+                            <option value="training">Training</option>
+                            <option value="game">Game</option>
+                            <option value="tournament">Tournament</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div class="split-fields">
+                        <label class="field">
+                          <span>Event date</span>
+                          <input id="aiDraftEventDate" type="date" />
+                        </label>
+                        <label class="field">
+                          <span>Location</span>
+                          <input id="aiDraftEventLocation" type="text" />
+                        </label>
+                      </div>
+                      <div class="split-fields">
+                        <label class="field">
+                          <span>Start time</span>
+                          <input id="aiDraftStartTime" type="time" />
+                        </label>
+                        <label class="field">
+                          <span>End time</span>
+                          <input id="aiDraftEndTime" type="time" />
+                        </label>
+                      </div>
+                      <label class="field">
+                        <span>Event notes</span>
+                        <textarea id="aiDraftEventNotes" rows="3"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div id="aiDraftEventMatchRow" class="info-card hidden">
+                    <strong>Choose an event to update</strong>
+                    <label class="field">
+                      <span>Upcoming event</span>
+                      <select id="aiDraftEventMatch"></select>
+                    </label>
+                  </div>
+
+                  <div class="info-card">
+                    <strong>Communication</strong>
+                    <div class="stack-form compact-stack">
+                      <label class="field">
+                        <span>Email subject</span>
+                        <input id="aiDraftEmailSubject" type="text" />
+                      </label>
+                      <label class="field">
+                        <span>Email body</span>
+                        <textarea id="aiDraftEmailBody" rows="8"></textarea>
+                      </label>
+                      <label class="field">
+                        <span>SMS / phone-friendly copy</span>
+                        <textarea id="aiDraftSmsBody" rows="4"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="info-card">
+                    <strong>Recipients and RSVP</strong>
+                    <div class="stack-form compact-stack">
+                      <div class="split-fields">
+                        <label class="field">
+                          <span>Suggested recipients</span>
+                          <select id="aiDraftRecipientGroup">
+                            <option value="all_contacts">All contacts</option>
+                            <option value="non_responders">Non-responders</option>
+                            <option value="available_players">Available players</option>
+                            <option value="unavailable_players">Unavailable players</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                        </label>
+                        <label class="field checkbox-field">
+                          <span>RSVP required</span>
+                          <input id="aiDraftRsvpRequired" type="checkbox" />
+                        </label>
+                      </div>
+                      <label class="field">
+                        <span>Suggested RSVP deadline</span>
+                        <input id="aiDraftRsvpDeadline" type="text" placeholder="Optional deadline guidance" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="button-row">
+                    <button id="aiCopyEmailDraft" type="button" class="secondary-button">Copy Email</button>
+                    <button id="aiCopySmsDraft" type="button" class="secondary-button">Copy SMS</button>
+                    <button id="aiSendDraftEmail" type="button" class="secondary-button">Send Draft Email</button>
+                  </div>
+
+                  <div class="button-row">
+                    <button id="aiCreateEventFromDraft" type="button" class="primary-button">Create Event from Draft</button>
+                    <button id="aiApplyEventUpdate" type="button" class="secondary-button">Update Chosen Event</button>
+                    <button id="aiApplyEventCancellation" type="button" class="danger-button">Cancel Chosen Event</button>
+                    <button id="aiDiscardDraft" type="button" class="ghost-button">Discard Draft</button>
+                  </div>
+                </div>
+
                 <div class="info-card">
                   <strong>Update actions</strong>
                   <p id="messageRecipientSummary">Choose an event to see who will receive the RSVP message.</p>

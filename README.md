@@ -16,6 +16,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Lets you preview, copy, and email event updates to selected contacts
 - Lets contacts RSVP from event emails without logging in
 - Shows RSVP availability, notes, and response times back inside TeamPro
+- Includes an AI Assistant that turns plain-English coach instructions into draft event and communication workflows
 - Supports clipboard image copy where the browser allows it
 - Includes a feedback form that can email thoughts to the TeamPro inbox
 - Uses Supabase Auth so each user only sees their own teams, contacts, and events
@@ -29,6 +30,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
 - `api/feedback.js` sends feedback emails from the Account page
 - `api/team-update.js` sends event update emails through Resend when configured
+- `api/ai/communication-draft.js` generates structured AI communication drafts server-side using OpenAI
 - `api/rsvp.js` powers the public RSVP lookup and submission flow
 - `rsvp.html` and `rsvp.js` provide the public RSVP page
 - `public-config.js` is the generated public runtime config consumed by the browser
@@ -55,6 +57,7 @@ Important:
 - `SUPABASE_ANON_KEY` is safe to expose to the browser.
 - Never use the Supabase `service_role` key in frontend code.
 - `SUPABASE_SERVICE_ROLE_KEY` is required server-side for RSVP links and public RSVP updates.
+- `OPENAI_API_KEY` is required server-side for AI training plans and AI communication drafts.
 - This app uses Supabase Auth and user-based RLS.
 
 Local environment variables:
@@ -170,9 +173,28 @@ Then add the same environment variables in Vercel and redeploy if needed.
 
 - Team, contact, and event data are stored in Supabase and scoped by authenticated user ID.
 - Events can be one-off or generated as weekly repeating occurrences, with one row per occurrence so RSVP responses stay event-specific.
+- AI communication drafts are saved in `ai_communication_drafts` and remain private to the authenticated coach through RLS.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
+
+## Manual AI communication draft test
+
+1. Sign in to TeamPro and choose a saved team.
+2. Open `Events`.
+3. In `AI Assistant`, enter a general update prompt.
+4. Confirm TeamPro returns:
+   - intent
+   - email subject/body
+   - SMS body
+   - recipient suggestion
+   - RSVP suggestion
+5. Enter a new event prompt and click `Create Event from Draft`.
+6. Confirm the new event row appears in `team_events`.
+7. Enter an update or cancellation prompt.
+8. Choose the target event in the draft review and apply the update or cancellation.
+9. Copy the email and SMS draft text.
+10. Confirm no message is sent until you explicitly click `Send Draft Email`.
 
 ## Manual event and RSVP test
 

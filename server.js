@@ -6,6 +6,7 @@ const { spawnSync } = require("child_process");
 const feedbackApiHandler = require("./api/feedback");
 const teamUpdateApiHandler = require("./api/team-update");
 const rsvpApiHandler = require("./api/rsvp");
+const aiCommunicationDraftApiHandler = require("./api/ai/communication-draft");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -209,6 +210,11 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/rsvp") {
     await invokeApiHandler(rsvpApiHandler, request, response, requestUrl);
+    return;
+  }
+
+  if ((request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/ai/communication-draft") {
+    await invokeApiHandler(aiCommunicationDraftApiHandler, request, response, requestUrl);
     return;
   }
 

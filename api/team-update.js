@@ -39,6 +39,8 @@ module.exports = async (request, response) => {
   const teamId = String(payload.teamId || "").trim();
   const baseUrl = buildRsvpBaseUrl(payload.baseUrl);
   const messageText = String(payload.messageText || "").trim();
+  const subjectOverride = String(payload.subject || "").trim();
+  const includeRsvp = payload.includeRsvp !== false;
   const contactIds = Array.isArray(payload.contactIds)
     ? payload.contactIds.map((value) => String(value || "").trim()).filter(Boolean)
     : [];
@@ -132,85 +134,18 @@ module.exports = async (request, response) => {
       return;
     }
 
-    const existingRsvpRows = await supabaseAdminRequest({
-      supabaseUrl: adminConfig.supabaseUrl,
-      serviceRoleKey: adminConfig.serviceRoleKey,
-      tableName: RSVP_TABLE_NAME,
-      query: {
-        select: "*",
-        event_id: `eq.${eventId}`,
-        contact_id: `in.(${emailContacts.map((contact) => contact.id).join(",")})`,
-      },
-    });
-
-    const existingRsvpMap = new Map(
-      (Array.isArray(existingRsvpRows) ? existingRsvpRows : []).map((row) => [buildRsvpKey(row.contact_id, row.player_name), row]),
-    );
-
-    const rsvpRows = [];
-
-    for (const contact of emailContacts) {
-      const linkedPlayers = Array.isArray(contact.linked_players) && contact.linked_players.length
-        ? contact.linked_players
-        : [null];
-
-      for (const playerName of linkedPlayers) {
-        const key = buildRsvpKey(contact.id, playerName);
-        const existing = existingRsvpMap.get(key);
-        const token = createSecureToken();
-        const tokenExpiresAt = buildTokenExpiry(eventRecord.event_date);
-
-        if (existing) {
-          const updatedRows = await supabaseAdminRequest({
-            supabaseUrl: adminConfig.supabaseUrl,
-            serviceRoleKey: adminConfig.serviceRoleKey,
-            tableName: RSVP_TABLE_NAME,
-            method: "PATCH",
-            query: {
-              id: `eq.${existing.id}`,
-              select: "*",
-            },
-            headers: {
-              Prefer: "return=representation",
-            },
-            body: {
-              token,
-              token_expires_at: tokenExpiresAt,
-            },
-          });
-          rsvpRows.push(Array.isArray(updatedRows) ? updatedRows[0] : updatedRows);
-        } else {
-          const createdRows = await supabaseAdminRequest({
-            supabaseUrl: adminConfig.supabaseUrl,
-            serviceRoleKey: adminConfig.serviceRoleKey,
-            tableName: RSVP_TABLE_NAME,
-            method: "POST",
-            query: {
-              select: "*",
-            },
-            headers: {
-              Prefer: "return=representation",
-            },
-            body: {
-              user_id: user.id,
-              team_id: teamId,
-              event_id: eventId,
-              contact_id: contact.id,
-              player_name: playerName,
-              response: "no_response",
-              response_note: null,
-              token,
-              token_expires_at: tokenExpiresAt,
-              responded_at: null,
-            },
-          });
-          rsvpRows.push(Array.isArray(createdRows) ? createdRows[0] : createdRows);
-        }
-      }
-    }
+    const rsvpRows = includeRsvp
+      ? await ensureEventRsvps({
+          adminConfig,
+          userId: user.id,
+          teamId,
+          eventRecord,
+          emailContacts,
+        })
+      : [];
 
     const rsvpsByContactId = groupRowsByContactId(rsvpRows);
-    const subject = buildSubject(teamRecord.team_name || payload.teamName || "TeamPro", eventRecord);
+    const subject = subjectOverride || buildSubject(teamRecord.team_name || payload.teamName || "TeamPro", eventRecord);
     const sendResults = [];
 
     for (const contact of emailContacts) {
@@ -232,6 +167,7 @@ module.exports = async (request, response) => {
             messageText,
             rsvpRows: rowsForContact,
             baseUrl,
+            includeRsvp,
           }),
           html: buildUpdateHtml({
             teamName: teamRecord.team_name || payload.teamName || "TeamPro",
@@ -240,6 +176,7 @@ module.exports = async (request, response) => {
             messageText,
             rsvpRows: rowsForContact,
             baseUrl,
+            includeRsvp,
           }),
         }),
       });
@@ -292,11 +229,92 @@ function buildRsvpKey(contactId, playerName) {
   return `${contactId}::${playerName || ""}`;
 }
 
+async function ensureEventRsvps({ adminConfig, userId, teamId, eventRecord, emailContacts }) {
+  const existingRsvpRows = await supabaseAdminRequest({
+    supabaseUrl: adminConfig.supabaseUrl,
+    serviceRoleKey: adminConfig.serviceRoleKey,
+    tableName: RSVP_TABLE_NAME,
+    query: {
+      select: "*",
+      event_id: `eq.${eventRecord.id}`,
+      contact_id: `in.(${emailContacts.map((contact) => contact.id).join(",")})`,
+    },
+  });
+
+  const existingRsvpMap = new Map(
+    (Array.isArray(existingRsvpRows) ? existingRsvpRows : []).map((row) => [buildRsvpKey(row.contact_id, row.player_name), row]),
+  );
+
+  const rsvpRows = [];
+
+  for (const contact of emailContacts) {
+    const linkedPlayers = Array.isArray(contact.linked_players) && contact.linked_players.length
+      ? contact.linked_players
+      : [null];
+
+    for (const playerName of linkedPlayers) {
+      const key = buildRsvpKey(contact.id, playerName);
+      const existing = existingRsvpMap.get(key);
+      const token = createSecureToken();
+      const tokenExpiresAt = buildTokenExpiry(eventRecord.event_date);
+
+      if (existing) {
+        const updatedRows = await supabaseAdminRequest({
+          supabaseUrl: adminConfig.supabaseUrl,
+          serviceRoleKey: adminConfig.serviceRoleKey,
+          tableName: RSVP_TABLE_NAME,
+          method: "PATCH",
+          query: {
+            id: `eq.${existing.id}`,
+            select: "*",
+          },
+          headers: {
+            Prefer: "return=representation",
+          },
+          body: {
+            token,
+            token_expires_at: tokenExpiresAt,
+          },
+        });
+        rsvpRows.push(Array.isArray(updatedRows) ? updatedRows[0] : updatedRows);
+      } else {
+        const createdRows = await supabaseAdminRequest({
+          supabaseUrl: adminConfig.supabaseUrl,
+          serviceRoleKey: adminConfig.serviceRoleKey,
+          tableName: RSVP_TABLE_NAME,
+          method: "POST",
+          query: {
+            select: "*",
+          },
+          headers: {
+            Prefer: "return=representation",
+          },
+          body: {
+            user_id: userId,
+            team_id: teamId,
+            event_id: eventRecord.id,
+            contact_id: contact.id,
+            player_name: playerName,
+            response: "no_response",
+            response_note: null,
+            token,
+            token_expires_at: tokenExpiresAt,
+            responded_at: null,
+          },
+        });
+        rsvpRows.push(Array.isArray(createdRows) ? createdRows[0] : createdRows);
+      }
+    }
+  }
+
+  return rsvpRows;
+}
+
 function buildSubject(teamName, eventRecord) {
   return `${teamName} update: ${eventRecord.event_title}`;
 }
 
-function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl }) {
+function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl, includeRsvp }) {
   const lines = [
     `${teamName} update`,
     "",
@@ -309,26 +327,30 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
     "",
     messageText,
     "",
-    `Hello ${contact.contact_name || "there"}, you can RSVP without logging in:`,
+    includeRsvp
+      ? `Hello ${contact.contact_name || "there"}, you can RSVP without logging in:`
+      : `Hello ${contact.contact_name || "there"},`,
   ].filter(Boolean);
 
-  rsvpRows.forEach((row) => {
-    const fallbackLink = buildRsvpLink({ baseUrl, token: row.token });
-    lines.push(
-      "",
-      row.player_name ? `Player: ${row.player_name}` : "Availability response",
-      `Yes: ${buildRsvpLink({ baseUrl, token: row.token, response: "yes" })}`,
-      `No: ${buildRsvpLink({ baseUrl, token: row.token, response: "no" })}`,
-      `Maybe: ${buildRsvpLink({ baseUrl, token: row.token, response: "maybe" })}`,
-      `Reply page: ${fallbackLink}`,
-    );
-  });
+  if (includeRsvp) {
+    rsvpRows.forEach((row) => {
+      const fallbackLink = buildRsvpLink({ baseUrl, token: row.token });
+      lines.push(
+        "",
+        row.player_name ? `Player: ${row.player_name}` : "Availability response",
+        `Yes: ${buildRsvpLink({ baseUrl, token: row.token, response: "yes" })}`,
+        `No: ${buildRsvpLink({ baseUrl, token: row.token, response: "no" })}`,
+        `Maybe: ${buildRsvpLink({ baseUrl, token: row.token, response: "maybe" })}`,
+        `Reply page: ${fallbackLink}`,
+      );
+    });
 
-  lines.push("", "If you prefer, open any of the links above and add an optional note.");
+    lines.push("", "If you prefer, open any of the links above and add an optional note.");
+  }
   return lines.join("\n");
 }
 
-function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl }) {
+function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl, includeRsvp }) {
   return `
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} update</h2>
@@ -339,31 +361,35 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
       ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) ? `<p><strong>Time:</strong> ${escapeHtml(formatEventTimeRange(eventRecord.start_time, eventRecord.end_time))}</p>` : ""}
       ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
-      <div style="margin-top: 20px;">
-        <p style="margin-bottom: 8px;"><strong>RSVP without logging in</strong></p>
-        ${rsvpRows
-          .map((row) => {
-            const yesLink = buildRsvpLink({ baseUrl, token: row.token, response: "yes" });
-            const noLink = buildRsvpLink({ baseUrl, token: row.token, response: "no" });
-            const maybeLink = buildRsvpLink({ baseUrl, token: row.token, response: "maybe" });
-            const fallbackLink = buildRsvpLink({ baseUrl, token: row.token });
+      ${
+        includeRsvp
+          ? `<div style="margin-top: 20px;">
+              <p style="margin-bottom: 8px;"><strong>RSVP without logging in</strong></p>
+              ${rsvpRows
+                .map((row) => {
+                  const yesLink = buildRsvpLink({ baseUrl, token: row.token, response: "yes" });
+                  const noLink = buildRsvpLink({ baseUrl, token: row.token, response: "no" });
+                  const maybeLink = buildRsvpLink({ baseUrl, token: row.token, response: "maybe" });
+                  const fallbackLink = buildRsvpLink({ baseUrl, token: row.token });
 
-            return `
-              <div style="margin: 16px 0; padding: 14px; border: 1px solid #d1d5db; border-radius: 14px;">
-                <p style="margin: 0 0 10px;"><strong>${escapeHtml(row.player_name || "Availability response")}</strong></p>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-                  <a href="${yesLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#1f7a45;color:#ffffff;text-decoration:none;font-weight:700;">Available / Yes</a>
-                  <a href="${noLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b42318;color:#ffffff;text-decoration:none;font-weight:700;">Unavailable / No</a>
-                  <a href="${maybeLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b69258;color:#111827;text-decoration:none;font-weight:700;">Maybe / Unsure</a>
-                </div>
-                <p style="margin: 0; font-size: 12px; color: #6b7280;">
-                  Fallback link: <a href="${fallbackLink}">${escapeHtml(fallbackLink)}</a>
-                </p>
-              </div>
-            `;
-          })
-          .join("")}
-      </div>
+                  return `
+                    <div style="margin: 16px 0; padding: 14px; border: 1px solid #d1d5db; border-radius: 14px;">
+                      <p style="margin: 0 0 10px;"><strong>${escapeHtml(row.player_name || "Availability response")}</strong></p>
+                      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <a href="${yesLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#1f7a45;color:#ffffff;text-decoration:none;font-weight:700;">Available / Yes</a>
+                        <a href="${noLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b42318;color:#ffffff;text-decoration:none;font-weight:700;">Unavailable / No</a>
+                        <a href="${maybeLink}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b69258;color:#111827;text-decoration:none;font-weight:700;">Maybe / Unsure</a>
+                      </div>
+                      <p style="margin: 0; font-size: 12px; color: #6b7280;">
+                        Fallback link: <a href="${fallbackLink}">${escapeHtml(fallbackLink)}</a>
+                      </p>
+                    </div>
+                  `;
+                })
+                .join("")}
+            </div>`
+          : ""
+      }
     </div>
   `;
 }

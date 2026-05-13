@@ -760,6 +760,16 @@ textarea {
   font-weight: 700;
 }
 
+#aiDraftReview {
+  margin-top: 4px;
+}
+
+#aiDraftMissingInfo ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
 .entity-card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -812,6 +822,16 @@ textarea {
 
 .recipient-option input {
   margin-top: 4px;
+}
+
+.checkbox-field {
+  align-content: end;
+}
+
+.checkbox-field input {
+  width: auto;
+  justify-self: start;
+  margin-top: 8px;
 }
 
 .recipient-option strong {
