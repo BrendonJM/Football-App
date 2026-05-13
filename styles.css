@@ -85,10 +85,11 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
   gap: 18px;
-  align-items: end;
+  align-items: start;
   margin-bottom: 18px;
 }
 
+.topbar-primary,
 .topbar-side,
 .team-switcher {
   display: grid;
@@ -182,7 +183,6 @@ p {
 .page-nav {
   display: inline-flex;
   gap: 10px;
-  margin-bottom: 20px;
   padding: 8px;
   border-radius: 999px;
   background: rgba(20, 28, 38, 0.76);
