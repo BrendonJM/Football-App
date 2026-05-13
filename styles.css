@@ -751,6 +751,15 @@ textarea {
   font-size: 0.95rem;
 }
 
+.response-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 10px 0 2px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .entity-card-actions {
   display: flex;
   flex-wrap: wrap;

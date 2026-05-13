@@ -156,6 +156,7 @@ let supabaseAccessToken = "";
 let saveNowInFlight = false;
 let sendingEventUpdate = false;
 let eventFormOpen = false;
+let eventRsvpDetailsOpen = false;
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -322,6 +323,17 @@ saveNowButton.addEventListener("click", async () => {
 
 useNextEventButton?.addEventListener("click", () => {
   useNextPlannedEventForMessaging();
+});
+
+eventRsvpSummary?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-rsvp-toggle]");
+
+  if (!button) {
+    return;
+  }
+
+  eventRsvpDetailsOpen = !eventRsvpDetailsOpen;
+  renderEventRsvps();
 });
 
 eventRsvpList?.addEventListener("click", async (event) => {
@@ -1720,6 +1732,7 @@ function renderEvents() {
 
       if (action === "select") {
         state.selectedEventId = eventId || null;
+        eventRsvpDetailsOpen = false;
         persistState();
         renderEvents();
         renderEventMessaging();
@@ -1806,7 +1819,8 @@ function renderEventRsvps() {
     if (eventRsvpSummary) {
       eventRsvpSummary.innerHTML = "<strong>No event selected</strong><p>Choose an event to see attendance.</p>";
     }
-    eventRsvpList.innerHTML = '<div class="info-card"><strong>No event selected</strong><p>Create or choose an event to view availability.</p></div>';
+    eventRsvpList.innerHTML = "";
+    eventRsvpList.classList.add("hidden");
     return;
   }
 
@@ -1821,12 +1835,31 @@ function renderEventRsvps() {
     eventRsvpSummary.innerHTML = `
       <strong>${escapeHtml(selectedEvent.eventTitle)}</strong>
       <p>${escapeHtml(formatEventDate(selectedEvent.eventDate))}${getEventTimingLabel(selectedEvent) ? ` | ${escapeHtml(getEventTimingLabel(selectedEvent))}` : ""}</p>
-      <p>Yes: ${responseCounts.yes} | No: ${responseCounts.no} | Maybe: ${responseCounts.maybe} | No response: ${responseCounts.no_response}</p>
+      <div class="response-summary-grid">
+        <span>Yes: ${responseCounts.yes}</span>
+        <span>No: ${responseCounts.no}</span>
+        <span>Maybe: ${responseCounts.maybe}</span>
+        <span>No response: ${responseCounts.no_response}</span>
+      </div>
+      <div class="button-row">
+        <button type="button" class="secondary-button" data-rsvp-toggle>${eventRsvpDetailsOpen ? "Show Less" : "Show More"}</button>
+      </div>
     `;
   }
 
   if (!rsvps.length) {
-    eventRsvpList.innerHTML = '<div class="info-card"><strong>No RSVPs yet</strong><p>Send an event update email to generate RSVP links and start collecting responses.</p></div>';
+    eventRsvpList.classList.remove("hidden");
+    eventRsvpList.innerHTML = eventRsvpDetailsOpen
+      ? '<div class="info-card"><strong>No RSVPs yet</strong><p>Send an event update email to generate RSVP links and start collecting responses.</p></div>'
+      : "";
+    eventRsvpList.classList.toggle("hidden", !eventRsvpDetailsOpen);
+    return;
+  }
+
+  eventRsvpList.classList.toggle("hidden", !eventRsvpDetailsOpen);
+
+  if (!eventRsvpDetailsOpen) {
+    eventRsvpList.innerHTML = "";
     return;
   }
 
@@ -2857,6 +2890,7 @@ function useNextPlannedEventForMessaging() {
   }
 
   state.selectedEventId = nextEvent.id;
+  eventRsvpDetailsOpen = false;
   persistState();
   renderEventMessaging();
   renderEventRsvps();
