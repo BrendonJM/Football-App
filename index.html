@@ -303,22 +303,31 @@
                 <p>Create new events and manage the list for this team.</p>
               </div>
 
-              <form id="eventForm" class="stack-form">
-                <input id="eventId" type="hidden" />
-                <label class="field">
-                  <span>Event title</span>
-                  <input id="eventTitle" type="text" placeholder="Saturday match vs Rangers" />
-                </label>
-                <label class="field">
-                  <span>Event type</span>
-                  <select id="eventType">
-                    <option value="training">Training</option>
-                    <option value="game">Game</option>
-                    <option value="tournament">Tournament</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <div class="split-fields">
+              <div class="button-row">
+                <button id="openEventForm" type="button" class="primary-button">Create New Event</button>
+              </div>
+
+              <div id="eventFormPanel" class="info-card hidden">
+                <div class="panel-heading compact-panel-heading">
+                  <h3 id="eventFormHeading">Create Event</h3>
+                  <p>Add the event details, then save it to this team.</p>
+                </div>
+
+                <form id="eventForm" class="stack-form">
+                  <input id="eventId" type="hidden" />
+                  <label class="field">
+                    <span>Event title</span>
+                    <input id="eventTitle" type="text" placeholder="Saturday match vs Rangers" />
+                  </label>
+                  <label class="field">
+                    <span>Event type</span>
+                    <select id="eventType">
+                      <option value="training">Training</option>
+                      <option value="game">Game</option>
+                      <option value="tournament">Tournament</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
                   <label class="field">
                     <span>Day / date</span>
                     <input id="eventDate" type="date" />
@@ -327,62 +336,62 @@
                     <span>Start time</span>
                     <input id="eventStartTime" type="time" />
                   </label>
-                </div>
-                <div class="split-fields">
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>End time</span>
+                      <input id="eventEndTime" type="time" />
+                    </label>
+                    <label class="field">
+                      <span>Status</span>
+                      <select id="eventStatus">
+                        <option value="planned">Planned</option>
+                        <option value="sent">Sent</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </label>
+                  </div>
                   <label class="field">
-                    <span>End time</span>
-                    <input id="eventEndTime" type="time" />
+                    <span>Location</span>
+                    <input id="eventLocation" type="text" placeholder="North Harbour Domain" />
                   </label>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Repeat</span>
+                      <select id="eventRepeatPattern">
+                        <option value="once">One-off event</option>
+                        <option value="weekly">Weekly repeating event</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Repeat end date</span>
+                      <input id="eventRepeatEndDate" type="date" />
+                    </label>
+                  </div>
                   <label class="field">
-                    <span>Status</span>
-                    <select id="eventStatus">
-                      <option value="planned">Planned</option>
-                      <option value="sent">Sent</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="completed">Completed</option>
+                    <span>Repeat day of week</span>
+                    <select id="eventRepeatDayOfWeek">
+                      <option value="">Use event date day</option>
+                      <option value="0">Sunday</option>
+                      <option value="1">Monday</option>
+                      <option value="2">Tuesday</option>
+                      <option value="3">Wednesday</option>
+                      <option value="4">Thursday</option>
+                      <option value="5">Friday</option>
+                      <option value="6">Saturday</option>
                     </select>
                   </label>
-                </div>
-                <label class="field">
-                  <span>Location</span>
-                  <input id="eventLocation" type="text" placeholder="North Harbour Domain" />
-                </label>
-                <div class="split-fields">
                   <label class="field">
-                    <span>Repeat</span>
-                    <select id="eventRepeatPattern">
-                      <option value="once">One-off event</option>
-                      <option value="weekly">Weekly repeating event</option>
-                    </select>
+                    <span>Additional information</span>
+                    <textarea id="eventNotes" rows="4" placeholder="Parking, kit reminder, arrival time"></textarea>
                   </label>
-                  <label class="field">
-                    <span>Repeat end date</span>
-                    <input id="eventRepeatEndDate" type="date" />
-                  </label>
-                </div>
-                <label class="field">
-                  <span>Repeat day of week</span>
-                  <select id="eventRepeatDayOfWeek">
-                    <option value="">Use event date day</option>
-                    <option value="0">Sunday</option>
-                    <option value="1">Monday</option>
-                    <option value="2">Tuesday</option>
-                    <option value="3">Wednesday</option>
-                    <option value="4">Thursday</option>
-                    <option value="5">Friday</option>
-                    <option value="6">Saturday</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Additional information</span>
-                  <textarea id="eventNotes" rows="4" placeholder="Parking, kit reminder, arrival time"></textarea>
-                </label>
-                <div class="button-row">
-                  <button id="saveEvent" type="submit" class="primary-button">Save Event</button>
-                  <button id="resetEvent" type="button" class="secondary-button">Clear</button>
-                </div>
-                <p id="eventStatusMessage" class="status-text" aria-live="polite"></p>
-              </form>
+                  <div class="button-row">
+                    <button id="saveEvent" type="submit" class="primary-button">Save Event</button>
+                    <button id="resetEvent" type="button" class="secondary-button">Cancel</button>
+                  </div>
+                  <p id="eventStatusMessage" class="status-text" aria-live="polite"></p>
+                </form>
+              </div>
 
               <div id="eventList" class="entity-list"></div>
             </section>

@@ -102,6 +102,9 @@ const resetContactButton = document.querySelector("#resetContact");
 const contactStatus = document.querySelector("#contactStatus");
 const contactList = document.querySelector("#contactList");
 const eventForm = document.querySelector("#eventForm");
+const openEventFormButton = document.querySelector("#openEventForm");
+const eventFormPanel = document.querySelector("#eventFormPanel");
+const eventFormHeading = document.querySelector("#eventFormHeading");
 const eventIdInput = document.querySelector("#eventId");
 const eventTitleInput = document.querySelector("#eventTitle");
 const eventTypeInput = document.querySelector("#eventType");
@@ -152,6 +155,7 @@ let supabaseAnonKey = "";
 let supabaseAccessToken = "";
 let saveNowInFlight = false;
 let sendingEventUpdate = false;
+let eventFormOpen = false;
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -239,6 +243,10 @@ resetContactButton.addEventListener("click", () => {
 eventForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveEventFromForm();
+});
+
+openEventFormButton?.addEventListener("click", () => {
+  openEventForm();
 });
 
 resetEventButton.addEventListener("click", () => {
@@ -1530,6 +1538,7 @@ function renderAll() {
   renderContacts();
   renderContactLinkedPlayerOptions();
   renderEventRepeatInputs();
+  renderEventFormPanel();
   renderEvents();
   renderEventMessaging();
   renderEventRsvps();
@@ -2054,6 +2063,7 @@ function resetEventForm() {
   eventRepeatDayOfWeekInput.value = "";
   renderEventRepeatInputs();
   clearStatus(eventStatusMessage);
+  closeEventForm();
 }
 
 function populateContactForm(contactId) {
@@ -2098,6 +2108,8 @@ function populateEventForm(eventId) {
     : "";
   eventNotesInput.value = eventRecord.notes || "";
   renderEventRepeatInputs();
+  eventFormOpen = true;
+  renderEventFormPanel();
   setStatus(eventStatusMessage, `Editing ${eventRecord.eventTitle}.`, false);
 }
 
@@ -2191,6 +2203,33 @@ async function saveEventFromForm() {
       rows: eventRecord.value,
     });
     setStatus(eventStatusMessage, `Event save failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
+function openEventForm() {
+  eventFormOpen = true;
+  renderEventFormPanel();
+  clearStatus(eventStatusMessage);
+}
+
+function closeEventForm() {
+  eventFormOpen = false;
+  renderEventFormPanel();
+}
+
+function renderEventFormPanel() {
+  if (!eventFormPanel) {
+    return;
+  }
+
+  eventFormPanel.classList.toggle("hidden", !eventFormOpen);
+
+  if (eventFormHeading) {
+    eventFormHeading.textContent = eventIdInput.value ? "Edit Event" : "Create Event";
+  }
+
+  if (openEventFormButton) {
+    openEventFormButton.classList.toggle("hidden", eventFormOpen);
   }
 }
 
