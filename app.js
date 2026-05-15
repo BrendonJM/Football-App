@@ -386,16 +386,6 @@ eventRsvpList?.addEventListener("change", async (event) => {
   await saveManualRsvpOverride(field.dataset.rsvpId || "");
 });
 
-eventRsvpList?.addEventListener("focusout", async (event) => {
-  const field = event.target.closest("[data-rsvp-field='note']");
-
-  if (!field) {
-    return;
-  }
-
-  await saveManualRsvpOverride(field.dataset.rsvpId || "");
-});
-
 sendEventEmailButton.addEventListener("click", async () => {
   await sendEventUpdateEmail("all");
 });
@@ -1996,10 +1986,6 @@ function renderEventRsvps() {
                   .join("")}
               </select>
             </label>
-            <label class="field">
-              <span>Coach note</span>
-              <textarea data-rsvp-field="note" data-rsvp-id="${rsvp.id}" rows="2" placeholder="Optional note">${escapeHtml(rsvp.responseNote || "")}</textarea>
-            </label>
           </div>
         </div>
       `,
@@ -3566,9 +3552,7 @@ async function saveManualRsvpOverride(rsvpId) {
   }
 
   const responseInput = eventRsvpList.querySelector(`[data-rsvp-field="response"][data-rsvp-id="${rsvpId}"]`);
-  const noteInput = eventRsvpList.querySelector(`[data-rsvp-field="note"][data-rsvp-id="${rsvpId}"]`);
   const nextResponse = responseInput?.value || "no_response";
-  const nextNote = noteInput?.value.trim() || "";
 
   try {
     const savedRow = await saveRowToSupabase({
@@ -3581,7 +3565,7 @@ async function saveManualRsvpOverride(rsvpId) {
         contact_id: rsvpRecord.contactId,
         player_name: rsvpRecord.playerName || null,
         response: nextResponse,
-        response_note: nextNote || null,
+        response_note: rsvpRecord.responseNote || null,
         token: rsvpRecord.token,
         token_expires_at: rsvpRecord.tokenExpiresAt,
         responded_at: nextResponse === "no_response" ? null : new Date().toISOString(),
