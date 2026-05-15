@@ -741,6 +741,15 @@ textarea {
   background: linear-gradient(180deg, #d7bb86 0%, #b79051 100%);
 }
 
+.player-token.absent-player {
+  border-color: rgba(228, 134, 118, 0.56);
+  background: linear-gradient(180deg, #f4e6e1 0%, #e8d5ce 100%);
+}
+
+.player-token.absent-player .player-meta {
+  color: #9d4c42;
+}
+
 .player-token.empty {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 255, 255, 0.32);

@@ -2105,9 +2105,12 @@ function renderAvailabilityControl() {
   }
 
   const selectedAbsent = isPlayerAbsent(selectedPlayer.id);
-  toggleAvailabilityButton.disabled = false;
+  const selectedAbsentByRsvp = isPlayerAbsentFromRsvp(selectedPlayer.id);
+  toggleAvailabilityButton.disabled = selectedAbsentByRsvp;
   toggleAvailabilityButton.textContent = selectedAbsent
-    ? "Mark selected available"
+    ? selectedAbsentByRsvp
+      ? "Marked absent by RSVP"
+      : "Mark selected available"
     : "Mark selected absent";
 }
 
@@ -3580,7 +3583,7 @@ async function saveManualRsvpOverride(rsvpId) {
       contact_name: rsvpRecord.contactName,
     }));
     persistState();
-    renderEventRsvps();
+    renderAll();
     setStatus(eventRsvpStatus, "RSVP updated.", false);
   } catch (error) {
     console.error("[Supabase] rsvp save failed", {
@@ -3876,6 +3879,12 @@ function renderPitch() {
       const isGoalkeeper = slot.role === "GK";
       const selectedClass = isSelected("slot", index) ? "is-selected" : "";
       const emptyClass = player ? "" : "empty";
+      const absentClass = player && isPlayerAbsent(player.id) ? "absent-player" : "";
+      const playerMeta = player
+        ? isPlayerAbsentFromRsvp(player.id)
+          ? "Absent"
+          : slot.positionLabel
+        : "Tap to place";
 
       return `
         <div
@@ -3884,7 +3893,7 @@ function renderPitch() {
         >
           <div class="slot-role">${escapeHtml(slot.roleLabel)}</div>
           <button
-            class="player-token ${isGoalkeeper ? "goalkeeper" : ""} ${selectedClass} ${emptyClass}"
+            class="player-token ${isGoalkeeper ? "goalkeeper" : ""} ${selectedClass} ${emptyClass} ${absentClass}"
             type="button"
             draggable="${player ? "true" : "false"}"
             data-target-type="slot"
@@ -3892,7 +3901,7 @@ function renderPitch() {
             data-empty="${player ? "false" : "true"}"
           >
             <span class="player-name">${player ? escapeHtml(player.name) : "Open Slot"}</span>
-            <span class="player-meta">${player ? escapeHtml(slot.positionLabel) : "Tap to place"}</span>
+            <span class="player-meta">${escapeHtml(playerMeta)}</span>
           </button>
         </div>
       `;
@@ -4220,11 +4229,12 @@ function fillEmptySlotsFromBench() {
 }
 
 function resetLineup() {
-  const absentIds = [...(state.lineup.absentIds || [])];
-  const availablePlayers = state.players.filter((player) => !absentIds.includes(player.id));
+  const manualAbsentIds = getManualAbsentIds();
+  const effectiveAbsentIds = getEffectiveAbsentIds();
+  const availablePlayers = state.players.filter((player) => !effectiveAbsentIds.includes(player.id));
   state.lineup = buildLineup(availablePlayers, state.config.playersOnField, state.lineup.formation);
-  state.lineup.absentIds = absentIds;
-  absentIds.forEach((playerId) => {
+  state.lineup.absentIds = manualAbsentIds;
+  effectiveAbsentIds.forEach((playerId) => {
     if (!state.lineup.benchIds.includes(playerId)) {
       state.lineup.benchIds.push(playerId);
     }
@@ -4240,10 +4250,11 @@ function setFormation(formation) {
     return;
   }
 
-  const absentIds = [...(state.lineup.absentIds || [])];
+  const manualAbsentIds = getManualAbsentIds();
+  const effectiveAbsentIds = getEffectiveAbsentIds();
   const orderedPlayers = [
-    ...state.lineup.slots.map((slot) => slot.occupantId).filter((playerId) => Boolean(playerId) && !absentIds.includes(playerId)),
-    ...state.lineup.benchIds.filter((playerId) => !absentIds.includes(playerId)),
+    ...state.lineup.slots.map((slot) => slot.occupantId).filter((playerId) => Boolean(playerId) && !effectiveAbsentIds.includes(playerId)),
+    ...state.lineup.benchIds.filter((playerId) => !effectiveAbsentIds.includes(playerId)),
   ];
   const freshSlots = buildFormationSlots(formation, state.config.playersOnField).map((slot, index) => ({
     ...slot,
@@ -4253,8 +4264,8 @@ function setFormation(formation) {
   state.lineup = {
     formation,
     slots: freshSlots,
-    benchIds: [...orderedPlayers.slice(freshSlots.length), ...absentIds.filter((playerId) => !orderedPlayers.includes(playerId))],
-    absentIds,
+    benchIds: [...orderedPlayers.slice(freshSlots.length), ...effectiveAbsentIds.filter((playerId) => !orderedPlayers.includes(playerId))],
+    absentIds: manualAbsentIds,
   };
   state.config.selectedFormation = formation;
   state.selectedTarget = null;
@@ -4291,7 +4302,11 @@ function describeSelection(target) {
     ? findPlayer(state.lineup.slots[target.index].occupantId)
     : findPlayer(state.lineup.benchIds[target.index]);
 
-  const availabilityText = player && isPlayerAbsent(player.id) ? " They are currently marked absent." : "";
+  const availabilityText = player && isPlayerAbsent(player.id)
+    ? isPlayerAbsentFromRsvp(player.id)
+      ? " They are currently marked absent for the selected event because their RSVP is no."
+      : " They are currently marked absent."
+    : "";
 
   return player
     ? `${player.name} selected. Choose another player or an open spot to move them.${availabilityText}`
@@ -4315,7 +4330,48 @@ function getSelectedPlayer() {
 }
 
 function isPlayerAbsent(playerId) {
-  return Boolean(playerId && state.lineup.absentIds?.includes(playerId));
+  return Boolean(playerId && getEffectiveAbsentIds().includes(playerId));
+}
+
+function isPlayerAbsentFromRsvp(playerId) {
+  return Boolean(playerId && getRsvpAbsentPlayerIds().includes(playerId));
+}
+
+function getManualAbsentIds() {
+  return [...(state.lineup.absentIds || [])];
+}
+
+function getEffectiveAbsentIds() {
+  return Array.from(new Set([...getManualAbsentIds(), ...getRsvpAbsentPlayerIds()]));
+}
+
+function getRsvpAbsentPlayerIds() {
+  const selectedEvent = getSelectedEvent();
+
+  if (!selectedEvent || selectedEvent.teamId !== state.activeTeamId) {
+    return [];
+  }
+
+  const declinedNames = new Set(
+    getSelectedEventRsvps()
+      .filter((rsvp) => rsvp.response === "no" && rsvp.playerName)
+      .map((rsvp) => normalisePlayerLookupName(rsvp.playerName)),
+  );
+
+  if (!declinedNames.size) {
+    return [];
+  }
+
+  return state.players
+    .filter((player) => declinedNames.has(normalisePlayerLookupName(player.name)))
+    .map((player) => player.id);
+}
+
+function normalisePlayerLookupName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function toggleSelectedAvailability() {
@@ -4323,6 +4379,15 @@ function toggleSelectedAvailability() {
 
   if (!selectedPlayer) {
     setStatus(exportStatus, "Select a player first.", true);
+    return;
+  }
+
+  if (isPlayerAbsentFromRsvp(selectedPlayer.id)) {
+    setStatus(
+      exportStatus,
+      `${selectedPlayer.name} is marked absent for the selected event because their RSVP is no.`,
+      true,
+    );
     return;
   }
 
@@ -4340,7 +4405,7 @@ function markPlayerAbsent(playerId) {
     return;
   }
 
-  if (!state.lineup.absentIds.includes(playerId)) {
+  if (!getManualAbsentIds().includes(playerId)) {
     state.lineup.absentIds.push(playerId);
   }
 
