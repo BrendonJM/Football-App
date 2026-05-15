@@ -164,6 +164,11 @@ const messagePreview = document.querySelector("#messagePreview");
 const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
 const sendEventEmailButton = document.querySelector("#sendEventEmail");
 const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
+const reminderConfirmPanel = document.querySelector("#reminderConfirmPanel");
+const reminderConfirmSummary = document.querySelector("#reminderConfirmSummary");
+const reminderConfirmList = document.querySelector("#reminderConfirmList");
+const confirmReminderSendButton = document.querySelector("#confirmReminderSend");
+const cancelReminderSendButton = document.querySelector("#cancelReminderSend");
 const messageStatus = document.querySelector("#messageStatus");
 const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
 const eventRsvpList = document.querySelector("#eventRsvpList");
@@ -193,6 +198,7 @@ let saveNowInFlight = false;
 let sendingEventUpdate = false;
 let eventFormOpen = false;
 let eventRsvpDetailsOpen = false;
+let pendingReminderRecipients = [];
 let aiDraftState = {
   loading: false,
   draftId: null,
@@ -398,11 +404,21 @@ sendEventEmailButton.addEventListener("click", async () => {
 sendReminderEmailButton?.addEventListener("click", async () => {
   const recipients = getRecipientsForEventUpdate(getSelectedEvent(), "reminder");
 
-  if (!confirmReminderRecipients(recipients)) {
+  if (!recipients.length) {
+    await sendEventUpdateEmail("reminder");
     return;
   }
 
+  showReminderConfirmation(recipients);
+});
+
+confirmReminderSendButton?.addEventListener("click", async () => {
+  hideReminderConfirmation();
   await sendEventUpdateEmail("reminder");
+});
+
+cancelReminderSendButton?.addEventListener("click", () => {
+  hideReminderConfirmation();
 });
 
 generateAiDraftButton?.addEventListener("click", async () => {
@@ -1894,6 +1910,15 @@ function renderEventMessaging() {
     sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !reminderRecipientContacts.length;
   }
 
+  if (!selectedEvent || sendingEventUpdate) {
+    hideReminderConfirmation();
+  } else if (pendingReminderRecipients.length) {
+    const activeReminderIds = new Set(reminderRecipientContacts.map((contact) => contact.id));
+    if (pendingReminderRecipients.some((contact) => !activeReminderIds.has(contact.id))) {
+      hideReminderConfirmation();
+    }
+  }
+
   if (!selectedEvent) {
     clearStatus(messageStatus);
   }
@@ -2763,29 +2788,37 @@ function getRecipientsForEventUpdate(eventRecord, mode = "all") {
   return contacts.filter((contact) => reminderContactIds.has(contact.id));
 }
 
-function confirmReminderRecipients(recipients) {
-  if (!recipients.length) {
-    return true;
+function showReminderConfirmation(recipients) {
+  pendingReminderRecipients = [...recipients];
+
+  if (reminderConfirmSummary) {
+    reminderConfirmSummary.textContent = `This reminder will only go to ${recipients.length} contact${recipients.length === 1 ? "" : "s"} who have not responded yet.`;
   }
 
-  const names = recipients
-    .map((contact) => contact.contactName || contact.email || "Unnamed contact")
-    .slice(0, 12);
+  if (reminderConfirmList) {
+    const previewNames = recipients
+      .map((contact) => contact.contactName || contact.email || "Unnamed contact")
+      .slice(0, 12);
+    const extraCount = recipients.length - previewNames.length;
 
-  const extraCount = recipients.length - names.length;
-  const lines = [
-    `This reminder will be sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"} who have not responded yet:`,
-    "",
-    ...names.map((name) => `- ${name}`),
-  ];
+    reminderConfirmList.innerHTML = previewNames
+      .map((name) => `<div class="compact-list-item">${escapeHtml(name)}</div>`)
+      .join("");
 
-  if (extraCount > 0) {
-    lines.push(`- and ${extraCount} more`);
+    if (extraCount > 0) {
+      reminderConfirmList.insertAdjacentHTML(
+        "beforeend",
+        `<div class="compact-list-item">And ${extraCount} more contact${extraCount === 1 ? "" : "s"}.</div>`,
+      );
+    }
   }
 
-  lines.push("", "Do you want to continue?");
+  reminderConfirmPanel?.classList.remove("hidden");
+}
 
-  return window.confirm(lines.join("\n"));
+function hideReminderConfirmation() {
+  pendingReminderRecipients = [];
+  reminderConfirmPanel?.classList.add("hidden");
 }
 
 function buildEventMessageText(eventRecord) {

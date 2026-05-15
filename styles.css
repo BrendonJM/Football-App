@@ -916,6 +916,20 @@ textarea {
   color: var(--muted);
 }
 
+.compact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.compact-list-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(14, 20, 27, 0.58);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .compact-stack {
   gap: 10px;
 }
