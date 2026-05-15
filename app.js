@@ -2377,6 +2377,17 @@ async function saveContactFromForm() {
     return;
   }
 
+  try {
+    await ensureTeamExistsForContactSave();
+  } catch (error) {
+    console.error("[Supabase] team ensure failed before contact save", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(contactStatus, error?.message || "Save the team details before adding contacts.", true);
+    return;
+  }
+
   const contact = buildContactFromForm();
 
   if (!contact.ok) {
@@ -2411,6 +2422,47 @@ async function saveContactFromForm() {
     });
     setStatus(contactStatus, `Contact save failed: ${describeSupabaseError(error)}`, true);
   }
+}
+
+async function ensureTeamExistsForContactSave() {
+  const config = buildConfigFromForm();
+
+  if (!config.ok) {
+    throw new Error(config.message);
+  }
+
+  const teamId = state.activeTeamId || createTeamStorageId();
+  const nextRuntime = hydrateTeamRuntime({
+    id: teamId,
+    config: config.value,
+    lineup: state.activeTeamId === teamId ? createLineupSnapshot(state) : null,
+  });
+
+  state.config = nextRuntime.config;
+  state.players = nextRuntime.players;
+  state.lineup = nextRuntime.lineup;
+  state.activeTeamId = teamId;
+  upsertCurrentTeam();
+  state.selectedTarget = null;
+  persistState();
+
+  const currentTeam = state.teams.find((team) => team.id === state.activeTeamId) || null;
+
+  if (!currentTeam) {
+    throw new Error("The team could not be prepared for saving.");
+  }
+
+  await saveTeamRecordToSupabase(currentTeam, {
+    statusElement: contactStatus,
+    pendingMessage: "Saving team details first...",
+    successMessage: "Team details saved.",
+  });
+
+  persistCachedStateOnly();
+  persistUserScopedState();
+  renderAll();
+
+  return currentTeam;
 }
 
 async function saveEventFromForm() {
