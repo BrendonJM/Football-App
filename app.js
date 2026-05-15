@@ -2779,13 +2779,22 @@ function getRecipientsForEventUpdate(eventRecord, mode = "all") {
     return contacts;
   }
 
-  const reminderContactIds = new Set(
-    getSelectedEventRsvps()
-      .filter((rsvp) => rsvp.response === "no_response")
-      .map((rsvp) => rsvp.contactId),
-  );
+  const rsvpsByContactId = new Map();
+  getSelectedEventRsvps().forEach((rsvp) => {
+    const rows = rsvpsByContactId.get(rsvp.contactId) || [];
+    rows.push(rsvp);
+    rsvpsByContactId.set(rsvp.contactId, rows);
+  });
 
-  return contacts.filter((contact) => reminderContactIds.has(contact.id));
+  return contacts.filter((contact) => {
+    const contactRsvps = rsvpsByContactId.get(contact.id) || [];
+
+    if (!contactRsvps.length) {
+      return true;
+    }
+
+    return contactRsvps.some((rsvp) => rsvp.response === "no_response");
+  });
 }
 
 function showReminderConfirmation(recipients) {
