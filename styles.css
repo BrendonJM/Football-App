@@ -215,7 +215,7 @@ p {
 }
 
 .single-panel-layout {
-  grid-template-columns: minmax(0, 920px);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .setup-panel {
