@@ -300,6 +300,42 @@ p {
 
 .events-admin-grid {
   grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
+  gap: 10px;
+}
+
+#commsPage .panel {
+  padding: 14px;
+}
+
+#commsPage .panel-heading {
+  gap: 2px;
+}
+
+#commsPage .stack-form {
+  gap: 8px;
+}
+
+#commsPage .info-card,
+#commsPage .entity-card,
+#commsPage #eventFormPanel {
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+#commsPage .button-row {
+  gap: 6px;
+}
+
+#commsPage .entity-card {
+  gap: 6px;
+}
+
+#commsPage .entity-card-meta {
+  gap: 2px;
+}
+
+#commsPage .status-text {
+  min-height: 18px;
 }
 
 .panel {
