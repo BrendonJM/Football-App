@@ -124,8 +124,6 @@ const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
 const eventListSummary = document.querySelector("#eventListSummary");
-const nextEventSummary = document.querySelector("#nextEventSummary");
-const useNextEventButton = document.querySelector("#useNextEvent");
 const selectedEventDetails = document.querySelector("#selectedEventDetails");
 const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
 const generateAiDraftButton = document.querySelector("#generateAiDraft");
@@ -366,10 +364,6 @@ copyImageButton.addEventListener("click", async () => {
 
 saveNowButton.addEventListener("click", async () => {
   await saveActiveTeamNow();
-});
-
-useNextEventButton?.addEventListener("click", () => {
-  useNextPlannedEventForMessaging();
 });
 
 eventRsvpSummary?.addEventListener("click", (event) => {
@@ -1875,20 +1869,9 @@ function renderEventMessaging() {
   if (selectedEvent && state.selectedEventId !== selectedEvent.id) {
     state.selectedEventId = selectedEvent.id;
   }
-  const nextEvent = getNextPlannedEvent();
   const emailContacts = contacts.filter((contact) => contact.email);
   const allRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "all");
   const reminderRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "reminder");
-
-  if (nextEventSummary) {
-    nextEventSummary.textContent = nextEvent
-      ? `${nextEvent.eventTitle} | ${formatEventDate(nextEvent.eventDate)}${getEventTimingLabel(nextEvent) ? ` | ${getEventTimingLabel(nextEvent)}` : ""}${nextEvent.location ? ` | ${nextEvent.location}` : ""}`
-      : "No upcoming planned event found for this team.";
-  }
-
-  if (useNextEventButton) {
-    useNextEventButton.disabled = !nextEvent || sendingEventUpdate;
-  }
 
   if (selectedEventDetails) {
     selectedEventDetails.innerHTML = selectedEvent
@@ -3760,23 +3743,6 @@ function getNextPlannedEvent() {
       const eventDateTime = new Date(`${eventRecord.eventDate}T${eventRecord.startTime || "23:59"}`);
       return eventDateTime.getTime() >= now.getTime();
     })[0] || null;
-}
-
-function useNextPlannedEventForMessaging() {
-  const nextEvent = getNextPlannedEvent();
-
-  if (!nextEvent) {
-    setStatus(messageStatus, "No planned upcoming event is available.", true);
-    return;
-  }
-
-  state.selectedEventId = nextEvent.id;
-  eventRsvpDetailsOpen = false;
-  persistState();
-  renderEventMessaging();
-  renderEventRsvps();
-  renderAiAssistant();
-  setStatus(messageStatus, `Using ${nextEvent.eventTitle} for the next event update.`, false);
 }
 
 function renderEventRepeatInputs() {
