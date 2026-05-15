@@ -383,14 +383,24 @@ eventRsvpSummary?.addEventListener("click", (event) => {
   renderEventRsvps();
 });
 
-eventRsvpList?.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-rsvp-action='save']");
+eventRsvpList?.addEventListener("change", async (event) => {
+  const field = event.target.closest("[data-rsvp-field='response']");
 
-  if (!button) {
+  if (!field) {
     return;
   }
 
-  await saveManualRsvpOverride(button.dataset.rsvpId || "");
+  await saveManualRsvpOverride(field.dataset.rsvpId || "");
+});
+
+eventRsvpList?.addEventListener("focusout", async (event) => {
+  const field = event.target.closest("[data-rsvp-field='note']");
+
+  if (!field) {
+    return;
+  }
+
+  await saveManualRsvpOverride(field.dataset.rsvpId || "");
 });
 
 copyMessagePreviewButton.addEventListener("click", async () => {
@@ -2013,9 +2023,6 @@ function renderEventRsvps() {
               <span>Coach note</span>
               <textarea data-rsvp-field="note" data-rsvp-id="${rsvp.id}" rows="2" placeholder="Optional note">${escapeHtml(rsvp.responseNote || "")}</textarea>
             </label>
-            <div class="button-row">
-              <button type="button" class="secondary-button" data-rsvp-action="save" data-rsvp-id="${rsvp.id}">Save RSVP</button>
-            </div>
           </div>
         </div>
       `,
