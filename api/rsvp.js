@@ -1,5 +1,7 @@
 const {
   assertSupabaseAdminConfig,
+  escapeHtml,
+  fetchAdminUserById,
   fetchAuthenticatedUser,
   getSupabaseAdminConfig,
   supabaseAdminRequest,
@@ -108,9 +110,26 @@ module.exports = async (request, response) => {
         },
       });
 
+      const updatedRsvp = Array.isArray(updatedRows) ? updatedRows[0] : updatedRows;
+
+      if (responseValue !== "no_response") {
+        void notifyOwnerOfRsvpResponse({
+          adminConfig,
+          detail,
+          updatedRsvp,
+        }).catch((error) => {
+          console.warn("[RSVP] Owner notification failed", {
+            error,
+            message: error?.message || String(error),
+            rsvpId: detail.id,
+            ownerUserId: detail.user_id,
+          });
+        });
+      }
+
       response.status(200).json({
         ok: true,
-        rsvp: Array.isArray(updatedRows) ? updatedRows[0] : updatedRows,
+        rsvp: updatedRsvp,
       });
       return;
     }
@@ -126,6 +145,64 @@ module.exports = async (request, response) => {
     });
   }
 };
+
+async function notifyOwnerOfRsvpResponse({ adminConfig, detail, updatedRsvp }) {
+  const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const resendFromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
+
+  if (!resendApiKey || !resendFromEmail) {
+    console.warn("[RSVP] Owner notification skipped because Resend is not fully configured", {
+      hasApiKey: Boolean(resendApiKey),
+      hasFromEmail: Boolean(resendFromEmail),
+    });
+    return;
+  }
+
+  const ownerUser = await fetchAdminUserById({
+    supabaseUrl: adminConfig.supabaseUrl,
+    serviceRoleKey: adminConfig.serviceRoleKey,
+    userId: detail.user_id,
+  });
+
+  const ownerEmail = String(ownerUser?.email || "").trim();
+
+  if (!ownerEmail) {
+    console.warn("[RSVP] Owner notification skipped because the signed-in user has no email address", {
+      ownerUserId: detail.user_id,
+      rsvpId: detail.id,
+    });
+    return;
+  }
+
+  const resendResponse = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: resendFromEmail,
+      to: [ownerEmail],
+      subject: buildOwnerNotificationSubject(detail),
+      text: buildOwnerNotificationText(detail, updatedRsvp),
+      html: buildOwnerNotificationHtml(detail, updatedRsvp),
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text();
+    throw new Error(`Resend request failed: ${errorText}`);
+  }
+
+  const resendJson = await resendResponse.json().catch(() => ({}));
+  console.info("[RSVP] Owner notification sent", {
+    ownerUserId: detail.user_id,
+    ownerEmail,
+    rsvpId: detail.id,
+    resendId: resendJson?.id || null,
+    response: updatedRsvp?.response || detail.response,
+  });
+}
 
 async function getRsvpDetail({ adminConfig, token }) {
   const rows = await supabaseAdminRequest({
@@ -176,4 +253,71 @@ async function getRsvpDetail({ adminConfig, token }) {
     contact_email: row.contact?.email || "",
     contact_phone: row.contact?.phone || "",
   };
+}
+
+function buildOwnerNotificationSubject(detail) {
+  return `${detail.contact_name || "A contact"} responded to ${detail.event_title || "your event"}`;
+}
+
+function buildOwnerNotificationText(detail, updatedRsvp) {
+  const responseLabel = formatResponseLabel(updatedRsvp?.response || detail.response);
+  const note = String(updatedRsvp?.response_note || detail.response_note || "").trim();
+
+  return [
+    "A TeamPro RSVP has been updated.",
+    "",
+    `Contact: ${detail.contact_name || "Unknown contact"}`,
+    detail.player_name ? `Linked player: ${detail.player_name}` : null,
+    `Response: ${responseLabel}`,
+    `Event: ${detail.event_title || "Untitled event"}`,
+    `Date: ${detail.event_date || "To be confirmed"}`,
+    `Time: ${buildEventTiming(detail) || "To be confirmed"}`,
+    `Location: ${detail.location || "To be confirmed"}`,
+    note ? `Note: ${note}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildOwnerNotificationHtml(detail, updatedRsvp) {
+  const responseLabel = formatResponseLabel(updatedRsvp?.response || detail.response);
+  const note = String(updatedRsvp?.response_note || detail.response_note || "").trim();
+
+  return `
+    <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+      <h2 style="margin-bottom: 12px;">A TeamPro RSVP has been updated</h2>
+      <p><strong>Contact:</strong> ${escapeHtml(detail.contact_name || "Unknown contact")}</p>
+      ${detail.player_name ? `<p><strong>Linked player:</strong> ${escapeHtml(detail.player_name)}</p>` : ""}
+      <p><strong>Response:</strong> ${escapeHtml(responseLabel)}</p>
+      <p><strong>Event:</strong> ${escapeHtml(detail.event_title || "Untitled event")}</p>
+      <p><strong>Date:</strong> ${escapeHtml(detail.event_date || "To be confirmed")}</p>
+      <p><strong>Time:</strong> ${escapeHtml(buildEventTiming(detail) || "To be confirmed")}</p>
+      <p><strong>Location:</strong> ${escapeHtml(detail.location || "To be confirmed")}</p>
+      ${note ? `<p><strong>Note:</strong></p><div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(note)}</div>` : ""}
+    </div>
+  `;
+}
+
+function buildEventTiming(detail) {
+  const start = String(detail.start_time || "").trim();
+  const end = String(detail.end_time || "").trim();
+
+  if (start && end) {
+    return `${start} - ${end}`;
+  }
+
+  return start || end || "";
+}
+
+function formatResponseLabel(value) {
+  switch (String(value || "").trim()) {
+    case "yes":
+      return "Yes";
+    case "no":
+      return "No";
+    case "maybe":
+      return "Maybe";
+    default:
+      return "No response";
+  }
 }

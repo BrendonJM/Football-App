@@ -44,6 +44,35 @@ async function fetchAuthenticatedUser({ supabaseUrl, supabaseAnonKey, accessToke
   return payload;
 }
 
+async function fetchAdminUserById({ supabaseUrl, serviceRoleKey, userId }) {
+  if (!supabaseUrl || !serviceRoleKey || !userId) {
+    throw new Error("Supabase admin user lookup is missing required inputs.");
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: "GET",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(
+      payload?.msg ||
+      payload?.message ||
+      payload?.error_description ||
+      response.statusText ||
+      "Supabase admin user lookup failed.",
+    );
+  }
+
+  return payload?.user || payload;
+}
+
 async function supabaseAdminRequest({ supabaseUrl, serviceRoleKey, tableName, method = "GET", query = {}, body = null, headers = {} }) {
   const url = new URL(`${supabaseUrl}/rest/v1/${tableName}`);
 
@@ -138,6 +167,7 @@ module.exports = {
   buildTokenExpiry,
   createSecureToken,
   escapeHtml,
+  fetchAdminUserById,
   fetchAuthenticatedUser,
   getSupabaseAdminConfig,
   supabaseAdminRequest,
