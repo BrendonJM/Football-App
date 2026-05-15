@@ -84,9 +84,9 @@ button {
 .topbar {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
-  gap: 14px;
+  gap: 12px;
   align-items: start;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .topbar-primary,
@@ -207,7 +207,7 @@ p {
 .layout-grid,
 .manage-grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .layout-grid {
@@ -224,13 +224,13 @@ p {
 
 .setup-flow {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .setup-step {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: rgba(24, 33, 43, 0.9);
@@ -291,7 +291,7 @@ p {
 .manage-main-column,
 .team-admin-grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .team-admin-grid {
@@ -306,7 +306,18 @@ p {
   border-radius: var(--radius);
   background: var(--surface);
   backdrop-filter: blur(12px);
-  padding: 20px;
+  padding: 16px;
+}
+
+.panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.panel-heading h2,
+.panel-heading h3,
+.panel-heading p {
+  margin-bottom: 0;
 }
 
 .panel-heading p,
@@ -329,7 +340,7 @@ p {
 .bench-section,
 .training-plan-body {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .field span,
@@ -345,7 +356,7 @@ input,
 select,
 textarea {
   width: 100%;
-  padding: 11px 13px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-strong);
@@ -364,7 +375,7 @@ textarea {
 }
 
 .formation-builder {
-  padding: 16px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface-muted);
@@ -408,7 +419,7 @@ textarea {
 .tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .compact-field {
@@ -420,10 +431,11 @@ textarea {
 .danger-button,
 .ghost-button,
 .text-button {
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 12px;
   border-radius: 12px;
   font-weight: 800;
+  font-size: 0.95rem;
 }
 
 .primary-button {
@@ -468,14 +480,14 @@ textarea {
 .mini-preview,
 .summary-block,
 .selection-card {
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: rgba(26, 35, 48, 0.74);
 }
 
 .compact-info-card {
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .info-card strong,
@@ -777,13 +789,13 @@ textarea {
 .split-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .entity-list,
 .recipient-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .event-list-scroll {
@@ -804,7 +816,7 @@ textarea {
 .entity-card {
   display: grid;
   gap: 8px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: rgba(26, 35, 48, 0.74);
@@ -835,9 +847,9 @@ textarea {
 
 .entity-card-meta {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .entity-card-compact .entity-card-meta {
@@ -876,10 +888,10 @@ textarea {
 
 .entity-card-compact .secondary-button,
 .entity-card-compact .danger-button {
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 10px;
   border-radius: 12px;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .pill {
@@ -1056,7 +1068,7 @@ textarea {
   }
 
   .panel {
-    padding: 15px;
+    padding: 13px;
     border-radius: 20px;
   }
 
