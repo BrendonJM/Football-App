@@ -4030,13 +4030,6 @@ function buildConfigFromForm() {
     return { ok: false, message: "Add a team name first." };
   }
 
-  if (players.length < playersOnField) {
-    return {
-      ok: false,
-      message: `You need at least ${playersOnField} players to fill the field.`,
-    };
-  }
-
   if (formations.length === 0) {
     return {
       ok: false,
