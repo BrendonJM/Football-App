@@ -3094,6 +3094,7 @@ async function createEventFromAiDraft() {
     state.selectedEventId = mapped.id;
     persistState();
     await saveAiDraftStatus("used", mapped.id);
+    clearAiDraftState();
     renderAll();
     setStatus(aiDraftStatus, "Event created from draft.", false);
   } catch (error) {
@@ -3143,6 +3144,7 @@ async function applyAiDraftToExistingEvent(mode) {
     state.selectedEventId = mapped.id;
     persistState();
     await saveAiDraftStatus("used", mapped.id);
+    clearAiDraftState();
     renderAll();
     setStatus(aiDraftStatus, mode === "cancel" ? "Event cancelled from draft." : "Event updated from draft.", false);
   } catch (error) {
@@ -3153,6 +3155,14 @@ async function applyAiDraftToExistingEvent(mode) {
     });
     setStatus(aiDraftStatus, `Draft event update failed: ${describeSupabaseError(error)}`, true);
   }
+}
+
+function clearAiDraftState() {
+  aiDraftState = {
+    loading: false,
+    draftId: null,
+    data: null,
+  };
 }
 
 function buildSingleEventRowFromAiDraft(existingEvent = null, forcedStatus = null) {
