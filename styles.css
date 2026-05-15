@@ -218,6 +218,71 @@ p {
   grid-template-columns: minmax(0, 920px);
 }
 
+.setup-panel {
+  padding-bottom: 28px;
+}
+
+.setup-flow {
+  display: grid;
+  gap: 18px;
+}
+
+.setup-step {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(24, 33, 43, 0.9);
+}
+
+.setup-step-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.setup-step-heading h3 {
+  margin-bottom: 4px;
+}
+
+.setup-step-heading p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.step-badge {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.contacts-setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.compact-entity-list .entity-card {
+  padding: 14px;
+}
+
+.setup-submit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
 .manage-grid {
   grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
   align-items: start;
@@ -969,6 +1034,11 @@ textarea {
   }
 
   .events-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contacts-setup-grid,
+  .setup-submit-row {
     grid-template-columns: 1fr;
   }
 

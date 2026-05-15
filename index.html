@@ -131,80 +131,123 @@
 
         <section id="configPage" class="page-section hidden">
           <div class="layout-grid single-panel-layout">
-            <section class="panel">
+            <section class="panel setup-panel">
               <div class="panel-heading">
                 <h2>Team Setup</h2>
-                <p>Enter your squad and choose how many players are on the field.</p>
+                <p>Set up your team in order: team name, players on the field, squad list, then parent or staff contacts.</p>
               </div>
 
-              <form id="configForm" class="stack-form">
-                <label class="field">
-                  <span>Team name</span>
-                  <input id="teamName" name="teamName" type="text" placeholder="Harbour United U12" />
-                </label>
+              <div class="setup-flow">
+                <form id="configForm" class="stack-form">
+                  <section class="setup-step">
+                    <div class="setup-step-heading">
+                      <span class="step-badge">1</span>
+                      <div>
+                        <h3>Team basics</h3>
+                        <p>Name the team and choose the game format first.</p>
+                      </div>
+                    </div>
 
-                <label class="field">
-                  <span>Players on the field</span>
-                  <select id="playersOnField" name="playersOnField"></select>
-                </label>
+                    <div class="split-fields">
+                      <label class="field">
+                        <span>Team name</span>
+                        <input id="teamName" name="teamName" type="text" placeholder="Harbour United U12" />
+                      </label>
 
-                <label class="field">
-                  <span>Player names</span>
-                  <textarea
-                    id="playerNames"
-                    name="playerNames"
-                    rows="14"
-                    placeholder="Enter one player name per line"
-                  ></textarea>
-                </label>
+                      <label class="field">
+                        <span>Players on the field</span>
+                        <select id="playersOnField" name="playersOnField"></select>
+                      </label>
+                    </div>
+                  </section>
 
-                <div class="button-row">
-                  <button type="submit" class="primary-button">Save And Open Team Board</button>
+                  <section class="setup-step">
+                    <div class="setup-step-heading">
+                      <span class="step-badge">2</span>
+                      <div>
+                        <h3>Squad list</h3>
+                        <p>Add one player per line so TeamPro can build your bench, lineup and contact links.</p>
+                      </div>
+                    </div>
+
+                    <label class="field">
+                      <span>Player names</span>
+                      <textarea
+                        id="playerNames"
+                        name="playerNames"
+                        rows="12"
+                        placeholder="Enter one player name per line"
+                      ></textarea>
+                    </label>
+                  </section>
+                </form>
+
+                <section class="setup-step">
+                  <div class="setup-step-heading">
+                    <span class="step-badge">3</span>
+                    <div>
+                      <h3>Contact people</h3>
+                      <p>Add parents, coaches or managers and link them to one or more players. A player can have multiple contacts.</p>
+                    </div>
+                  </div>
+
+                  <div class="contacts-setup-grid">
+                    <div class="info-card">
+                      <form id="contactForm" class="stack-form">
+                        <input id="contactId" type="hidden" />
+                        <label class="field">
+                          <span>Contact name</span>
+                          <input id="contactName" type="text" placeholder="Sam Taylor" />
+                        </label>
+                        <div class="split-fields">
+                          <label class="field">
+                            <span>Email address</span>
+                            <input id="contactEmail" type="email" placeholder="sam@example.com" />
+                          </label>
+                          <label class="field">
+                            <span>Phone number</span>
+                            <input id="contactPhone" type="tel" placeholder="+64 21 123 4567" />
+                          </label>
+                        </div>
+                        <label class="field">
+                          <span>Role / relationship</span>
+                          <input id="contactRole" type="text" placeholder="Parent, coach, manager" />
+                        </label>
+                        <div class="field">
+                          <span>Linked players</span>
+                          <div id="contactLinkedPlayers" class="checkbox-grid"></div>
+                        </div>
+                        <label class="field">
+                          <span>Notes</span>
+                          <textarea id="contactNotes" rows="3" placeholder="Optional notes"></textarea>
+                        </label>
+                        <div class="button-row">
+                          <button id="saveContact" type="submit" class="primary-button">Save Contact</button>
+                          <button id="resetContact" type="button" class="secondary-button">Clear</button>
+                        </div>
+                        <p id="contactStatus" class="status-text" aria-live="polite"></p>
+                      </form>
+                    </div>
+
+                    <div class="info-card">
+                      <strong>Saved contacts</strong>
+                      <p class="helper-text">Add your core contact people now so updates and RSVPs are ready when you create events.</p>
+                      <div id="contactList" class="entity-list compact-entity-list"></div>
+                    </div>
+                  </div>
+                </section>
+
+                <div class="setup-submit-row">
+                  <div class="info-card compact-info-card">
+                    <strong>Ready for match day setup</strong>
+                    <p>Save this team once the squad and key contacts are in place, then open the team board.</p>
+                  </div>
+                  <div class="button-row">
+                    <button type="submit" form="configForm" class="primary-button">Save And Open Team Board</button>
+                  </div>
                 </div>
                 <p id="configStatus" class="status-text" aria-live="polite"></p>
-              </form>
-            </section>
-
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>Contacts</h2>
-                <p>Link parents, coaches, and managers to one or more players in this team.</p>
               </div>
-
-              <form id="contactForm" class="stack-form">
-                <input id="contactId" type="hidden" />
-                <label class="field">
-                  <span>Contact name</span>
-                  <input id="contactName" type="text" placeholder="Sam Taylor" />
-                </label>
-                <label class="field">
-                  <span>Email address</span>
-                  <input id="contactEmail" type="email" placeholder="sam@example.com" />
-                </label>
-                <label class="field">
-                  <span>Phone number</span>
-                  <input id="contactPhone" type="tel" placeholder="+64 21 123 4567" />
-                </label>
-                <label class="field">
-                  <span>Role / relationship</span>
-                  <input id="contactRole" type="text" placeholder="Parent, coach, manager" />
-                </label>
-                <div class="field">
-                  <span>Linked players</span>
-                  <div id="contactLinkedPlayers" class="checkbox-grid"></div>
-                </div>
-                <label class="field">
-                  <span>Notes</span>
-                  <textarea id="contactNotes" rows="3" placeholder="Optional notes"></textarea>
-                </label>
-                <div class="button-row">
-                  <button id="saveContact" type="submit" class="primary-button">Save Contact</button>
-                  <button id="resetContact" type="button" class="secondary-button">Clear</button>
-                </div>
-                <p id="contactStatus" class="status-text" aria-live="polite"></p>
-              </form>
-
-              <div id="contactList" class="entity-list"></div>
             </section>
           </div>
         </section>
