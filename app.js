@@ -396,6 +396,12 @@ sendEventEmailButton.addEventListener("click", async () => {
 });
 
 sendReminderEmailButton?.addEventListener("click", async () => {
+  const recipients = getRecipientsForEventUpdate(getSelectedEvent(), "reminder");
+
+  if (!confirmReminderRecipients(recipients)) {
+    return;
+  }
+
   await sendEventUpdateEmail("reminder");
 });
 
@@ -2755,6 +2761,31 @@ function getRecipientsForEventUpdate(eventRecord, mode = "all") {
   );
 
   return contacts.filter((contact) => reminderContactIds.has(contact.id));
+}
+
+function confirmReminderRecipients(recipients) {
+  if (!recipients.length) {
+    return true;
+  }
+
+  const names = recipients
+    .map((contact) => contact.contactName || contact.email || "Unnamed contact")
+    .slice(0, 12);
+
+  const extraCount = recipients.length - names.length;
+  const lines = [
+    `This reminder will be sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"} who have not responded yet:`,
+    "",
+    ...names.map((name) => `- ${name}`),
+  ];
+
+  if (extraCount > 0) {
+    lines.push(`- and ${extraCount} more`);
+  }
+
+  lines.push("", "Do you want to continue?");
+
+  return window.confirm(lines.join("\n"));
 }
 
 function buildEventMessageText(eventRecord) {
