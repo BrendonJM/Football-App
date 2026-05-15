@@ -14,6 +14,7 @@ const RSVP_TABLE_NAME = "event_rsvps";
 const EVENTS_TABLE_NAME = "team_events";
 const CONTACTS_TABLE_NAME = "team_contacts";
 const TEAMS_TABLE_NAME = "teams";
+const RESEND_SEND_DELAY_MS = 600;
 
 module.exports = async (request, response) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -148,59 +149,61 @@ module.exports = async (request, response) => {
     const subject = subjectOverride || buildSubject(teamRecord.team_name || payload.teamName || "TeamPro", eventRecord);
     const sendResults = [];
 
-    for (const contact of emailContacts) {
+    for (let index = 0; index < emailContacts.length; index += 1) {
+      const contact = emailContacts[index];
       const rowsForContact = rsvpsByContactId[contact.id] || [];
-      const resendResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: resendFromEmail,
-          to: [String(contact.email).trim()],
-          subject,
-          text: buildUpdateText({
-            teamName: teamRecord.team_name || payload.teamName || "TeamPro",
-            eventRecord,
-            contact,
-            messageText,
-            rsvpRows: rowsForContact,
-            baseUrl,
-            includeRsvp,
-          }),
-          html: buildUpdateHtml({
-            teamName: teamRecord.team_name || payload.teamName || "TeamPro",
-            eventRecord,
-            contact,
-            messageText,
-            rsvpRows: rowsForContact,
-            baseUrl,
-            includeRsvp,
-          }),
-        }),
+      const sendResult = await sendResendEmail({
+        resendApiKey,
+        resendFromEmail,
+        subject,
+        contact,
+        teamName: teamRecord.team_name || payload.teamName || "TeamPro",
+        eventRecord,
+        messageText,
+        rsvpRows: rowsForContact,
+        baseUrl,
+        includeRsvp,
       });
 
-      if (!resendResponse.ok) {
-        const errorText = await resendResponse.text();
-        throw new Error(`Resend request failed: ${errorText}`);
+      sendResults.push(sendResult);
+
+      if (index < emailContacts.length - 1) {
+        await wait(RESEND_SEND_DELAY_MS);
       }
-
-      const resendJson = await resendResponse.json();
-      sendResults.push({
-        contactId: contact.id,
-        email: contact.email,
-        resendId: resendJson.id || null,
-      });
     }
+
+    const sentResults = sendResults.filter((result) => result.ok);
+    const failedResults = sendResults.filter((result) => !result.ok);
+
+    console.info("[Updates] Email send summary", {
+      teamId,
+      eventId,
+      sentCount: sentResults.length,
+      failedCount: failedResults.length,
+      sentContacts: sentResults.map((result) => ({
+        contactId: result.contactId,
+        email: result.email,
+        resendId: result.resendId,
+      })),
+      failedContacts: failedResults.map((result) => ({
+        contactId: result.contactId,
+        email: result.email,
+        error: result.error,
+        status: result.status,
+      })),
+    });
 
     response.status(200).json({
       ok: true,
-      sent: true,
+      sent: sentResults.length > 0,
+      partialSuccess: sentResults.length > 0 && failedResults.length > 0,
       subject,
       recipientCount: emailContacts.length,
+      sentCount: sentResults.length,
+      failedCount: failedResults.length,
       rsvps: rsvpRows,
       sendResults,
+      failedResults,
     });
   } catch (error) {
     console.error("[Updates] Email send failed", {
@@ -223,6 +226,128 @@ function groupRowsByContactId(rows) {
     accumulator[key].push(row);
     return accumulator;
   }, {});
+}
+
+async function sendResendEmail({
+  resendApiKey,
+  resendFromEmail,
+  subject,
+  contact,
+  teamName,
+  eventRecord,
+  messageText,
+  rsvpRows,
+  baseUrl,
+  includeRsvp,
+}) {
+  try {
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: resendFromEmail,
+        to: [String(contact.email).trim()],
+        subject,
+        text: buildUpdateText({
+          teamName,
+          eventRecord,
+          contact,
+          messageText,
+          rsvpRows,
+          baseUrl,
+          includeRsvp,
+        }),
+        html: buildUpdateHtml({
+          teamName,
+          eventRecord,
+          contact,
+          messageText,
+          rsvpRows,
+          baseUrl,
+          includeRsvp,
+        }),
+      }),
+    });
+
+    const rawText = await resendResponse.text();
+    let responseJson = null;
+
+    if (rawText) {
+      try {
+        responseJson = JSON.parse(rawText);
+      } catch (_error) {
+        responseJson = { raw: rawText };
+      }
+    }
+
+    if (!resendResponse.ok) {
+      const errorMessage =
+        responseJson?.message ||
+        responseJson?.error ||
+        responseJson?.name ||
+        rawText ||
+        resendResponse.statusText ||
+        "Resend request failed.";
+
+      console.warn("[Updates] Resend recipient send failed", {
+        contactId: contact.id,
+        email: contact.email,
+        status: resendResponse.status,
+        error: errorMessage,
+      });
+
+      return {
+        ok: false,
+        contactId: contact.id,
+        email: contact.email,
+        resendId: null,
+        status: resendResponse.status,
+        error:
+          resendResponse.status === 429
+            ? "Resend rate limit exceeded for this recipient."
+            : errorMessage,
+      };
+    }
+
+    console.info("[Updates] Resend recipient send succeeded", {
+      contactId: contact.id,
+      email: contact.email,
+      resendId: responseJson?.id || null,
+    });
+
+    return {
+      ok: true,
+      contactId: contact.id,
+      email: contact.email,
+      resendId: responseJson?.id || null,
+      status: resendResponse.status,
+      error: null,
+    };
+  } catch (error) {
+    console.warn("[Updates] Resend recipient send threw", {
+      contactId: contact.id,
+      email: contact.email,
+      error,
+      message: error?.message || String(error),
+    });
+    return {
+      ok: false,
+      contactId: contact.id,
+      email: contact.email,
+      resendId: null,
+      status: null,
+      error: error?.message || "Resend request failed.",
+    };
+  }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 }
 
 function buildRsvpKey(contactId, playerName) {

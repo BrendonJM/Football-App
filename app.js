@@ -3144,10 +3144,15 @@ async function sendAiDraftEmail() {
     renderAll();
     setStatus(
       aiDraftStatus,
-      result.sent
-        ? `AI draft email sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`
-        : (result.warning || "Email sending is not configured yet. Copy the draft instead."),
-      false,
+      result.warning
+        ? result.warning
+        : buildEmailSendStatusMessage({
+            mode: "all",
+            sentCount: Number(result.sentCount || 0),
+            failedCount: Number(result.failedCount || 0),
+            prefix: "AI draft",
+          }),
+      Number(result.failedCount || 0) > 0 && Number(result.sentCount || 0) === 0,
     );
   } catch (error) {
     console.error("[AI Draft] Send failed", {
@@ -3185,6 +3190,24 @@ function getAiDraftRecipients(selectedEvent) {
     default:
       return contacts.filter((contact) => contact.email);
   }
+}
+
+function buildEmailSendStatusMessage({ mode, sentCount, failedCount, prefix = "" }) {
+  const intro = prefix ? `${prefix} email` : mode === "reminder" ? "Reminder" : "Email update";
+
+  if (sentCount > 0 && failedCount > 0) {
+    return `${intro} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed due to send limits or delivery errors.`;
+  }
+
+  if (sentCount > 0) {
+    return `${intro} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}.`;
+  }
+
+  if (failedCount > 0) {
+    return `${intro} could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed due to send limits or delivery errors.`;
+  }
+
+  return `${intro} did not send to any contacts.`;
 }
 
 function getAiDraftTargetEventId() {
@@ -3383,8 +3406,12 @@ async function sendEventUpdateEmail(mode = "all") {
     } else {
       setStatus(
         messageStatus,
-        `${mode === "reminder" ? "Reminder" : "Email update"} sent to ${recipients.length} contact${recipients.length === 1 ? "" : "s"}.`,
-        false,
+        buildEmailSendStatusMessage({
+          mode,
+          sentCount: Number(result.sentCount || 0),
+          failedCount: Number(result.failedCount || 0),
+        }),
+        Number(result.failedCount || 0) > 0 && Number(result.sentCount || 0) === 0,
       );
     }
 
