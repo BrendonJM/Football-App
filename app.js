@@ -3954,12 +3954,12 @@ async function saveConfigFromForm() {
     return;
   }
 
-  setStatus(configStatus, "Saving and opening Team Board...", false);
+  setStatus(configStatus, "Saving team...", false);
 
   try {
     await saveTeamRecordToSupabase(currentTeam, {
       statusElement: configStatus,
-      pendingMessage: "Saving and opening Team Board...",
+      pendingMessage: "Saving team...",
       successMessage: "Team saved to Supabase.",
     });
   } catch (error) {
@@ -3971,12 +3971,10 @@ async function saveConfigFromForm() {
     return;
   }
 
-  state.page = "manage";
   persistCachedStateOnly();
   persistUserScopedState();
-  clearStatus(configStatus);
   renderAll();
-  setStatus(exportStatus, "Team saved to Supabase.", false);
+  setStatus(configStatus, "Team saved.", false);
 }
 
 function buildConfigFromForm() {
