@@ -300,11 +300,11 @@ p {
 
 .events-admin-grid {
   grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
-  gap: 10px;
+  gap: 14px;
 }
 
 #commsPage .panel {
-  padding: 14px;
+  padding: 16px;
 }
 
 #commsPage .panel-heading {
@@ -312,22 +312,28 @@ p {
 }
 
 #commsPage .stack-form {
-  gap: 8px;
+  gap: 10px;
 }
 
 #commsPage .info-card,
 #commsPage .entity-card,
 #commsPage #eventFormPanel {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 14px;
 }
 
 #commsPage .button-row {
-  gap: 6px;
+  gap: 8px;
+}
+
+#commsPage .panel > .button-row,
+#commsPage .panel > .info-card,
+#commsPage .panel > .entity-list {
+  margin-top: 4px;
 }
 
 #commsPage .entity-card {
-  gap: 6px;
+  gap: 8px;
 }
 
 #commsPage .entity-card-meta {
@@ -336,6 +342,10 @@ p {
 
 #commsPage .status-text {
   min-height: 18px;
+}
+
+#commsPage .entity-list {
+  gap: 10px;
 }
 
 .panel {
