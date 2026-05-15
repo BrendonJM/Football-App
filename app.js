@@ -159,7 +159,6 @@ const aiApplyEventCancellationButton = document.querySelector("#aiApplyEventCanc
 const aiDiscardDraftButton = document.querySelector("#aiDiscardDraft");
 const messageRecipientSummary = document.querySelector("#messageRecipientSummary");
 const messagePreview = document.querySelector("#messagePreview");
-const copyMessagePreviewButton = document.querySelector("#copyMessagePreview");
 const sendEventEmailButton = document.querySelector("#sendEventEmail");
 const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
 const reminderConfirmPanel = document.querySelector("#reminderConfirmPanel");
@@ -395,10 +394,6 @@ eventRsvpList?.addEventListener("focusout", async (event) => {
   }
 
   await saveManualRsvpOverride(field.dataset.rsvpId || "");
-});
-
-copyMessagePreviewButton.addEventListener("click", async () => {
-  await copyEventMessagePreview();
 });
 
 sendEventEmailButton.addEventListener("click", async () => {
@@ -1897,7 +1892,6 @@ function renderEventMessaging() {
 
   const messageText = buildEventMessageText(selectedEvent);
   messagePreview.value = messageText;
-  copyMessagePreviewButton.disabled = !selectedEvent;
   sendEventEmailButton.disabled = !selectedEvent || sendingEventUpdate || !allRecipientContacts.length;
   if (sendReminderEmailButton) {
     sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !reminderRecipientContacts.length;
@@ -3456,22 +3450,6 @@ function formatRecipientGroupLabel(value) {
     unavailable_players: "Unavailable players",
     custom: "Custom",
   }[value] || "All contacts";
-}
-
-async function copyEventMessagePreview() {
-  const selectedEvent = getSelectedEvent();
-
-  if (!selectedEvent) {
-    setStatus(messageStatus, "Choose an event first.", true);
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(buildEventMessageText(selectedEvent));
-    setStatus(messageStatus, "Update copied to the clipboard.", false);
-  } catch (error) {
-    setStatus(messageStatus, "Could not copy the update right now.", true);
-  }
 }
 
 async function sendEventUpdateEmail(mode = "all") {
