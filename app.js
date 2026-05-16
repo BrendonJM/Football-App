@@ -124,7 +124,7 @@ const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
 const eventListSummary = document.querySelector("#eventListSummary");
-const selectedEventMeta = document.querySelector("#selectedEventMeta");
+const selectedEventHeading = document.querySelector("#selectedEventHeading");
 const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
 const generateAiDraftButton = document.querySelector("#generateAiDraft");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
@@ -1879,18 +1879,8 @@ function renderEventMessaging() {
   const selectedReminderContacts = emailContacts.filter((contact) => state.selectedContactIds.includes(contact.id));
   const showReminderComposer = reminderComposerOpen && Boolean(selectedEvent) && reminderComposerEventId === selectedEvent.id;
 
-  if (selectedEventMeta) {
-    selectedEventMeta.textContent = selectedEvent
-      ? [
-          selectedEvent.eventTitle,
-          formatEventDate(selectedEvent.eventDate),
-          getEventTimingLabel(selectedEvent) || null,
-          selectedEvent.location || null,
-          `${formatEventTypeLabel(selectedEvent.eventType)} | ${selectedEvent.status}`,
-        ]
-          .filter(Boolean)
-          .join(" | ")
-      : "Pick an event from the list to preview responses and reminders.";
+  if (selectedEventHeading) {
+    selectedEventHeading.textContent = selectedEvent?.eventTitle || "Selected Event";
   }
 
   if (messageRecipientSummary) {
