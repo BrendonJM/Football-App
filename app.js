@@ -157,6 +157,7 @@ const aiCreateEventFromDraftButton = document.querySelector("#aiCreateEventFromD
 const aiApplyEventUpdateButton = document.querySelector("#aiApplyEventUpdate");
 const aiApplyEventCancellationButton = document.querySelector("#aiApplyEventCancellation");
 const aiDiscardDraftButton = document.querySelector("#aiDiscardDraft");
+const reminderRecipientsPanel = document.querySelector("#reminderRecipientsPanel");
 const messageRecipientSummary = document.querySelector("#messageRecipientSummary");
 const messageRecipientList = document.querySelector("#messageRecipientList");
 const selectAllMessageRecipientsButton = document.querySelector("#selectAllMessageRecipients");
@@ -196,6 +197,8 @@ let eventLifecycleTimerId = null;
 let messagePreviewEventId = null;
 let messagePreviewDraft = "";
 let messageRecipientSelectionEventId = null;
+let reminderComposerOpen = false;
+let reminderComposerEventId = null;
 let aiDraftState = {
   loading: false,
   draftId: null,
@@ -387,6 +390,13 @@ eventRsvpList?.addEventListener("change", async (event) => {
 });
 
 sendReminderEmailButton?.addEventListener("click", async () => {
+  if (!reminderComposerOpen) {
+    reminderComposerOpen = true;
+    reminderComposerEventId = getSelectedEvent()?.id || null;
+    renderEventMessaging();
+    return;
+  }
+
   await sendEventUpdateEmail("reminder");
 });
 
@@ -1867,6 +1877,7 @@ function renderEventMessaging() {
   const reminderRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "reminder");
   syncMessageRecipientSelection(selectedEvent, emailContacts, reminderRecipientContacts);
   const selectedReminderContacts = emailContacts.filter((contact) => state.selectedContactIds.includes(contact.id));
+  const showReminderComposer = reminderComposerOpen && Boolean(selectedEvent) && reminderComposerEventId === selectedEvent.id;
 
   if (selectedEventDetails) {
     selectedEventDetails.innerHTML = selectedEvent
@@ -1890,7 +1901,11 @@ function renderEventMessaging() {
     }
   }
 
-  if (messageRecipientList) {
+  if (reminderRecipientsPanel) {
+    reminderRecipientsPanel.classList.toggle("hidden", !showReminderComposer);
+  }
+
+  if (messageRecipientList && showReminderComposer) {
     messageRecipientList.innerHTML = !selectedEvent
       ? '<div class="compact-list-item">Choose an event first.</div>'
       : !emailContacts.length
@@ -1923,10 +1938,13 @@ function renderEventMessaging() {
   messagePreview.value = messageText;
   if (sendReminderEmailButton) {
     sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !selectedReminderContacts.length;
+    sendReminderEmailButton.textContent = showReminderComposer ? "Send Reminder Now" : "Send Reminder";
   }
 
   if (!selectedEvent) {
     clearStatus(messageStatus);
+    reminderComposerOpen = false;
+    reminderComposerEventId = null;
   }
 }
 
@@ -3654,6 +3672,11 @@ async function sendEventUpdateEmail(mode = "all") {
 
     if (result.sent) {
       await markEventAsSent(selectedEvent.id);
+    }
+
+    if (mode === "reminder") {
+      reminderComposerOpen = false;
+      reminderComposerEventId = null;
     }
   } catch (error) {
     console.error("[Updates] Send failed", {
