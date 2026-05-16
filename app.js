@@ -1937,7 +1937,9 @@ function renderEventMessaging() {
   const messageText = getMessagePreviewValue(selectedEvent);
   messagePreview.value = messageText;
   if (sendReminderEmailButton) {
-    sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !selectedReminderContacts.length;
+    sendReminderEmailButton.disabled = !selectedEvent
+      || sendingEventUpdate
+      || (showReminderComposer ? !selectedReminderContacts.length : !emailContacts.length);
     sendReminderEmailButton.textContent = showReminderComposer ? "Send Reminder Now" : "Send Reminder";
   }
 
