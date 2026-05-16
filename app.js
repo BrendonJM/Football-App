@@ -196,6 +196,7 @@ let sendingEventUpdate = false;
 let eventFormOpen = false;
 let eventRsvpDetailsOpen = false;
 let pendingReminderRecipients = [];
+let eventLifecycleTimerId = null;
 let aiDraftState = {
   loading: false,
   draftId: null,
@@ -592,6 +593,7 @@ async function bootstrapApp() {
   initialisePlayersOnFieldOptions();
   syncFormFromState();
   renderAll();
+  startEventLifecycleWatcher();
   await initialiseSupabaseSync();
 }
 
@@ -987,7 +989,7 @@ function groupRowsByEventId(rows) {
 }
 
 function chooseNextSelectedEventId({ currentSelectedEventId, activeTeamId, eventsByTeamId }) {
-  const activeEvents = eventsByTeamId[activeTeamId] || [];
+  const activeEvents = getVisibleEventsForTeam(activeTeamId, new Date(), eventsByTeamId);
 
   if (currentSelectedEventId && activeEvents.some((event) => event.id === currentSelectedEventId)) {
     return currentSelectedEventId;
@@ -1377,6 +1379,7 @@ function createStateFromPersisted(saved) {
   const teams = (saved.teams || [])
     .map(sanitiseTeamRecord)
     .filter(Boolean);
+  const eventsByTeamId = sanitiseEntityMap(saved.eventsByTeamId);
   const activeTeamId = teams.some((team) => team.id === saved.activeTeamId)
     ? saved.activeTeamId
     : (teams[0] || fallbackTeam).id;
@@ -1391,9 +1394,13 @@ function createStateFromPersisted(saved) {
     players: runtime.players,
     lineup: runtime.lineup,
     contactsByTeamId: sanitiseEntityMap(saved.contactsByTeamId),
-    eventsByTeamId: sanitiseEntityMap(saved.eventsByTeamId),
+    eventsByTeamId,
     rsvpsByEventId: sanitiseEntityMap(saved.rsvpsByEventId),
-    selectedEventId: saved.selectedEventId || null,
+    selectedEventId: chooseNextSelectedEventId({
+      currentSelectedEventId: saved.selectedEventId || null,
+      activeTeamId: activeTeam.id,
+      eventsByTeamId,
+    }),
     selectedContactIds: Array.isArray(saved.selectedContactIds) ? saved.selectedContactIds.filter(Boolean) : [],
     selectedTarget: null,
   };
@@ -2239,16 +2246,54 @@ function getActiveTeamContacts() {
   );
 }
 
+function startEventLifecycleWatcher() {
+  if (eventLifecycleTimerId) {
+    window.clearInterval(eventLifecycleTimerId);
+  }
+
+  eventLifecycleTimerId = window.setInterval(() => {
+    if (document.hidden) {
+      return;
+    }
+
+    refreshEventLifecycleState();
+  }, 60_000);
+}
+
+function refreshEventLifecycleState() {
+  const nextSelectedEventId = chooseNextSelectedEventId({
+    currentSelectedEventId: state.selectedEventId,
+    activeTeamId: state.activeTeamId,
+    eventsByTeamId: state.eventsByTeamId,
+  });
+
+  if (nextSelectedEventId !== state.selectedEventId) {
+    state.selectedEventId = nextSelectedEventId;
+    eventRsvpDetailsOpen = false;
+    persistState();
+  }
+
+  renderAll();
+}
+
 function getActiveTeamEvents() {
-  return [...(state.eventsByTeamId[state.activeTeamId] || [])].sort(compareEvents);
+  return getVisibleEventsForTeam(state.activeTeamId);
+}
+
+function getVisibleEventsForTeam(teamId, now = new Date(), eventsByTeamId = state.eventsByTeamId) {
+  return [...(eventsByTeamId[teamId] || [])]
+    .filter((eventRecord) => !isEventFinished(eventRecord, now))
+    .sort(compareEvents);
 }
 
 function getSelectedEventRsvps() {
-  if (!state.selectedEventId) {
+  const selectedEvent = getSelectedEvent();
+
+  if (!selectedEvent) {
     return [];
   }
 
-  return [...(state.rsvpsByEventId[state.selectedEventId] || [])].sort((left, right) => {
+  return [...(state.rsvpsByEventId[selectedEvent.id] || [])].sort((left, right) => {
     const leftLabel = `${left.playerName || ""}${left.contactName || ""}`;
     const rightLabel = `${right.playerName || ""}${right.contactName || ""}`;
     return leftLabel.localeCompare(rightLabel);
@@ -2259,6 +2304,27 @@ function compareEvents(left, right) {
   const leftKey = `${left.eventDate || ""}T${left.startTime || "23:59"}`;
   const rightKey = `${right.eventDate || ""}T${right.startTime || "23:59"}`;
   return leftKey.localeCompare(rightKey);
+}
+
+function isEventFinished(eventRecord, now = new Date()) {
+  const endDateTime = getEventEndDateTime(eventRecord);
+
+  if (!endDateTime) {
+    return false;
+  }
+
+  return endDateTime.getTime() < now.getTime();
+}
+
+function getEventEndDateTime(eventRecord) {
+  if (!eventRecord?.eventDate) {
+    return null;
+  }
+
+  const timeValue = eventRecord.endTime || eventRecord.startTime || "23:59";
+  const parsed = new Date(`${eventRecord.eventDate}T${timeValue}`);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function getSelectedEvent() {
@@ -2704,7 +2770,11 @@ async function deleteEvent(eventId) {
     state.eventsByTeamId[state.activeTeamId] = getActiveTeamEvents().filter((item) => item.id !== eventId);
     delete state.rsvpsByEventId[eventId];
     if (state.selectedEventId === eventId) {
-      state.selectedEventId = state.eventsByTeamId[state.activeTeamId]?.[0]?.id || null;
+      state.selectedEventId = chooseNextSelectedEventId({
+        currentSelectedEventId: null,
+        activeTeamId: state.activeTeamId,
+        eventsByTeamId: state.eventsByTeamId,
+      });
     }
     persistState();
     renderAll();
@@ -4639,7 +4709,11 @@ function deleteCurrentTeam() {
   state.config = runtime.config;
   state.players = runtime.players;
   state.lineup = runtime.lineup;
-  state.selectedEventId = (state.eventsByTeamId[nextTeam.id] || [])[0]?.id || null;
+  state.selectedEventId = chooseNextSelectedEventId({
+    currentSelectedEventId: null,
+    activeTeamId: nextTeam.id,
+    eventsByTeamId: state.eventsByTeamId,
+  });
   state.selectedContactIds = [];
   state.selectedTarget = null;
   syncFormFromState();
