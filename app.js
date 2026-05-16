@@ -1778,22 +1778,24 @@ function renderContacts() {
     ? contacts
         .map(
           (contact) => `
-            <div class="entity-card">
+            <div class="entity-card contact-card">
               <div class="entity-card-header">
-                <div>
-                  <strong>${escapeHtml(contact.contactName)}</strong>
+                <div class="contact-card-heading">
+                  <div class="contact-card-title-row">
+                    <strong>${escapeHtml(contact.contactName)}</strong>
+                    <div class="entity-card-actions contact-card-actions">
+                      <button type="button" class="secondary-button" data-contact-action="edit" data-contact-id="${contact.id}">Edit</button>
+                      <button type="button" class="danger-button" data-contact-action="delete" data-contact-id="${contact.id}">Delete</button>
+                    </div>
+                  </div>
                   ${contact.role ? `<span class="pill">${escapeHtml(contact.role)}</span>` : ""}
                 </div>
               </div>
-              <div class="entity-card-meta">
-                ${contact.email ? `<span>Email: ${escapeHtml(contact.email)}</span>` : ""}
-                ${contact.phone ? `<span>Phone: ${escapeHtml(contact.phone)}</span>` : ""}
-                ${contact.linkedPlayers?.length ? `<span>Linked players: ${escapeHtml(contact.linkedPlayers.join(", "))}</span>` : ""}
+              <div class="entity-card-meta contact-card-meta">
+                ${contact.email ? `<span class="contact-card-meta-item">Email: ${escapeHtml(contact.email)}</span>` : ""}
+                ${contact.phone ? `<span class="contact-card-meta-item">Phone: ${escapeHtml(contact.phone)}</span>` : ""}
+                ${contact.linkedPlayers?.length ? `<span class="contact-card-meta-item">Linked players: ${escapeHtml(contact.linkedPlayers.join(", "))}</span>` : ""}
                 ${contact.notes ? `<span>${escapeHtml(contact.notes)}</span>` : ""}
-              </div>
-              <div class="entity-card-actions">
-                <button type="button" class="secondary-button" data-contact-action="edit" data-contact-id="${contact.id}">Edit</button>
-                <button type="button" class="danger-button" data-contact-action="delete" data-contact-id="${contact.id}">Delete</button>
               </div>
             </div>
           `,
