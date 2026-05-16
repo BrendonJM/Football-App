@@ -265,11 +265,64 @@ p {
   flex-shrink: 0;
 }
 
-.contacts-setup-grid {
+.squad-contacts-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
   gap: 12px;
   align-items: start;
+}
+
+.setup-subsection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.setup-subsection-heading strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.squad-list-card,
+.contacts-card {
+  display: grid;
+  gap: 10px;
+}
+
+.player-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.player-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.player-row-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(26, 35, 48, 0.58);
+  color: var(--muted);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.player-row-input {
+  width: 100%;
+}
+
+.contacts-card .entity-list {
+  margin-top: 2px;
 }
 
 .compact-entity-list .entity-card {
@@ -1032,6 +1085,56 @@ textarea {
   gap: 10px;
 }
 
+.linked-player-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.linked-player-tile {
+  position: relative;
+  display: block;
+}
+
+.linked-player-tile input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.linked-player-content {
+  display: block;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(26, 35, 48, 0.52);
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.linked-player-content strong {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+}
+
+.linked-player-tile input:hover + .linked-player-content,
+.linked-player-tile input:focus-visible + .linked-player-content {
+  border-color: rgba(226, 197, 142, 0.5);
+  box-shadow: 0 0 0 1px rgba(226, 197, 142, 0.16) inset;
+}
+
+.linked-player-tile input:checked + .linked-player-content {
+  border-color: var(--brand-strong);
+  background: rgba(197, 164, 109, 0.15);
+  box-shadow: 0 0 0 1px rgba(226, 197, 142, 0.24) inset;
+  transform: translateY(-1px);
+}
+
 .training-plan-block-header {
   display: flex;
   flex-wrap: wrap;
@@ -1112,7 +1215,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .contacts-setup-grid,
+  .squad-contacts-grid,
   .setup-submit-row {
     grid-template-columns: 1fr;
   }

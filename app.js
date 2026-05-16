@@ -46,6 +46,7 @@ const aiCommunicationDraftsTableName = "ai_communication_drafts";
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
 const playerNamesInput = document.querySelector("#playerNames");
+const playerRows = document.querySelector("#playerRows");
 const formationSuggestions = document.querySelector("#formationSuggestions");
 const formationHelp = document.querySelector("#formationHelp");
 const customFormationInput = document.querySelector("#customFormation");
@@ -99,7 +100,10 @@ const contactEmailInput = document.querySelector("#contactEmail");
 const contactPhoneInput = document.querySelector("#contactPhone");
 const contactRoleInput = document.querySelector("#contactRole");
 const contactLinkedPlayers = document.querySelector("#contactLinkedPlayers");
+const openContactFormButton = document.querySelector("#openContactForm");
+const contactFormPanel = document.querySelector("#contactFormPanel");
 const contactNotesInput = document.querySelector("#contactNotes");
+const saveContactButton = document.querySelector("#saveContact");
 const resetContactButton = document.querySelector("#resetContact");
 const contactStatus = document.querySelector("#contactStatus");
 const contactList = document.querySelector("#contactList");
@@ -194,6 +198,7 @@ let sendingEventUpdate = false;
 let eventFormOpen = false;
 let eventRsvpDetailsOpen = false;
 let eventLifecycleTimerId = null;
+let contactFormOpen = false;
 let messagePreviewEventId = null;
 let messagePreviewDraft = "";
 let messageRecipientSelectionEventId = null;
@@ -226,11 +231,13 @@ playersOnFieldInput.addEventListener("change", () => {
   formationDraft = validExisting.length > 0
     ? validExisting
     : getSuggestedFormations(playersOnField).slice(0, 3);
+  renderPlayerRows();
   renderFormationChoices();
   renderContactLinkedPlayerOptions();
 });
 
 playerNamesInput.addEventListener("input", () => {
+  renderPlayerRows();
   renderContactLinkedPlayerOptions();
 });
 
@@ -279,13 +286,17 @@ feedbackForm.addEventListener("submit", async (event) => {
   await submitFeedback();
 });
 
-contactForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+openContactFormButton?.addEventListener("click", () => {
+  openContactForm();
+});
+
+saveContactButton?.addEventListener("click", async () => {
   await saveContactFromForm();
 });
 
 resetContactButton.addEventListener("click", () => {
   resetContactForm();
+  renderAll();
 });
 
 eventForm.addEventListener("submit", async (event) => {
@@ -1609,9 +1620,52 @@ function applyConfigToForm(config) {
   teamNameInput.value = config.teamName;
   playersOnFieldInput.value = String(config.playersOnField);
   playerNamesInput.value = config.players.join("\n");
+  renderPlayerRows();
   formationDraft = [...config.formations];
   renderFormationChoices();
   renderContactLinkedPlayerOptions();
+}
+
+function renderPlayerRows() {
+  if (!playerRows) {
+    return;
+  }
+
+  const draftNames = parsePlayerNames(playerNamesInput.value || "");
+  const playersOnField = Number(playersOnFieldInput.value) || 0;
+  const rowCount = Math.max(draftNames.length + 2, playersOnField + 4, 8);
+
+  playerRows.innerHTML = Array.from({ length: rowCount }, (_, index) => `
+    <label class="player-row">
+      <span class="player-row-number">${index + 1}</span>
+      <input
+        type="text"
+        class="player-row-input"
+        data-player-row="${index}"
+        value="${escapeHtml(draftNames[index] || "")}"
+        placeholder="Player ${index + 1}"
+      />
+    </label>
+  `).join("");
+
+  Array.from(playerRows.querySelectorAll("[data-player-row]")).forEach((input) => {
+    input.addEventListener("input", () => {
+      syncPlayerNamesFieldFromRows();
+      renderContactLinkedPlayerOptions();
+    });
+  });
+}
+
+function syncPlayerNamesFieldFromRows() {
+  if (!playerRows || !playerNamesInput) {
+    return;
+  }
+
+  const names = Array.from(playerRows.querySelectorAll("[data-player-row]"))
+    .map((input) => input.value.trim().replace(/\s+/g, " "))
+    .filter(Boolean);
+
+  playerNamesInput.value = names.join("\n");
 }
 
 function renderFormationChoices() {
@@ -1652,10 +1706,12 @@ function renderFormationChoices() {
 function renderAll() {
   renderTeamSwitcher();
   renderPage();
+  renderPlayerRows();
   renderManagerControls();
   renderBench();
   renderPitch();
   renderContacts();
+  renderContactFormPanel();
   renderContactLinkedPlayerOptions();
   renderEventRepeatInputs();
   renderEventFormPanel();
@@ -1759,6 +1815,21 @@ function renderContacts() {
   });
 }
 
+function renderContactFormPanel() {
+  if (!contactFormPanel || !openContactFormButton) {
+    return;
+  }
+
+  contactFormPanel.classList.toggle("hidden", !contactFormOpen);
+
+  if (!contactFormOpen) {
+    openContactFormButton.textContent = "Add Contact";
+    return;
+  }
+
+  openContactFormButton.textContent = contactIdInput?.value ? "Close Contact" : "Hide Contact Form";
+}
+
 function renderContactLinkedPlayerOptions() {
   if (!contactLinkedPlayers) {
     return;
@@ -1771,13 +1842,13 @@ function renderContactLinkedPlayerOptions() {
     ? playerNames
         .map(
           (playerName) => `
-            <label class="recipient-option">
+            <label class="linked-player-tile">
               <input
                 type="checkbox"
                 data-linked-player="${escapeHtml(playerName)}"
                 ${selectedNames.includes(playerName) ? "checked" : ""}
               />
-              <span>
+              <span class="linked-player-content">
                 <strong>${escapeHtml(playerName)}</strong>
               </span>
             </label>
@@ -1788,6 +1859,7 @@ function renderContactLinkedPlayerOptions() {
 }
 
 function getConfigFormPlayerNames() {
+  syncPlayerNamesFieldFromRows();
   const draftNames = dedupeNames(parsePlayerNames(playerNamesInput.value || ""));
   return draftNames.length ? draftNames : dedupeNames(state.config.players || []);
 }
@@ -2373,8 +2445,13 @@ function getSelectedEvent() {
 }
 
 function resetContactForm() {
-  contactForm.reset();
   contactIdInput.value = "";
+  contactNameInput.value = "";
+  contactEmailInput.value = "";
+  contactPhoneInput.value = "";
+  contactRoleInput.value = "";
+  contactNotesInput.value = "";
+  contactFormOpen = false;
   renderContactLinkedPlayerOptions();
   clearStatus(contactStatus);
 }
@@ -2405,11 +2482,24 @@ function populateContactForm(contactId) {
   contactPhoneInput.value = contact.phone || "";
   contactRoleInput.value = contact.role || "";
   contactNotesInput.value = contact.notes || "";
+  contactFormOpen = true;
   renderContactLinkedPlayerOptions();
   Array.from(contactLinkedPlayers?.querySelectorAll("[data-linked-player]") || []).forEach((input) => {
     input.checked = contact.linkedPlayers?.includes(input.dataset.linkedPlayer || "") || false;
   });
   setStatus(contactStatus, `Editing ${contact.contactName}.`, false);
+}
+
+function openContactForm() {
+  if (contactFormOpen) {
+    resetContactForm();
+    renderAll();
+    return;
+  }
+
+  contactFormOpen = true;
+  renderAll();
+  contactNameInput?.focus();
 }
 
 function populateEventForm(eventId) {
@@ -4114,6 +4204,7 @@ async function saveConfigFromForm() {
 }
 
 function buildConfigFromForm() {
+  syncPlayerNamesFieldFromRows();
   const teamName = teamNameInput.value.trim();
   const playersOnField = Number(playersOnFieldInput.value);
   const players = dedupeNames(parsePlayerNames(playerNamesInput.value));
