@@ -973,9 +973,16 @@ textarea {
 
 .contact-card-title-row {
   display: flex;
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.contact-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .contact-card-title-row strong {
@@ -990,14 +997,12 @@ textarea {
 }
 
 .contact-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  align-items: center;
+  display: grid;
+  gap: 3px;
 }
 
 .contact-card-meta-item {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .entity-card-compact .entity-card-meta {
@@ -1307,6 +1312,7 @@ textarea {
 
   .contact-card-title-row {
     flex-wrap: wrap;
+    align-items: flex-start;
   }
 
   .contact-card-actions {

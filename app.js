@@ -1782,13 +1782,15 @@ function renderContacts() {
               <div class="entity-card-header">
                 <div class="contact-card-heading">
                   <div class="contact-card-title-row">
-                    <strong>${escapeHtml(contact.contactName)}</strong>
+                    <div class="contact-card-title-group">
+                      <strong>${escapeHtml(contact.contactName)}</strong>
+                      ${contact.role ? `<span class="pill">${escapeHtml(contact.role)}</span>` : ""}
+                    </div>
                     <div class="entity-card-actions contact-card-actions">
                       <button type="button" class="secondary-button" data-contact-action="edit" data-contact-id="${contact.id}">Edit</button>
                       <button type="button" class="danger-button" data-contact-action="delete" data-contact-id="${contact.id}">Delete</button>
                     </div>
                   </div>
-                  ${contact.role ? `<span class="pill">${escapeHtml(contact.role)}</span>` : ""}
                 </div>
               </div>
               <div class="entity-card-meta contact-card-meta">
