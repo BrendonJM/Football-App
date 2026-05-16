@@ -128,13 +128,8 @@
 
         <section id="configPage" class="page-section hidden">
           <div class="layout-grid single-panel-layout">
-            <section class="panel setup-panel">
-              <div class="panel-heading">
-                <h2>Team Setup</h2>
-              </div>
-
-              <div class="setup-flow">
-                <form id="configForm" class="stack-form">
+            <div class="setup-flow">
+              <form id="configForm" class="stack-form">
                   <section class="setup-step">
                     <div class="setup-step-heading">
                       <span class="step-badge">1</span>
@@ -227,21 +222,20 @@
                         <div id="contactList" class="entity-list compact-entity-list"></div>
                       </div>
                     </div>
-                </section>
-                </form>
+                  </section>
+              </form>
 
-                <div class="setup-submit-row">
-                  <div class="info-card compact-info-card">
-                    <strong>Ready for match day setup</strong>
-                    <p>Save this team once the squad and key contacts are in place.</p>
-                  </div>
-                  <div class="button-row">
-                    <button type="submit" form="configForm" class="primary-button">Save Team</button>
-                  </div>
+              <div class="setup-submit-row">
+                <div class="info-card compact-info-card">
+                  <strong>Ready for match day setup</strong>
+                  <p>Save this team once the squad and key contacts are in place.</p>
                 </div>
-                <p id="configStatus" class="status-text" aria-live="polite"></p>
+                <div class="button-row">
+                  <button type="submit" form="configForm" class="primary-button">Save Team</button>
+                </div>
               </div>
-            </section>
+              <p id="configStatus" class="status-text" aria-live="polite"></p>
+            </div>
           </div>
         </section>
 
