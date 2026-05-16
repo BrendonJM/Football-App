@@ -158,14 +158,11 @@ const aiApplyEventUpdateButton = document.querySelector("#aiApplyEventUpdate");
 const aiApplyEventCancellationButton = document.querySelector("#aiApplyEventCancellation");
 const aiDiscardDraftButton = document.querySelector("#aiDiscardDraft");
 const messageRecipientSummary = document.querySelector("#messageRecipientSummary");
+const messageRecipientList = document.querySelector("#messageRecipientList");
+const selectAllMessageRecipientsButton = document.querySelector("#selectAllMessageRecipients");
+const clearMessageRecipientsButton = document.querySelector("#clearMessageRecipients");
 const messagePreview = document.querySelector("#messagePreview");
-const sendEventEmailButton = document.querySelector("#sendEventEmail");
 const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
-const reminderConfirmPanel = document.querySelector("#reminderConfirmPanel");
-const reminderConfirmSummary = document.querySelector("#reminderConfirmSummary");
-const reminderConfirmList = document.querySelector("#reminderConfirmList");
-const confirmReminderSendButton = document.querySelector("#confirmReminderSend");
-const cancelReminderSendButton = document.querySelector("#cancelReminderSend");
 const messageStatus = document.querySelector("#messageStatus");
 const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
 const eventRsvpList = document.querySelector("#eventRsvpList");
@@ -195,8 +192,10 @@ let saveNowInFlight = false;
 let sendingEventUpdate = false;
 let eventFormOpen = false;
 let eventRsvpDetailsOpen = false;
-let pendingReminderRecipients = [];
 let eventLifecycleTimerId = null;
+let messagePreviewEventId = null;
+let messagePreviewDraft = "";
+let messageRecipientSelectionEventId = null;
 let aiDraftState = {
   loading: false,
   draftId: null,
@@ -387,28 +386,31 @@ eventRsvpList?.addEventListener("change", async (event) => {
   await saveManualRsvpOverride(field.dataset.rsvpId || "");
 });
 
-sendEventEmailButton.addEventListener("click", async () => {
-  await sendEventUpdateEmail("all");
-});
-
 sendReminderEmailButton?.addEventListener("click", async () => {
-  const recipients = getRecipientsForEventUpdate(getSelectedEvent(), "reminder");
-
-  if (!recipients.length) {
-    await sendEventUpdateEmail("reminder");
-    return;
-  }
-
-  showReminderConfirmation(recipients);
-});
-
-confirmReminderSendButton?.addEventListener("click", async () => {
-  hideReminderConfirmation();
   await sendEventUpdateEmail("reminder");
 });
 
-cancelReminderSendButton?.addEventListener("click", () => {
-  hideReminderConfirmation();
+selectAllMessageRecipientsButton?.addEventListener("click", () => {
+  selectAllContactsForMessaging();
+});
+
+clearMessageRecipientsButton?.addEventListener("click", () => {
+  clearSelectedContactsForMessaging();
+});
+
+messageRecipientList?.addEventListener("change", (event) => {
+  const field = event.target.closest("[data-message-recipient-id]");
+
+  if (!field) {
+    return;
+  }
+
+  toggleMessageRecipient(field.dataset.messageRecipientId || "", Boolean(field.checked));
+});
+
+messagePreview?.addEventListener("input", () => {
+  messagePreviewEventId = getSelectedEvent()?.id || null;
+  messagePreviewDraft = messagePreview.value;
 });
 
 generateAiDraftButton?.addEventListener("click", async () => {
@@ -1862,8 +1864,9 @@ function renderEventMessaging() {
     state.selectedEventId = selectedEvent.id;
   }
   const emailContacts = contacts.filter((contact) => contact.email);
-  const allRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "all");
   const reminderRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "reminder");
+  syncMessageRecipientSelection(selectedEvent, emailContacts, reminderRecipientContacts);
+  const selectedReminderContacts = emailContacts.filter((contact) => state.selectedContactIds.includes(contact.id));
 
   if (selectedEventDetails) {
     selectedEventDetails.innerHTML = selectedEvent
@@ -1879,28 +1882,47 @@ function renderEventMessaging() {
 
   if (messageRecipientSummary) {
     if (!selectedEvent) {
-      messageRecipientSummary.textContent = "Choose an event to see who will receive the RSVP message.";
+      messageRecipientSummary.textContent = "Choose an event to see who should receive the reminder.";
     } else if (!emailContacts.length) {
       messageRecipientSummary.textContent = "No contacts with email addresses are available for this team yet.";
     } else {
-      messageRecipientSummary.textContent = `${allRecipientContacts.length} contact${allRecipientContacts.length === 1 ? "" : "s"} will receive the event update. ${reminderRecipientContacts.length} still need a reminder.`;
+      messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact has" : "contacts have"} not replied yet.`;
     }
   }
 
-  const messageText = buildEventMessageText(selectedEvent);
+  if (messageRecipientList) {
+    messageRecipientList.innerHTML = !selectedEvent
+      ? '<div class="compact-list-item">Choose an event first.</div>'
+      : !emailContacts.length
+        ? '<div class="compact-list-item">No contact emails are on file for this team yet.</div>'
+        : emailContacts
+          .map((contact) => {
+            const rsvpRows = getSelectedEventRsvps().filter((row) => row.contactId === contact.id);
+            const status = getContactReminderStatusLabel(rsvpRows);
+            const linkedPlayers = contact.linkedPlayers?.length ? `Linked players: ${contact.linkedPlayers.join(", ")}` : "";
+            return `
+              <label class="recipient-option">
+                <input
+                  type="checkbox"
+                  data-message-recipient-id="${contact.id}"
+                  ${state.selectedContactIds.includes(contact.id) ? "checked" : ""}
+                />
+                <span>
+                  <strong>${escapeHtml(contact.contactName)}</strong>
+                  <span>${escapeHtml(contact.email || "")}</span>
+                  <span>${escapeHtml(status)}</span>
+                  ${linkedPlayers ? `<span>${escapeHtml(linkedPlayers)}</span>` : ""}
+                </span>
+              </label>
+            `;
+          })
+          .join("");
+  }
+
+  const messageText = getMessagePreviewValue(selectedEvent);
   messagePreview.value = messageText;
-  sendEventEmailButton.disabled = !selectedEvent || sendingEventUpdate || !allRecipientContacts.length;
   if (sendReminderEmailButton) {
-    sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !reminderRecipientContacts.length;
-  }
-
-  if (!selectedEvent || sendingEventUpdate) {
-    hideReminderConfirmation();
-  } else if (pendingReminderRecipients.length) {
-    const activeReminderIds = new Set(reminderRecipientContacts.map((contact) => contact.id));
-    if (pendingReminderRecipients.some((contact) => !activeReminderIds.has(contact.id))) {
-      hideReminderConfirmation();
-    }
+    sendReminderEmailButton.disabled = !selectedEvent || sendingEventUpdate || !selectedReminderContacts.length;
   }
 
   if (!selectedEvent) {
@@ -2842,12 +2864,14 @@ function selectAllContactsForMessaging() {
   state.selectedContactIds = getActiveTeamContacts()
     .filter((contact) => contact.email)
     .map((contact) => contact.id);
+  messageRecipientSelectionEventId = getSelectedEvent()?.id || null;
   persistState();
   renderEventMessaging();
 }
 
 function clearSelectedContactsForMessaging() {
   state.selectedContactIds = [];
+  messageRecipientSelectionEventId = getSelectedEvent()?.id || null;
   persistState();
   renderEventMessaging();
 }
@@ -2859,8 +2883,72 @@ function toggleMessageRecipient(contactId, isSelected) {
     state.selectedContactIds = state.selectedContactIds.filter((id) => id !== contactId);
   }
 
+  messageRecipientSelectionEventId = getSelectedEvent()?.id || null;
   persistState();
   renderEventMessaging();
+}
+
+function syncMessageRecipientSelection(selectedEvent, emailContacts, reminderRecipientContacts) {
+  if (!selectedEvent) {
+    state.selectedContactIds = [];
+    messageRecipientSelectionEventId = null;
+    return;
+  }
+
+  const validIds = new Set(emailContacts.map((contact) => contact.id));
+  const reminderIds = reminderRecipientContacts.map((contact) => contact.id);
+
+  if (messagePreviewEventId !== selectedEvent.id) {
+    messagePreviewEventId = selectedEvent.id;
+    messagePreviewDraft = "";
+  }
+
+  if (messageRecipientSelectionEventId !== selectedEvent.id) {
+    state.selectedContactIds = reminderIds;
+    messageRecipientSelectionEventId = selectedEvent.id;
+    return;
+  }
+
+  state.selectedContactIds = state.selectedContactIds.filter((id) => validIds.has(id));
+}
+
+function getMessagePreviewValue(eventRecord) {
+  if (!eventRecord) {
+    messagePreviewEventId = null;
+    messagePreviewDraft = "";
+    return "";
+  }
+
+  if (messagePreviewEventId !== eventRecord.id || !messagePreviewDraft) {
+    messagePreviewEventId = eventRecord.id;
+    messagePreviewDraft = buildEventMessageText(eventRecord);
+  }
+
+  return messagePreviewDraft;
+}
+
+function getContactReminderStatusLabel(rsvpRows) {
+  if (!rsvpRows.length) {
+    return "No RSVP yet";
+  }
+
+  if (rsvpRows.some((row) => row.response === "no_response")) {
+    return "No response";
+  }
+
+  if (rsvpRows.some((row) => row.response === "yes")) {
+    return "Responded: Yes";
+  }
+
+  if (rsvpRows.some((row) => row.response === "no")) {
+    return "Responded: No";
+  }
+
+  if (rsvpRows.some((row) => row.response === "maybe")) {
+    return "Responded: Maybe";
+  }
+
+  return "No RSVP yet";
 }
 
 function getRecipientsForEventUpdate(eventRecord, mode = "all") {
@@ -2890,39 +2978,6 @@ function getRecipientsForEventUpdate(eventRecord, mode = "all") {
 
     return contactRsvps.some((rsvp) => rsvp.response === "no_response");
   });
-}
-
-function showReminderConfirmation(recipients) {
-  pendingReminderRecipients = [...recipients];
-
-  if (reminderConfirmSummary) {
-    reminderConfirmSummary.textContent = `This reminder will only go to ${recipients.length} contact${recipients.length === 1 ? "" : "s"} who have not responded yet.`;
-  }
-
-  if (reminderConfirmList) {
-    const previewNames = recipients
-      .map((contact) => contact.contactName || contact.email || "Unnamed contact")
-      .slice(0, 12);
-    const extraCount = recipients.length - previewNames.length;
-
-    reminderConfirmList.innerHTML = previewNames
-      .map((name) => `<div class="compact-list-item">${escapeHtml(name)}</div>`)
-      .join("");
-
-    if (extraCount > 0) {
-      reminderConfirmList.insertAdjacentHTML(
-        "beforeend",
-        `<div class="compact-list-item">And ${extraCount} more contact${extraCount === 1 ? "" : "s"}.</div>`,
-      );
-    }
-  }
-
-  reminderConfirmPanel?.classList.remove("hidden");
-}
-
-function hideReminderConfirmation() {
-  pendingReminderRecipients = [];
-  reminderConfirmPanel?.classList.add("hidden");
 }
 
 function buildEventMessageText(eventRecord) {
@@ -3517,7 +3572,9 @@ async function sendEventUpdateEmail(mode = "all") {
   }
 
   const selectedEvent = getSelectedEvent();
-  const recipients = getRecipientsForEventUpdate(selectedEvent, mode);
+  const recipients = getActiveTeamContacts()
+    .filter((contact) => contact.email && state.selectedContactIds.includes(contact.id));
+  const messageText = messagePreview.value.trim();
 
   if (!selectedEvent) {
     setStatus(messageStatus, "Choose an event first.", true);
@@ -3525,13 +3582,12 @@ async function sendEventUpdateEmail(mode = "all") {
   }
 
   if (!recipients.length) {
-    setStatus(
-      messageStatus,
-      mode === "reminder"
-        ? "No outstanding RSVP reminders are needed for this event."
-        : "No contacts with email addresses are available for this event.",
-      true,
-    );
+    setStatus(messageStatus, "Select at least one contact for this reminder.", true);
+    return;
+  }
+
+  if (!messageText) {
+    setStatus(messageStatus, "Add a reminder message before sending.", true);
     return;
   }
 
@@ -3552,7 +3608,7 @@ async function sendEventUpdateEmail(mode = "all") {
         eventId: selectedEvent.id,
         contactIds: recipients.map((contact) => contact.id),
         teamName: state.config.teamName || "TeamPro team",
-        messageText: buildEventMessageText(selectedEvent),
+        messageText,
         baseUrl: window.location.origin,
       }),
     });
@@ -3593,7 +3649,7 @@ async function sendEventUpdateEmail(mode = "all") {
       deliveryMethod: result.sent ? "email" : "copy",
       recipientCount: recipients.length,
       subject: result.subject || `${state.config.teamName || "Team"} update`,
-      messageText: buildEventMessageText(selectedEvent),
+      messageText,
     });
 
     if (result.sent) {

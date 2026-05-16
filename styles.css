@@ -468,6 +468,10 @@ textarea {
   gap: 6px;
 }
 
+.compact-button-row {
+  margin: 6px 0 8px;
+}
+
 .compact-field {
   flex: 1;
 }

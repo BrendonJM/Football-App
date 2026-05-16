@@ -626,27 +626,26 @@
                 </div>
 
                 <div class="info-card">
-                  <strong>Update actions</strong>
-                  <p id="messageRecipientSummary">Choose an event to see who will receive the RSVP message.</p>
-                  <div class="button-row">
-                    <button id="sendEventEmail" type="button" class="secondary-button">Send Event Update</button>
-                    <button id="sendReminderEmail" type="button" class="secondary-button">Send Reminder</button>
+                  <strong>Reminder recipients</strong>
+                  <p id="messageRecipientSummary">Choose an event to see who should receive the reminder.</p>
+                  <div class="button-row compact-button-row">
+                    <button id="selectAllMessageRecipients" type="button" class="secondary-button">Select All</button>
+                    <button id="clearMessageRecipients" type="button" class="secondary-button">Clear</button>
                   </div>
+                  <div id="messageRecipientList" class="recipient-list"></div>
                 </div>
 
-                <div id="reminderConfirmPanel" class="info-card hidden">
-                  <strong>Confirm reminder recipients</strong>
-                  <p id="reminderConfirmSummary">This reminder will only go to contacts who have not responded yet.</p>
-                  <div id="reminderConfirmList" class="compact-list"></div>
+                <div class="info-card">
+                  <strong>Reminder action</strong>
+                  <p>Non-responders are selected by default, but you can include or remove any contact before sending.</p>
                   <div class="button-row">
-                    <button id="confirmReminderSend" type="button" class="primary-button">Send Reminder Now</button>
-                    <button id="cancelReminderSend" type="button" class="secondary-button">Cancel</button>
+                    <button id="sendReminderEmail" type="button" class="secondary-button">Send Reminder</button>
                   </div>
                 </div>
 
                 <label class="field">
                   <span>Message preview</span>
-                  <textarea id="messagePreview" rows="6" readonly></textarea>
+                  <textarea id="messagePreview" rows="6"></textarea>
                 </label>
 
                 <p id="messageStatus" class="status-text" aria-live="polite"></p>
