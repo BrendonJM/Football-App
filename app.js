@@ -124,7 +124,7 @@ const resetEventButton = document.querySelector("#resetEvent");
 const eventStatusMessage = document.querySelector("#eventStatusMessage");
 const eventList = document.querySelector("#eventList");
 const eventListSummary = document.querySelector("#eventListSummary");
-const selectedEventDetails = document.querySelector("#selectedEventDetails");
+const selectedEventMeta = document.querySelector("#selectedEventMeta");
 const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
 const generateAiDraftButton = document.querySelector("#generateAiDraft");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
@@ -1879,16 +1879,18 @@ function renderEventMessaging() {
   const selectedReminderContacts = emailContacts.filter((contact) => state.selectedContactIds.includes(contact.id));
   const showReminderComposer = reminderComposerOpen && Boolean(selectedEvent) && reminderComposerEventId === selectedEvent.id;
 
-  if (selectedEventDetails) {
-    selectedEventDetails.innerHTML = selectedEvent
-      ? `
-          <strong>${escapeHtml(selectedEvent.eventTitle)}</strong>
-          <p>${escapeHtml(formatEventDate(selectedEvent.eventDate))}${getEventTimingLabel(selectedEvent) ? ` | ${escapeHtml(getEventTimingLabel(selectedEvent))}` : ""}</p>
-          <p>${escapeHtml(formatEventTypeLabel(selectedEvent.eventType))} | ${escapeHtml(selectedEvent.status)}</p>
-          ${selectedEvent.location ? `<p>${escapeHtml(selectedEvent.location)}</p>` : ""}
-          ${selectedEvent.notes ? `<p>${escapeHtml(selectedEvent.notes)}</p>` : ""}
-        `
-      : "<strong>No event selected</strong><p>Pick an event from the list to preview the RSVP message and track availability.</p>";
+  if (selectedEventMeta) {
+    selectedEventMeta.textContent = selectedEvent
+      ? [
+          selectedEvent.eventTitle,
+          formatEventDate(selectedEvent.eventDate),
+          getEventTimingLabel(selectedEvent) || null,
+          selectedEvent.location || null,
+          `${formatEventTypeLabel(selectedEvent.eventType)} | ${selectedEvent.status}`,
+        ]
+          .filter(Boolean)
+          .join(" | ")
+      : "Pick an event from the list to preview responses and reminders.";
   }
 
   if (messageRecipientSummary) {

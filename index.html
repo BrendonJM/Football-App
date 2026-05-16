@@ -620,10 +620,16 @@
               </div>
 
               <div class="stack-form">
-                <div id="selectedEventDetails" class="info-card">
-                  <strong>No event selected</strong>
-                  <p>Pick an event from the list to preview the RSVP message and track availability.</p>
+                <p id="selectedEventMeta" class="helper-text selected-event-meta">Pick an event from the list to preview responses and reminders.</p>
+
+                <div class="panel-heading compact-panel-heading">
+                  <h2>Responses</h2>
+                  <p>Check attendance first, then decide whether a reminder is needed.</p>
                 </div>
+
+                <div id="eventRsvpSummary" class="info-card"></div>
+                <div id="eventRsvpList" class="entity-list"></div>
+                <p id="eventRsvpStatus" class="status-text" aria-live="polite"></p>
 
                 <div id="reminderRecipientsPanel" class="info-card hidden">
                   <strong>Reminder recipients</strong>
@@ -637,27 +643,18 @@
 
                 <div class="info-card">
                   <strong>Reminder action</strong>
-                  <p>Non-responders are selected by default, but you can include or remove any contact before sending.</p>
+                  <p>Non-responders are selected by default. Open the reminder picker only if you want to adjust the recipient list.</p>
                   <div class="button-row">
                     <button id="sendReminderEmail" type="button" class="secondary-button">Send Reminder</button>
                   </div>
                 </div>
 
                 <label class="field">
-                  <span>Message preview</span>
+                  <span>Reminder message</span>
                   <textarea id="messagePreview" rows="6"></textarea>
                 </label>
 
                 <p id="messageStatus" class="status-text" aria-live="polite"></p>
-
-                <div class="panel-heading compact-panel-heading">
-                  <h2>Responses</h2>
-                  <p>Track who has accepted, declined, maybe, or not replied yet.</p>
-                </div>
-
-                <div id="eventRsvpSummary" class="info-card"></div>
-                <div id="eventRsvpList" class="entity-list"></div>
-                <p id="eventRsvpStatus" class="status-text" aria-live="polite"></p>
               </div>
             </section>
           </div>

@@ -378,6 +378,10 @@ p {
   margin-top: 6px;
 }
 
+.selected-event-meta {
+  margin-top: -2px;
+}
+
 .stack-form,
 .field,
 .formation-builder,
