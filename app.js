@@ -36,6 +36,7 @@ const feedbackEndpoint = "/api/feedback";
 const trainingPlanEndpoint = "/api/training-plan";
 const teamUpdateEndpoint = "/api/team-update";
 const aiCommunicationDraftEndpoint = "/api/ai/communication-draft";
+const reminderSchedulerEndpoint = "/api/reminder-scheduler";
 const teamsTableName = "teams";
 const teamContactsTableName = "team_contacts";
 const teamEventsTableName = "team_events";
@@ -68,6 +69,7 @@ const accountReminder3DayInput = document.querySelector("#accountReminder3Day");
 const accountReminder1DayInput = document.querySelector("#accountReminder1Day");
 const accountReminderSameDayInput = document.querySelector("#accountReminderSameDay");
 const saveAccountSettingsButton = document.querySelector("#saveAccountSettings");
+const runReminderCheckButton = document.querySelector("#runReminderCheck");
 const accountSettingsStatus = document.querySelector("#accountSettingsStatus");
 const feedbackForm = document.querySelector("#feedbackForm");
 const feedbackMessageInput = document.querySelector("#feedbackMessage");
@@ -235,6 +237,7 @@ let trainingState = {
   loading: false,
   accepted: false,
 };
+let reminderCheckInFlight = false;
 
 bootstrapApp();
 
@@ -308,6 +311,10 @@ feedbackForm.addEventListener("submit", async (event) => {
 
 saveAccountSettingsButton?.addEventListener("click", async () => {
   await saveAccountSettings();
+});
+
+runReminderCheckButton?.addEventListener("click", async () => {
+  await runReminderSchedulerCheck();
 });
 
 openContactFormButton?.addEventListener("click", () => {
@@ -842,9 +849,7 @@ function renderAuthState() {
   teamSwitcher.disabled = !isLoggedIn;
   newTeamButton.disabled = !isLoggedIn;
   deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
-  if (saveAccountSettingsButton) {
-    saveAccountSettingsButton.disabled = !isLoggedIn;
-  }
+  renderAccountSettings();
 }
 
 async function hydrateStateFromSupabase() {
@@ -1291,6 +1296,81 @@ async function saveAccountSettings() {
     });
     setStatus(accountSettingsStatus, `Settings save failed: ${describeSupabaseError(error)}`, true);
   }
+}
+
+async function runReminderSchedulerCheck() {
+  if (!supabaseUserId || !supabaseAccessToken) {
+    setStatus(accountSettingsStatus, "Log in before generating reminder drafts.", true);
+    return;
+  }
+
+  reminderCheckInFlight = true;
+  renderAccountSettings();
+  setStatus(accountSettingsStatus, "Checking for due reminders...", false);
+
+  try {
+    const response = await fetch(reminderSchedulerEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        accessToken: supabaseAccessToken,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "Reminder check failed.");
+    }
+
+    console.info("[Reminder Scheduler] Manual reminder check completed", result);
+    await hydrateStateFromSupabase();
+    setStatus(accountSettingsStatus, formatReminderSchedulerResult(result), false);
+  } catch (error) {
+    console.error("[Reminder Scheduler] Manual reminder check failed", {
+      error,
+      message: error?.message || String(error),
+    });
+    setStatus(accountSettingsStatus, error?.message || "Reminder check failed.", true);
+  } finally {
+    reminderCheckInFlight = false;
+    renderAccountSettings();
+  }
+}
+
+function formatReminderSchedulerResult(result) {
+  const dueCount = Number(result?.dueCount || 0);
+  const draftCount = Number(result?.draftCount || 0);
+  const notifiedCount = Number(result?.notifiedCount || 0);
+  const duplicateCount = Number(result?.duplicatesPrevented || 0);
+  const skippedCount = Number(result?.skippedCount || 0);
+
+  if (draftCount > 0) {
+    return `Created ${draftCount} reminder draft${draftCount === 1 ? "" : "s"} and emailed ${notifiedCount} admin review ${notifiedCount === 1 ? "notification" : "notifications"}.`;
+  }
+
+  if (dueCount === 0) {
+    return "No reminder drafts are due right now.";
+  }
+
+  const summaryParts = [];
+  if (duplicateCount > 0) {
+    summaryParts.push(
+      `${duplicateCount} due reminder${duplicateCount === 1 ? "" : "s"} already had a draft`,
+    );
+  }
+  if (skippedCount > 0) {
+    summaryParts.push(`${skippedCount} reminder${skippedCount === 1 ? "" : "s"} were skipped`);
+  }
+
+  if (!summaryParts.length) {
+    return "No new reminder drafts were created.";
+  }
+
+  return `No new reminder drafts were created. ${summaryParts.join(". ")}.`;
 }
 
 async function generateTrainingPlan(options = {}) {
@@ -1849,6 +1929,15 @@ function renderAccountSettings() {
   }
   if (accountReminderSameDayInput) {
     accountReminderSameDayInput.checked = settings.defaultReminderSameDayEnabled;
+  }
+  if (saveAccountSettingsButton) {
+    saveAccountSettingsButton.disabled = !supabaseUserId || reminderCheckInFlight;
+  }
+  if (runReminderCheckButton) {
+    runReminderCheckButton.disabled = !supabaseUserId || reminderCheckInFlight;
+    runReminderCheckButton.textContent = reminderCheckInFlight
+      ? "Checking reminders..."
+      : "Generate Due Reminders";
   }
 }
 

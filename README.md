@@ -17,7 +17,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Lets contacts RSVP from event emails without logging in
 - Shows RSVP availability, notes, and response times back inside TeamPro
 - Includes an AI Assistant that turns plain-English coach instructions into draft event and communication workflows
-- Generates reminder drafts automatically for upcoming events and emails the team admin for review before anything is sent
+- Generates reminder drafts for upcoming events and emails the team admin for review before anything is sent
 - Lets coaches manage a global reminder schedule policy from the Account tab
 - Supports clipboard image copy where the browser allows it
 - Includes a feedback form that can email thoughts to the TeamPro inbox
@@ -83,7 +83,7 @@ Resend is optional for event updates:
 - Email sending is only enabled when Resend is configured.
 - If `SUPABASE_SERVICE_ROLE_KEY` is missing, RSVP links and public RSVP updates will not work.
 - `TEAMPRO_APP_BASE_URL` is used in admin reminder review links and should point at the live TeamPro site.
-- `CRON_SECRET` is optional for manual scheduler triggers and local testing.
+- `CRON_SECRET` is optional for manual scheduler triggers outside the signed-in TeamPro UI and for local testing.
 
 ## Share on GitHub
 
@@ -187,14 +187,14 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - AI communication drafts are saved in `ai_communication_drafts` and remain private to the authenticated coach through RLS.
 - Reminder schedule defaults live in `user_settings` and are managed globally from the Account tab.
 - Scheduled reminders create `pending_review` drafts in `ai_communication_drafts`; no team-member emails are sent automatically.
-- Vercel Cron calls `/api/reminder-scheduler` hourly to detect due reminders, prevent duplicates, create drafts, and email the admin a review link.
+- On Vercel Hobby, a daily cron calls `/api/reminder-scheduler` around early NZ morning and admins can also trigger `Generate Due Reminders` from the Account tab at any time.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
 
 ## Reminder scheduler architecture
 
-- Reminder timing is configured per event with three toggles:
+- Reminder timing is configured globally per account in `user_settings` with three toggles:
   - 3 days before
   - 1 day before
   - day of event
@@ -203,6 +203,9 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - Duplicate drafts are prevented with a unique index on `event_id + reminder_type`.
 - After a reminder draft is created, TeamPro emails the signed-in team admin a review link and dismiss link.
 - The admin opens TeamPro, reviews the draft, adjusts recipients if needed, and explicitly approves sending.
+- The production fallback for Vercel Hobby is:
+  - one daily cron run via `vercel.json`
+  - plus the `Generate Due Reminders` button in the Account tab for immediate/manual checks
 
 ## Manual AI communication draft test
 
@@ -225,9 +228,19 @@ Then add the same environment variables in Vercel and redeploy if needed.
 ## Manual reminder scheduler test
 
 1. Sign in to TeamPro and create an event more than 3 days in the future.
-2. Confirm the event reminder settings are enabled as expected.
+2. In `Account`, confirm the default reminder schedule is enabled as expected.
 3. Make sure the team has at least one contact with an email address.
-4. Trigger the scheduler manually:
+4. In `Account`, click `Generate Due Reminders`.
+5. Confirm TeamPro reports whether drafts were created, skipped, or already existed.
+6. Confirm a `pending_review` draft row appears in `ai_communication_drafts`.
+7. Confirm the team admin receives the reminder review email.
+8. Confirm no team-member reminder emails are sent automatically.
+9. Open the `Review & Send` link and confirm TeamPro opens the correct event and reminder draft.
+10. Approve/send the reminder and confirm recipients receive it.
+11. Trigger the reminder check again and confirm duplicate drafts are not created.
+12. Repeat for 1-day and same-day reminder timings.
+
+Optional local API trigger:
 
 ```bash
 curl -X POST http://localhost:3000/api/reminder-scheduler \
@@ -235,14 +248,6 @@ curl -X POST http://localhost:3000/api/reminder-scheduler \
   -H "Authorization: Bearer $CRON_SECRET" \
   -d '{}'
 ```
-
-5. Confirm a `pending_review` draft row appears in `ai_communication_drafts`.
-6. Confirm the team admin receives the reminder review email.
-7. Confirm no team-member reminder emails are sent automatically.
-8. Open the `Review & Send` link and confirm TeamPro opens the correct event and reminder draft.
-9. Approve/send the reminder and confirm recipients receive it.
-10. Trigger the scheduler again and confirm duplicate drafts are not created.
-11. Repeat for 1-day and same-day reminder timings.
 
 ## Manual event and RSVP test
 
