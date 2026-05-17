@@ -42,6 +42,7 @@ const teamEventsTableName = "team_events";
 const eventUpdateLogsTableName = "event_update_logs";
 const eventRsvpsTableName = "event_rsvps";
 const aiCommunicationDraftsTableName = "ai_communication_drafts";
+const userSettingsTableName = "user_settings";
 
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
@@ -62,6 +63,12 @@ const authGuestPanel = document.querySelector("#authGuestPanel");
 const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
+const accountSettingsPanel = document.querySelector("#accountSettingsPanel");
+const accountReminder3DayInput = document.querySelector("#accountReminder3Day");
+const accountReminder1DayInput = document.querySelector("#accountReminder1Day");
+const accountReminderSameDayInput = document.querySelector("#accountReminderSameDay");
+const saveAccountSettingsButton = document.querySelector("#saveAccountSettings");
+const accountSettingsStatus = document.querySelector("#accountSettingsStatus");
 const feedbackForm = document.querySelector("#feedbackForm");
 const feedbackMessageInput = document.querySelector("#feedbackMessage");
 const feedbackStatus = document.querySelector("#feedbackStatus");
@@ -119,9 +126,6 @@ const eventStartTimeInput = document.querySelector("#eventStartTime");
 const eventEndTimeInput = document.querySelector("#eventEndTime");
 const eventLocationInput = document.querySelector("#eventLocation");
 const eventStatusInput = document.querySelector("#eventStatus");
-const eventReminder3DayInput = document.querySelector("#eventReminder3Day");
-const eventReminder1DayInput = document.querySelector("#eventReminder1Day");
-const eventReminderSameDayInput = document.querySelector("#eventReminderSameDay");
 const eventRepeatPatternInput = document.querySelector("#eventRepeatPattern");
 const eventRecurringOptions = document.querySelector("#eventRecurringOptions");
 const eventRecurringDays = document.querySelector("#eventRecurringDays");
@@ -216,6 +220,15 @@ let aiDraftState = {
   data: null,
 };
 const appLinkState = readAppLinkState();
+const defaultUserSettings = {
+  id: "",
+  userId: "",
+  defaultReminder3DayEnabled: true,
+  defaultReminder1DayEnabled: true,
+  defaultReminderSameDayEnabled: true,
+  createdAt: "",
+  updatedAt: "",
+};
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -291,6 +304,10 @@ logoutButton.addEventListener("click", async () => {
 feedbackForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await submitFeedback();
+});
+
+saveAccountSettingsButton?.addEventListener("click", async () => {
+  await saveAccountSettings();
 });
 
 openContactFormButton?.addEventListener("click", () => {
@@ -773,6 +790,7 @@ async function applyAuthSession(session) {
       eventsByTeamId: {},
       rsvpsByEventId: {},
       aiDraftsByEventId: {},
+      userSettings: defaultUserSettings,
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -819,10 +837,14 @@ function renderAuthState() {
   const isLoggedIn = Boolean(supabaseUserId);
   authGuestPanel.classList.toggle("hidden", isLoggedIn);
   authUserPanel.classList.toggle("hidden", !isLoggedIn);
+  accountSettingsPanel?.classList.toggle("hidden", !isLoggedIn);
   authUserEmail.textContent = supabaseUserEmail || "Signed in";
   teamSwitcher.disabled = !isLoggedIn;
   newTeamButton.disabled = !isLoggedIn;
   deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
+  if (saveAccountSettingsButton) {
+    saveAccountSettingsButton.disabled = !isLoggedIn;
+  }
 }
 
 async function hydrateStateFromSupabase() {
@@ -835,7 +857,7 @@ async function hydrateStateFromSupabase() {
     query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
 
-  const [teamRows, contactRows, eventRows, rsvpRows, aiDraftRows] = await Promise.all([
+  const [teamRows, contactRows, eventRows, rsvpRows, aiDraftRows, userSettingsRows] = await Promise.all([
     fetchUserOwnedRowsFromSupabase({
       tableName: teamsTableName,
       orderBy: "updated_at.desc",
@@ -861,6 +883,11 @@ async function hydrateStateFromSupabase() {
       orderBy: "created_at.desc",
       logLabel: "AI drafts",
     }),
+    fetchUserOwnedRowsFromSupabase({
+      tableName: userSettingsTableName,
+      orderBy: "updated_at.desc",
+      logLabel: "User settings",
+    }),
   ]);
 
   console.info("[Supabase] Teams fetched after login", {
@@ -885,6 +912,9 @@ async function hydrateStateFromSupabase() {
       .map(mapDatabaseAiDraftToRecord)
       .filter((draft) => draft.eventId),
   );
+  const userSettings = mapDatabaseUserSettingsToRecord(
+    Array.isArray(userSettingsRows) ? userSettingsRows[0] : userSettingsRows,
+  );
   const cachedState = loadState();
 
   console.info("[Supabase] Source-of-truth check", {
@@ -901,6 +931,7 @@ async function hydrateStateFromSupabase() {
       eventsByTeamId: {},
       rsvpsByEventId: {},
       aiDraftsByEventId: {},
+      userSettings,
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -921,6 +952,7 @@ async function hydrateStateFromSupabase() {
     eventsByTeamId,
     rsvpsByEventId,
     aiDraftsByEventId,
+    userSettings,
     selectedEventId: chooseNextSelectedEventId({
       currentSelectedEventId: cachedState.selectedEventId,
       activeTeamId:
@@ -1222,6 +1254,45 @@ async function submitFeedback() {
   }
 }
 
+async function saveAccountSettings() {
+  if (!supabaseUserId) {
+    setStatus(accountSettingsStatus, "Log in before saving settings.", true);
+    return;
+  }
+
+  const nextSettings = {
+    id: state.userSettings?.id || createTeamStorageId(),
+    user_id: supabaseUserId,
+    default_reminder_3_day_enabled: accountReminder3DayInput?.checked !== false,
+    default_reminder_1_day_enabled: accountReminder1DayInput?.checked !== false,
+    default_reminder_same_day_enabled: accountReminderSameDayInput?.checked !== false,
+  };
+
+  setStatus(accountSettingsStatus, "Saving settings...", false);
+
+  try {
+    const savedRow = await saveRowToSupabase({
+      tableName: userSettingsTableName,
+      row: nextSettings,
+      statusElement: accountSettingsStatus,
+      pendingMessage: "Saving settings...",
+      successMessage: "Settings saved.",
+      label: "user settings",
+    });
+    state.userSettings = mapDatabaseUserSettingsToRecord(savedRow);
+    persistState();
+    renderAccountSettings();
+    setStatus(accountSettingsStatus, "Settings saved.", false);
+  } catch (error) {
+    console.error("[Supabase] user settings save failed", {
+      error,
+      message: error?.message || String(error),
+      row: nextSettings,
+    });
+    setStatus(accountSettingsStatus, `Settings save failed: ${describeSupabaseError(error)}`, true);
+  }
+}
+
 async function generateTrainingPlan(options = {}) {
   trainingState.loading = true;
   trainingState.accepted = false;
@@ -1373,12 +1444,13 @@ function loadState() {
         activeTeamId: fallbackTeam.id,
         teams: [fallbackTeam],
         contactsByTeamId: {},
-        eventsByTeamId: {},
-        rsvpsByEventId: {},
-        aiDraftsByEventId: {},
-        selectedEventId: null,
-        selectedContactIds: [],
-      });
+      eventsByTeamId: {},
+      rsvpsByEventId: {},
+      aiDraftsByEventId: {},
+      userSettings: defaultUserSettings,
+      selectedEventId: null,
+      selectedContactIds: [],
+    });
     }
 
     const parsed = JSON.parse(raw);
@@ -1447,6 +1519,7 @@ function createStateFromPersisted(saved) {
     eventsByTeamId,
     rsvpsByEventId: sanitiseEntityMap(saved.rsvpsByEventId),
     aiDraftsByEventId: sanitiseEntityMap(saved.aiDraftsByEventId),
+    userSettings: normaliseUserSettings(saved.userSettings),
     selectedEventId: chooseNextSelectedEventId({
       currentSelectedEventId: saved.selectedEventId || null,
       activeTeamId: activeTeam.id,
@@ -1454,6 +1527,20 @@ function createStateFromPersisted(saved) {
     }),
     selectedContactIds: Array.isArray(saved.selectedContactIds) ? saved.selectedContactIds.filter(Boolean) : [],
     selectedTarget: null,
+  };
+}
+
+function normaliseUserSettings(settings) {
+  const safe = settings && typeof settings === "object" ? settings : {};
+  return {
+    ...defaultUserSettings,
+    id: safe.id || "",
+    userId: safe.userId || "",
+    defaultReminder3DayEnabled: safe.defaultReminder3DayEnabled !== false,
+    defaultReminder1DayEnabled: safe.defaultReminder1DayEnabled !== false,
+    defaultReminderSameDayEnabled: safe.defaultReminderSameDayEnabled !== false,
+    createdAt: safe.createdAt || "",
+    updatedAt: safe.updatedAt || "",
   };
 }
 
@@ -1652,6 +1739,7 @@ function applyConfigToForm(config) {
   formationDraft = [...config.formations];
   renderFormationChoices();
   renderContactLinkedPlayerOptions();
+  renderAccountSettings();
 }
 
 function renderPlayerRows() {
@@ -1734,6 +1822,7 @@ function renderFormationChoices() {
 function renderAll() {
   renderTeamSwitcher();
   renderPage();
+  renderAccountSettings();
   renderPlayerRows();
   renderManagerControls();
   renderBench();
@@ -1748,6 +1837,19 @@ function renderAll() {
   renderEventRsvps();
   renderAiAssistant();
   renderTrainingView();
+}
+
+function renderAccountSettings() {
+  const settings = normaliseUserSettings(state.userSettings);
+  if (accountReminder3DayInput) {
+    accountReminder3DayInput.checked = settings.defaultReminder3DayEnabled;
+  }
+  if (accountReminder1DayInput) {
+    accountReminder1DayInput.checked = settings.defaultReminder1DayEnabled;
+  }
+  if (accountReminderSameDayInput) {
+    accountReminderSameDayInput.checked = settings.defaultReminderSameDayEnabled;
+  }
 }
 
 function renderTeamSwitcher() {
@@ -2573,15 +2675,6 @@ function resetEventForm() {
   eventIdInput.value = "";
   eventTypeInput.value = "training";
   eventStatusInput.value = "planned";
-  if (eventReminder3DayInput) {
-    eventReminder3DayInput.checked = true;
-  }
-  if (eventReminder1DayInput) {
-    eventReminder1DayInput.checked = true;
-  }
-  if (eventReminderSameDayInput) {
-    eventReminderSameDayInput.checked = true;
-  }
   eventRepeatPatternInput.value = "once";
   eventRepeatEndDateInput.value = "";
   clearSelectedRecurringDays();
@@ -2638,15 +2731,6 @@ function populateEventForm(eventId) {
   eventEndTimeInput.value = eventRecord.endTime || "";
   eventLocationInput.value = eventRecord.location || "";
   eventStatusInput.value = eventRecord.status || "planned";
-  if (eventReminder3DayInput) {
-    eventReminder3DayInput.checked = eventRecord.reminder3DayEnabled !== false;
-  }
-  if (eventReminder1DayInput) {
-    eventReminder1DayInput.checked = eventRecord.reminder1DayEnabled !== false;
-  }
-  if (eventReminderSameDayInput) {
-    eventReminderSameDayInput.checked = eventRecord.reminderSameDayEnabled !== false;
-  }
   eventRepeatPatternInput.value = eventRecord.repeatPattern || "once";
   eventRepeatEndDateInput.value = eventRecord.repeatEndDate || "";
   clearSelectedRecurringDays();
@@ -2877,9 +2961,9 @@ function buildEventRowsFromForm() {
   const repeatPattern = eventRepeatPatternInput.value || "once";
   const recurringDays = getSelectedRecurringDaysFromForm();
   const repeatEndDate = eventRepeatEndDateInput.value || null;
-  const reminder3DayEnabled = eventReminder3DayInput?.checked !== false;
-  const reminder1DayEnabled = eventReminder1DayInput?.checked !== false;
-  const reminderSameDayEnabled = eventReminderSameDayInput?.checked !== false;
+  const reminder3DayEnabled = state.userSettings?.defaultReminder3DayEnabled !== false;
+  const reminder1DayEnabled = state.userSettings?.defaultReminder1DayEnabled !== false;
+  const reminderSameDayEnabled = state.userSettings?.defaultReminderSameDayEnabled !== false;
   const baseId = eventIdInput.value || createTeamStorageId();
   const seriesId = repeatPattern === "weekly"
     ? (eventIdInput.value ? null : createTeamStorageId())
@@ -3594,9 +3678,9 @@ function buildSingleEventRowFromAiDraft(existingEvent = null, forcedStatus = nul
       location: aiDraftEventLocationInput.value.trim() || null,
       notes: aiDraftEventNotesInput.value.trim() || null,
       status: forcedStatus || existingEvent?.status || "planned",
-      reminder_3_day_enabled: existingEvent?.reminder3DayEnabled !== false,
-      reminder_1_day_enabled: existingEvent?.reminder1DayEnabled !== false,
-      reminder_same_day_enabled: existingEvent?.reminderSameDayEnabled !== false,
+      reminder_3_day_enabled: state.userSettings?.defaultReminder3DayEnabled !== false,
+      reminder_1_day_enabled: state.userSettings?.defaultReminder1DayEnabled !== false,
+      reminder_same_day_enabled: state.userSettings?.defaultReminderSameDayEnabled !== false,
       repeat_pattern: existingEvent?.repeatPattern || "once",
       repeat_end_date: existingEvent?.repeatEndDate || null,
       repeat_day_of_week: Number.isInteger(existingEvent?.repeatDayOfWeek) ? existingEvent.repeatDayOfWeek : null,
@@ -4140,9 +4224,9 @@ async function markEventAsSent(eventId) {
         location: nextEvent.location || null,
         notes: nextEvent.notes || null,
         status: nextEvent.status,
-        reminder_3_day_enabled: nextEvent.reminder3DayEnabled !== false,
-        reminder_1_day_enabled: nextEvent.reminder1DayEnabled !== false,
-        reminder_same_day_enabled: nextEvent.reminderSameDayEnabled !== false,
+        reminder_3_day_enabled: state.userSettings?.defaultReminder3DayEnabled !== false,
+        reminder_1_day_enabled: state.userSettings?.defaultReminder1DayEnabled !== false,
+        reminder_same_day_enabled: state.userSettings?.defaultReminderSameDayEnabled !== false,
         repeat_pattern: nextEvent.repeatPattern || "once",
         repeat_end_date: nextEvent.repeatEndDate || null,
         repeat_day_of_week: Number.isInteger(nextEvent.repeatDayOfWeek) ? nextEvent.repeatDayOfWeek : null,
@@ -5200,6 +5284,7 @@ function persistCachedStateOnly() {
     eventsByTeamId: state.eventsByTeamId,
     rsvpsByEventId: state.rsvpsByEventId,
     aiDraftsByEventId: state.aiDraftsByEventId,
+    userSettings: state.userSettings,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
   };
@@ -5220,6 +5305,7 @@ function persistUserScopedState() {
     eventsByTeamId: state.eventsByTeamId,
     rsvpsByEventId: state.rsvpsByEventId,
     aiDraftsByEventId: state.aiDraftsByEventId,
+    userSettings: state.userSettings,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
     savedAt: Date.now(),
@@ -5720,6 +5806,22 @@ function mapDatabaseAiDraftToRecord(row) {
     scheduledFor: row.scheduled_for || "",
     adminNotifiedAt: row.admin_notified_at || "",
     reviewedAt: row.reviewed_at || "",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function mapDatabaseUserSettingsToRecord(row) {
+  if (!row || typeof row !== "object") {
+    return { ...defaultUserSettings };
+  }
+
+  return {
+    id: row.id || "",
+    userId: row.user_id || "",
+    defaultReminder3DayEnabled: row.default_reminder_3_day_enabled !== false,
+    defaultReminder1DayEnabled: row.default_reminder_1_day_enabled !== false,
+    defaultReminderSameDayEnabled: row.default_reminder_same_day_enabled !== false,
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
   };

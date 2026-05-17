@@ -13,6 +13,7 @@ const CONTACTS_TABLE_NAME = "team_contacts";
 const RSVP_TABLE_NAME = "event_rsvps";
 const DRAFTS_TABLE_NAME = "ai_communication_drafts";
 const UPDATE_LOGS_TABLE_NAME = "event_update_logs";
+const USER_SETTINGS_TABLE_NAME = "user_settings";
 const TIME_ZONE = "Pacific/Auckland";
 
 const reminderDraftSchema = {
@@ -224,7 +225,9 @@ async function runReminderScheduler({ adminConfig }) {
   const teamIds = Array.from(new Set(events.map((eventRecord) => eventRecord.team_id).filter(Boolean)));
   const eventIds = events.map((eventRecord) => eventRecord.id).filter(Boolean);
 
-  const [contactRows, rsvpRows, existingDraftRows] = await Promise.all([
+  const userIds = Array.from(new Set(events.map((eventRecord) => eventRecord.user_id).filter(Boolean)));
+
+  const [contactRows, rsvpRows, existingDraftRows, userSettingsRows] = await Promise.all([
     supabaseAdminRequest({
       supabaseUrl: adminConfig.supabaseUrl,
       serviceRoleKey: adminConfig.serviceRoleKey,
@@ -256,10 +259,24 @@ async function runReminderScheduler({ adminConfig }) {
         order: "created_at.desc",
       },
     }),
+    supabaseAdminRequest({
+      supabaseUrl: adminConfig.supabaseUrl,
+      serviceRoleKey: adminConfig.serviceRoleKey,
+      tableName: USER_SETTINGS_TABLE_NAME,
+      query: {
+        select: "*",
+        user_id: `in.(${userIds.join(",")})`,
+      },
+    }),
   ]);
 
   const contactsByTeamId = groupBy((Array.isArray(contactRows) ? contactRows : []), "team_id");
   const rsvpsByEventId = groupBy((Array.isArray(rsvpRows) ? rsvpRows : []), "event_id");
+  const userSettingsByUserId = Object.fromEntries(
+    (Array.isArray(userSettingsRows) ? userSettingsRows : [])
+      .filter((row) => row?.user_id)
+      .map((row) => [row.user_id, row]),
+  );
   const draftsByEventReminder = new Map(
     (Array.isArray(existingDraftRows) ? existingDraftRows : [])
       .filter((draft) => draft.event_id && draft.reminder_type)
@@ -274,7 +291,12 @@ async function runReminderScheduler({ adminConfig }) {
   const dueEvents = [];
 
   for (const eventRecord of events) {
-    const dueReminderTypes = getDueReminderTypes({ eventRecord, todayKey, now });
+    const dueReminderTypes = getDueReminderTypes({
+      eventRecord,
+      userSettings: userSettingsByUserId[eventRecord.user_id] || null,
+      todayKey,
+      now,
+    });
 
     if (!dueReminderTypes.length) {
       skippedCount += 1;
@@ -398,24 +420,27 @@ async function runReminderScheduler({ adminConfig }) {
   };
 }
 
-function getDueReminderTypes({ eventRecord, todayKey, now }) {
+function getDueReminderTypes({ eventRecord, userSettings, todayKey, now }) {
   if (!eventRecord?.event_date) {
     return [];
   }
 
   const eventDateKey = eventRecord.event_date;
   const daysUntil = dayDifference(todayKey, eventDateKey);
+  const reminder3DayEnabled = userSettings?.default_reminder_3_day_enabled !== false;
+  const reminder1DayEnabled = userSettings?.default_reminder_1_day_enabled !== false;
+  const reminderSameDayEnabled = userSettings?.default_reminder_same_day_enabled !== false;
   const types = [];
 
-  if (daysUntil === 3 && eventRecord.reminder_3_day_enabled !== false) {
+  if (daysUntil === 3 && reminder3DayEnabled) {
     types.push("reminder_3_day");
   }
 
-  if (daysUntil === 1 && eventRecord.reminder_1_day_enabled !== false) {
+  if (daysUntil === 1 && reminder1DayEnabled) {
     types.push("reminder_1_day");
   }
 
-  if (daysUntil === 0 && eventRecord.reminder_same_day_enabled !== false && !isEventFinished(eventRecord, now)) {
+  if (daysUntil === 0 && reminderSameDayEnabled && !isEventFinished(eventRecord, now)) {
     types.push("reminder_same_day");
   }
 

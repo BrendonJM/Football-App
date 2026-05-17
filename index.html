@@ -75,6 +75,39 @@
 
               <p id="authStatus" class="status-text" aria-live="polite"></p>
 
+              <div id="accountSettingsPanel" class="info-card hidden">
+                <strong>Settings</strong>
+                <div class="stack-form compact-stack">
+                  <div class="field">
+                    <span>Default reminder schedule</span>
+                    <div class="checkbox-grid reminder-settings-grid">
+                      <label class="linked-player-tile">
+                        <input id="accountReminder3Day" type="checkbox" checked />
+                        <span class="linked-player-content">
+                          <strong>3 days before</strong>
+                        </span>
+                      </label>
+                      <label class="linked-player-tile">
+                        <input id="accountReminder1Day" type="checkbox" checked />
+                        <span class="linked-player-content">
+                          <strong>1 day before</strong>
+                        </span>
+                      </label>
+                      <label class="linked-player-tile">
+                        <input id="accountReminderSameDay" type="checkbox" checked />
+                        <span class="linked-player-content">
+                          <strong>Day of event</strong>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="button-row">
+                    <button id="saveAccountSettings" type="button" class="primary-button">Save Settings</button>
+                  </div>
+                </div>
+                <p id="accountSettingsStatus" class="status-text" aria-live="polite"></p>
+              </div>
+
               <div class="info-card">
                 <form id="feedbackForm" class="stack-form">
                   <label class="field">
@@ -511,29 +544,6 @@
                     <span>Location</span>
                     <input id="eventLocation" type="text" placeholder="North Harbour Domain" />
                   </label>
-                  <div class="field">
-                    <span>Reminder schedule</span>
-                    <div class="checkbox-grid reminder-settings-grid">
-                      <label class="linked-player-tile">
-                        <input id="eventReminder3Day" type="checkbox" checked />
-                        <span class="linked-player-content">
-                          <strong>3 days before</strong>
-                        </span>
-                      </label>
-                      <label class="linked-player-tile">
-                        <input id="eventReminder1Day" type="checkbox" checked />
-                        <span class="linked-player-content">
-                          <strong>1 day before</strong>
-                        </span>
-                      </label>
-                      <label class="linked-player-tile">
-                        <input id="eventReminderSameDay" type="checkbox" checked />
-                        <span class="linked-player-content">
-                          <strong>Day of event</strong>
-                        </span>
-                      </label>
-                    </div>
-                  </div>
                   <div id="eventRecurringOptions" class="stack-form hidden">
                     <div class="field">
                       <span>Recurring days</span>

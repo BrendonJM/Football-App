@@ -18,6 +18,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Shows RSVP availability, notes, and response times back inside TeamPro
 - Includes an AI Assistant that turns plain-English coach instructions into draft event and communication workflows
 - Generates reminder drafts automatically for upcoming events and emails the team admin for review before anything is sent
+- Lets coaches manage a global reminder schedule policy from the Account tab
 - Supports clipboard image copy where the browser allows it
 - Includes a feedback form that can email thoughts to the TeamPro inbox
 - Uses Supabase Auth so each user only sees their own teams, contacts, and events
@@ -159,7 +160,7 @@ If the app shows a Supabase connection warning:
    It should return JSON with non-empty `supabaseUrl` and `supabaseAnonKey`.
 3. In Supabase, confirm:
    - `supabase-schema.sql` has been run successfully
-  - the `teams`, `team_contacts`, `team_events`, `event_update_logs`, `event_rsvps`, and `ai_communication_drafts` tables exist
+  - the `teams`, `team_contacts`, `team_events`, `event_update_logs`, `event_rsvps`, `ai_communication_drafts`, and `user_settings` tables exist
   - the authenticated RLS policies from `supabase-schema.sql` were created
 4. If the schema changed after an earlier deploy, redeploy on Vercel after updating env vars.
 
@@ -184,7 +185,7 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - Team, contact, and event data are stored in Supabase and scoped by authenticated user ID.
 - Events can be one-off or generated as weekly repeating occurrences, with one row per occurrence so RSVP responses stay event-specific.
 - AI communication drafts are saved in `ai_communication_drafts` and remain private to the authenticated coach through RLS.
-- Reminder schedules live on each event record and default to 3-day, 1-day, and same-day reminders being enabled.
+- Reminder schedule defaults live in `user_settings` and are managed globally from the Account tab.
 - Scheduled reminders create `pending_review` drafts in `ai_communication_drafts`; no team-member emails are sent automatically.
 - Vercel Cron calls `/api/reminder-scheduler` hourly to detect due reminders, prevent duplicates, create drafts, and email the admin a review link.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.

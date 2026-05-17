@@ -35,6 +35,16 @@ create table if not exists public.team_contacts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.user_settings (
+  id text primary key default gen_random_uuid()::text,
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  default_reminder_3_day_enabled boolean not null default true,
+  default_reminder_1_day_enabled boolean not null default true,
+  default_reminder_same_day_enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.team_events (
   id text primary key default gen_random_uuid()::text,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -135,6 +145,9 @@ create index if not exists team_contacts_team_id_idx
 create index if not exists team_contacts_user_team_idx
   on public.team_contacts (user_id, team_id);
 
+create index if not exists user_settings_user_id_idx
+  on public.user_settings (user_id);
+
 create index if not exists team_events_user_id_idx
   on public.team_events (user_id);
 
@@ -214,6 +227,7 @@ create index if not exists event_rsvps_event_response_idx
 
 alter table public.teams enable row level security;
 alter table public.team_contacts enable row level security;
+alter table public.user_settings enable row level security;
 alter table public.team_events enable row level security;
 alter table public.ai_communication_drafts enable row level security;
 alter table public.event_update_logs enable row level security;
@@ -275,6 +289,36 @@ with check (auth.uid() = user_id);
 
 create policy "Users can delete their own team contacts"
 on public.team_contacts
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can read their own settings" on public.user_settings;
+drop policy if exists "Users can insert their own settings" on public.user_settings;
+drop policy if exists "Users can update their own settings" on public.user_settings;
+drop policy if exists "Users can delete their own settings" on public.user_settings;
+
+create policy "Users can read their own settings"
+on public.user_settings
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+create policy "Users can insert their own settings"
+on public.user_settings
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+create policy "Users can update their own settings"
+on public.user_settings
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users can delete their own settings"
+on public.user_settings
 for delete
 to authenticated
 using (auth.uid() = user_id);
@@ -408,6 +452,12 @@ execute function public.set_updated_at();
 drop trigger if exists set_team_contacts_updated_at on public.team_contacts;
 create trigger set_team_contacts_updated_at
 before update on public.team_contacts
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_user_settings_updated_at on public.user_settings;
+create trigger set_user_settings_updated_at
+before update on public.user_settings
 for each row
 execute function public.set_updated_at();
 
