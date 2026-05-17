@@ -1,11 +1,5 @@
 {
   "buildCommand": "npm run build",
-  "crons": [
-    {
-      "path": "/api/reminder-scheduler",
-      "schedule": "0 * * * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/rsvp",
