@@ -1140,6 +1140,11 @@ textarea {
   gap: 8px;
 }
 
+.reminder-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .linked-player-tile {
   position: relative;
   display: block;
@@ -1352,6 +1357,11 @@ textarea {
 }
 
 @media (max-width: 520px) {
+  .reminder-settings-grid,
+  .linked-player-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page-nav {
     gap: 6px;
     padding: 5px;

@@ -17,6 +17,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - Lets contacts RSVP from event emails without logging in
 - Shows RSVP availability, notes, and response times back inside TeamPro
 - Includes an AI Assistant that turns plain-English coach instructions into draft event and communication workflows
+- Generates reminder drafts automatically for upcoming events and emails the team admin for review before anything is sent
 - Supports clipboard image copy where the browser allows it
 - Includes a feedback form that can email thoughts to the TeamPro inbox
 - Uses Supabase Auth so each user only sees their own teams, contacts, and events
@@ -32,6 +33,7 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 - `api/team-update.js` sends event update emails through Resend when configured
 - `api/ai/communication-draft.js` generates structured AI communication drafts server-side using OpenAI
 - `api/rsvp.js` powers the public RSVP lookup and submission flow
+- `api/reminder-scheduler.js` checks upcoming events, creates reminder drafts, and emails admins to review them
 - `rsvp.html` and `rsvp.js` provide the public RSVP page
 - `public-config.js` is the generated public runtime config consumed by the browser
 - `build-config.js` writes the public Supabase config file during Vercel builds
@@ -69,6 +71,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-server-side-service-role-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
 RESEND_API_KEY=re_xxxxxxxxx
 RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
+TEAMPRO_APP_BASE_URL=https://www.teampro.co.nz
+CRON_SECRET=replace-with-a-long-random-string
 PORT=3000
 ```
 
@@ -77,6 +81,8 @@ Resend is optional for event updates:
 - If `RESEND_API_KEY` or `RESEND_FROM_EMAIL` is missing, coaches can still preview and copy event messages.
 - Email sending is only enabled when Resend is configured.
 - If `SUPABASE_SERVICE_ROLE_KEY` is missing, RSVP links and public RSVP updates will not work.
+- `TEAMPRO_APP_BASE_URL` is used in admin reminder review links and should point at the live TeamPro site.
+- `CRON_SECRET` is optional for manual scheduler triggers and local testing.
 
 ## Share on GitHub
 
@@ -127,6 +133,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-server-side-service-role-key
 OPENAI_API_KEY=replace-with-a-new-server-side-openai-key
 RESEND_API_KEY=re_xxxxxxxxx
 RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
+TEAMPRO_APP_BASE_URL=https://www.teampro.co.nz
+CRON_SECRET=replace-with-a-long-random-string
 ```
 
 6. Deploy the project.
@@ -137,6 +145,8 @@ RESEND_FROM_EMAIL=TeamPro <onboarding@resend.dev>
 - teams can be created and switched
 - contacts and events save and reload after sign-in
 - RSVP links from event emails load and submit successfully
+- reminder drafts appear in `ai_communication_drafts` when the reminder scheduler runs
+- admin reminder review emails arrive before any team-member reminder is sent
 - a page refresh still shows the same saved teams, contacts, and events
 
 ### Troubleshooting deployed Supabase connection errors
@@ -149,8 +159,8 @@ If the app shows a Supabase connection warning:
    It should return JSON with non-empty `supabaseUrl` and `supabaseAnonKey`.
 3. In Supabase, confirm:
    - `supabase-schema.sql` has been run successfully
-   - the `teams`, `team_contacts`, `team_events`, `event_update_logs`, and `event_rsvps` tables exist
-   - the authenticated RLS policies from `supabase-schema.sql` were created
+  - the `teams`, `team_contacts`, `team_events`, `event_update_logs`, `event_rsvps`, and `ai_communication_drafts` tables exist
+  - the authenticated RLS policies from `supabase-schema.sql` were created
 4. If the schema changed after an earlier deploy, redeploy on Vercel after updating env vars.
 
 ### Vercel CLI flow
@@ -174,9 +184,24 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - Team, contact, and event data are stored in Supabase and scoped by authenticated user ID.
 - Events can be one-off or generated as weekly repeating occurrences, with one row per occurrence so RSVP responses stay event-specific.
 - AI communication drafts are saved in `ai_communication_drafts` and remain private to the authenticated coach through RLS.
+- Reminder schedules live on each event record and default to 3-day, 1-day, and same-day reminders being enabled.
+- Scheduled reminders create `pending_review` drafts in `ai_communication_drafts`; no team-member emails are sent automatically.
+- Vercel Cron calls `/api/reminder-scheduler` hourly to detect due reminders, prevent duplicates, create drafts, and email the admin a review link.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
+
+## Reminder scheduler architecture
+
+- Reminder timing is configured per event with three toggles:
+  - 3 days before
+  - 1 day before
+  - day of event
+- The scheduler never emails team members directly.
+- Instead, it creates one `pending_review` draft per event per reminder type in `ai_communication_drafts`.
+- Duplicate drafts are prevented with a unique index on `event_id + reminder_type`.
+- After a reminder draft is created, TeamPro emails the signed-in team admin a review link and dismiss link.
+- The admin opens TeamPro, reviews the draft, adjusts recipients if needed, and explicitly approves sending.
 
 ## Manual AI communication draft test
 
@@ -196,16 +221,38 @@ Then add the same environment variables in Vercel and redeploy if needed.
 9. Copy the email and SMS draft text.
 10. Confirm no message is sent until you explicitly click `Send Draft Email`.
 
+## Manual reminder scheduler test
+
+1. Sign in to TeamPro and create an event more than 3 days in the future.
+2. Confirm the event reminder settings are enabled as expected.
+3. Make sure the team has at least one contact with an email address.
+4. Trigger the scheduler manually:
+
+```bash
+curl -X POST http://localhost:3000/api/reminder-scheduler \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -d '{}'
+```
+
+5. Confirm a `pending_review` draft row appears in `ai_communication_drafts`.
+6. Confirm the team admin receives the reminder review email.
+7. Confirm no team-member reminder emails are sent automatically.
+8. Open the `Review & Send` link and confirm TeamPro opens the correct event and reminder draft.
+9. Approve/send the reminder and confirm recipients receive it.
+10. Trigger the scheduler again and confirm duplicate drafts are not created.
+11. Repeat for 1-day and same-day reminder timings.
+
 ## Manual event and RSVP test
 
 1. Sign in to TeamPro.
 2. Create or choose a team with at least one contact that has an email address.
-3. Create a one-off event in `Team Comms`.
+3. Create a one-off event in `Events`.
 4. Create a weekly repeating training event with a repeat end date and confirm multiple event rows are created.
-5. In `Send Update`, use the next planned event and send the update email to the contact.
+5. Open an event in `Events`, prepare a reminder or update, and send the email to the contact.
 6. Open the RSVP link from the email and submit `Yes`, `No`, or `Maybe`.
 7. Confirm the `event_rsvps` table in Supabase contains the response against the correct `event_id`.
-8. Refresh TeamPro and return to `Team Comms`.
+8. Refresh TeamPro and return to `Events`.
 9. Confirm the `Availability` section shows the RSVP status, note, response time, and counts for that event.
 10. Select a different future event and confirm it has its own separate RSVP records and counts.
 11. Log out and back in, then confirm the saved events and RSVP states still load correctly.

@@ -119,6 +119,9 @@ const eventStartTimeInput = document.querySelector("#eventStartTime");
 const eventEndTimeInput = document.querySelector("#eventEndTime");
 const eventLocationInput = document.querySelector("#eventLocation");
 const eventStatusInput = document.querySelector("#eventStatus");
+const eventReminder3DayInput = document.querySelector("#eventReminder3Day");
+const eventReminder1DayInput = document.querySelector("#eventReminder1Day");
+const eventReminderSameDayInput = document.querySelector("#eventReminderSameDay");
 const eventRepeatPatternInput = document.querySelector("#eventRepeatPattern");
 const eventRecurringOptions = document.querySelector("#eventRecurringOptions");
 const eventRecurringDays = document.querySelector("#eventRecurringDays");
@@ -168,10 +171,12 @@ const selectAllMessageRecipientsButton = document.querySelector("#selectAllMessa
 const clearMessageRecipientsButton = document.querySelector("#clearMessageRecipients");
 const messagePreview = document.querySelector("#messagePreview");
 const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
+const dismissReminderDraftButton = document.querySelector("#dismissReminderDraft");
 const messageStatus = document.querySelector("#messageStatus");
 const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
 const eventRsvpList = document.querySelector("#eventRsvpList");
 const eventRsvpStatus = document.querySelector("#eventRsvpStatus");
+const reminderDraftSummary = document.querySelector("#reminderDraftSummary");
 const trainingFocusSelect = document.querySelector("#trainingFocus");
 const generateTrainingPlanButton = document.querySelector("#generateTrainingPlan");
 const refreshTrainingPlanButton = document.querySelector("#refreshTrainingPlan");
@@ -204,11 +209,13 @@ let messagePreviewDraft = "";
 let messageRecipientSelectionEventId = null;
 let reminderComposerOpen = false;
 let reminderComposerEventId = null;
+let reminderDraftSelectionEventId = null;
 let aiDraftState = {
   loading: false,
   draftId: null,
   data: null,
 };
+const appLinkState = readAppLinkState();
 let trainingState = {
   focusArea: "Passing",
   plan: null,
@@ -409,6 +416,10 @@ sendReminderEmailButton?.addEventListener("click", async () => {
   }
 
   await sendEventUpdateEmail("reminder");
+});
+
+dismissReminderDraftButton?.addEventListener("click", async () => {
+  await dismissSelectedReminderDraft();
 });
 
 selectAllMessageRecipientsButton?.addEventListener("click", () => {
@@ -761,6 +772,7 @@ async function applyAuthSession(session) {
       contactsByTeamId: {},
       eventsByTeamId: {},
       rsvpsByEventId: {},
+      aiDraftsByEventId: {},
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -783,6 +795,7 @@ async function applyAuthSession(session) {
   try {
     await hydrateStateFromSupabase();
     persistUserScopedState();
+    await applyAppLinkState();
   } catch (error) {
     console.error("[Supabase] Failed to hydrate teams after login", {
       userId: supabaseUserId,
@@ -822,7 +835,7 @@ async function hydrateStateFromSupabase() {
     query: "supabase.from('teams').select('*').eq('user_id', user.id)",
   });
 
-  const [teamRows, contactRows, eventRows, rsvpRows] = await Promise.all([
+  const [teamRows, contactRows, eventRows, rsvpRows, aiDraftRows] = await Promise.all([
     fetchUserOwnedRowsFromSupabase({
       tableName: teamsTableName,
       orderBy: "updated_at.desc",
@@ -843,6 +856,11 @@ async function hydrateStateFromSupabase() {
       orderBy: "created_at.asc",
       logLabel: "RSVPs",
     }),
+    fetchUserOwnedRowsFromSupabase({
+      tableName: aiCommunicationDraftsTableName,
+      orderBy: "created_at.desc",
+      logLabel: "AI drafts",
+    }),
   ]);
 
   console.info("[Supabase] Teams fetched after login", {
@@ -862,6 +880,11 @@ async function hydrateStateFromSupabase() {
       contact_name: contactNameById[row.contact_id] || row.contact_name || "",
     })),
   );
+  const aiDraftsByEventId = groupRowsByEventId(
+    aiDraftRows
+      .map(mapDatabaseAiDraftToRecord)
+      .filter((draft) => draft.eventId),
+  );
   const cachedState = loadState();
 
   console.info("[Supabase] Source-of-truth check", {
@@ -877,6 +900,7 @@ async function hydrateStateFromSupabase() {
       contactsByTeamId: {},
       eventsByTeamId: {},
       rsvpsByEventId: {},
+      aiDraftsByEventId: {},
       selectedEventId: null,
       selectedContactIds: [],
     });
@@ -896,6 +920,7 @@ async function hydrateStateFromSupabase() {
     contactsByTeamId,
     eventsByTeamId,
     rsvpsByEventId,
+    aiDraftsByEventId,
     selectedEventId: chooseNextSelectedEventId({
       currentSelectedEventId: cachedState.selectedEventId,
       activeTeamId:
@@ -1350,6 +1375,7 @@ function loadState() {
         contactsByTeamId: {},
         eventsByTeamId: {},
         rsvpsByEventId: {},
+        aiDraftsByEventId: {},
         selectedEventId: null,
         selectedContactIds: [],
       });
@@ -1378,6 +1404,7 @@ function loadState() {
         contactsByTeamId: {},
         eventsByTeamId: {},
         rsvpsByEventId: {},
+        aiDraftsByEventId: {},
         selectedEventId: null,
         selectedContactIds: [],
       });
@@ -1419,6 +1446,7 @@ function createStateFromPersisted(saved) {
     contactsByTeamId: sanitiseEntityMap(saved.contactsByTeamId),
     eventsByTeamId,
     rsvpsByEventId: sanitiseEntityMap(saved.rsvpsByEventId),
+    aiDraftsByEventId: sanitiseEntityMap(saved.aiDraftsByEventId),
     selectedEventId: chooseNextSelectedEventId({
       currentSelectedEventId: saved.selectedEventId || null,
       activeTeamId: activeTeam.id,
@@ -1946,11 +1974,14 @@ function renderEventMessaging() {
     state.selectedEventId = getNextPlannedEvent()?.id || events[0].id;
   }
   const selectedEvent = getSelectedEvent();
+  const selectedDraft = getSelectedReminderDraft();
   if (selectedEvent && state.selectedEventId !== selectedEvent.id) {
     state.selectedEventId = selectedEvent.id;
   }
   const emailContacts = contacts.filter((contact) => contact.email);
-  const reminderRecipientContacts = getRecipientsForEventUpdate(selectedEvent, "reminder");
+  const reminderRecipientContacts = selectedDraft
+    ? getRecipientsForReminderDraft(selectedEvent, selectedDraft)
+    : getRecipientsForEventUpdate(selectedEvent, "reminder");
   syncMessageRecipientSelection(selectedEvent, emailContacts, reminderRecipientContacts);
   const selectedReminderContacts = emailContacts.filter((contact) => state.selectedContactIds.includes(contact.id));
   const showReminderComposer = reminderComposerOpen && Boolean(selectedEvent) && reminderComposerEventId === selectedEvent.id;
@@ -1964,8 +1995,23 @@ function renderEventMessaging() {
       messageRecipientSummary.textContent = "Choose an event to see who should receive the reminder.";
     } else if (!emailContacts.length) {
       messageRecipientSummary.textContent = "No contacts with email addresses are available for this team yet.";
+    } else if (selectedDraft) {
+      messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected for this ${formatReminderTypeLabel(selectedDraft.reminderType)} reminder. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact is" : "contacts are"} suggested by the draft.`;
     } else {
       messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact has" : "contacts have"} not replied yet.`;
+    }
+  }
+
+  if (reminderDraftSummary) {
+    if (!selectedDraft || !selectedEvent) {
+      reminderDraftSummary.classList.add("hidden");
+      reminderDraftSummary.innerHTML = "";
+    } else {
+      reminderDraftSummary.classList.remove("hidden");
+      reminderDraftSummary.innerHTML = `
+        <strong>${escapeHtml(formatReminderTypeLabel(selectedDraft.reminderType))} reminder draft ready</strong>
+        <p>Generated for ${escapeHtml(selectedEvent.eventTitle)} and waiting for your review before anything is sent.</p>
+      `;
     }
   }
 
@@ -2004,11 +2050,19 @@ function renderEventMessaging() {
 
   const messageText = getMessagePreviewValue(selectedEvent);
   messagePreview.value = messageText;
+  if (dismissReminderDraftButton) {
+    dismissReminderDraftButton.classList.toggle("hidden", !selectedDraft);
+    dismissReminderDraftButton.disabled = sendingEventUpdate || !selectedDraft;
+  }
   if (sendReminderEmailButton) {
     sendReminderEmailButton.disabled = !selectedEvent
       || sendingEventUpdate
       || (showReminderComposer ? !selectedReminderContacts.length : !emailContacts.length);
-    sendReminderEmailButton.textContent = showReminderComposer ? "Send Reminder Now" : "Send Reminder";
+    if (showReminderComposer) {
+      sendReminderEmailButton.textContent = selectedDraft ? "Approve & Send Reminder" : "Send Reminder Now";
+    } else {
+      sendReminderEmailButton.textContent = "Send Reminder";
+    }
   }
 
   if (!selectedEvent) {
@@ -2410,6 +2464,60 @@ function getSelectedEventRsvps() {
   });
 }
 
+function getEventDrafts(eventId) {
+  if (!eventId) {
+    return [];
+  }
+
+  return [...(state.aiDraftsByEventId?.[eventId] || [])].sort((left, right) => {
+    return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+  });
+}
+
+function getSelectedReminderDraft() {
+  const selectedEvent = getSelectedEvent();
+
+  if (!selectedEvent) {
+    return null;
+  }
+
+  return getEventDrafts(selectedEvent.id).find((draft) =>
+    draft.status === "pending_review" && draft.draftType === "scheduled_reminder",
+  ) || null;
+}
+
+function upsertAiDraftInState(draftRecord) {
+  if (!draftRecord?.eventId) {
+    return;
+  }
+
+  const rows = [...(state.aiDraftsByEventId?.[draftRecord.eventId] || [])];
+  const index = rows.findIndex((row) => row.id === draftRecord.id);
+
+  if (index >= 0) {
+    rows[index] = draftRecord;
+  } else {
+    rows.unshift(draftRecord);
+  }
+
+  state.aiDraftsByEventId = state.aiDraftsByEventId || {};
+  state.aiDraftsByEventId[draftRecord.eventId] = rows.sort((left, right) =>
+    new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime(),
+  );
+}
+
+function removeAiDraftFromState(draftId, eventId) {
+  if (!draftId || !eventId || !state.aiDraftsByEventId?.[eventId]) {
+    return;
+  }
+
+  state.aiDraftsByEventId[eventId] = state.aiDraftsByEventId[eventId].filter((draft) => draft.id !== draftId);
+
+  if (!state.aiDraftsByEventId[eventId].length) {
+    delete state.aiDraftsByEventId[eventId];
+  }
+}
+
 function compareEvents(left, right) {
   const leftKey = `${left.eventDate || ""}T${left.startTime || "23:59"}`;
   const rightKey = `${right.eventDate || ""}T${right.startTime || "23:59"}`;
@@ -2465,6 +2573,15 @@ function resetEventForm() {
   eventIdInput.value = "";
   eventTypeInput.value = "training";
   eventStatusInput.value = "planned";
+  if (eventReminder3DayInput) {
+    eventReminder3DayInput.checked = true;
+  }
+  if (eventReminder1DayInput) {
+    eventReminder1DayInput.checked = true;
+  }
+  if (eventReminderSameDayInput) {
+    eventReminderSameDayInput.checked = true;
+  }
   eventRepeatPatternInput.value = "once";
   eventRepeatEndDateInput.value = "";
   clearSelectedRecurringDays();
@@ -2521,6 +2638,15 @@ function populateEventForm(eventId) {
   eventEndTimeInput.value = eventRecord.endTime || "";
   eventLocationInput.value = eventRecord.location || "";
   eventStatusInput.value = eventRecord.status || "planned";
+  if (eventReminder3DayInput) {
+    eventReminder3DayInput.checked = eventRecord.reminder3DayEnabled !== false;
+  }
+  if (eventReminder1DayInput) {
+    eventReminder1DayInput.checked = eventRecord.reminder1DayEnabled !== false;
+  }
+  if (eventReminderSameDayInput) {
+    eventReminderSameDayInput.checked = eventRecord.reminderSameDayEnabled !== false;
+  }
   eventRepeatPatternInput.value = eventRecord.repeatPattern || "once";
   eventRepeatEndDateInput.value = eventRecord.repeatEndDate || "";
   clearSelectedRecurringDays();
@@ -2751,6 +2877,9 @@ function buildEventRowsFromForm() {
   const repeatPattern = eventRepeatPatternInput.value || "once";
   const recurringDays = getSelectedRecurringDaysFromForm();
   const repeatEndDate = eventRepeatEndDateInput.value || null;
+  const reminder3DayEnabled = eventReminder3DayInput?.checked !== false;
+  const reminder1DayEnabled = eventReminder1DayInput?.checked !== false;
+  const reminderSameDayEnabled = eventReminderSameDayInput?.checked !== false;
   const baseId = eventIdInput.value || createTeamStorageId();
   const seriesId = repeatPattern === "weekly"
     ? (eventIdInput.value ? null : createTeamStorageId())
@@ -2794,6 +2923,9 @@ function buildEventRowsFromForm() {
     location: eventLocationInput.value.trim() || null,
     notes: eventNotesInput.value.trim() || null,
     status: eventStatusInput.value || "planned",
+    reminder_3_day_enabled: reminder3DayEnabled,
+    reminder_1_day_enabled: reminder1DayEnabled,
+    reminder_same_day_enabled: reminderSameDayEnabled,
     repeat_pattern: repeatPattern,
     repeat_end_date: repeatPattern === "weekly" ? repeatEndDate : null,
     repeat_day_of_week: repeatPattern === "weekly"
@@ -2998,15 +3130,28 @@ function syncMessageRecipientSelection(selectedEvent, emailContacts, reminderRec
   if (!selectedEvent) {
     state.selectedContactIds = [];
     messageRecipientSelectionEventId = null;
+    reminderDraftSelectionEventId = null;
     return;
   }
 
   const validIds = new Set(emailContacts.map((contact) => contact.id));
   const reminderIds = reminderRecipientContacts.map((contact) => contact.id);
+  const selectedDraft = getSelectedReminderDraft();
 
-  if (messagePreviewEventId !== selectedEvent.id) {
+  if (messagePreviewEventId !== selectedEvent.id && !selectedDraft) {
     messagePreviewEventId = selectedEvent.id;
     messagePreviewDraft = "";
+  }
+
+  if (selectedDraft && reminderDraftSelectionEventId !== selectedDraft.id) {
+    state.selectedContactIds = reminderIds;
+    messageRecipientSelectionEventId = selectedEvent.id;
+    reminderDraftSelectionEventId = selectedDraft.id;
+    return;
+  }
+
+  if (!selectedDraft) {
+    reminderDraftSelectionEventId = null;
   }
 
   if (messageRecipientSelectionEventId !== selectedEvent.id) {
@@ -3023,6 +3168,17 @@ function getMessagePreviewValue(eventRecord) {
     messagePreviewEventId = null;
     messagePreviewDraft = "";
     return "";
+  }
+
+  const selectedDraft = getSelectedReminderDraft();
+
+  if (selectedDraft && selectedDraft.status === "pending_review") {
+    if (messagePreviewEventId !== eventRecord.id || !messagePreviewDraft || reminderDraftSelectionEventId !== selectedDraft.id) {
+      messagePreviewEventId = eventRecord.id;
+      reminderDraftSelectionEventId = selectedDraft.id;
+      messagePreviewDraft = selectedDraft.draftJson?.message?.email_body || buildEventMessageText(eventRecord);
+    }
+    return messagePreviewDraft;
   }
 
   if (messagePreviewEventId !== eventRecord.id || !messagePreviewDraft) {
@@ -3084,6 +3240,42 @@ function getRecipientsForEventUpdate(eventRecord, mode = "all") {
 
     return contactRsvps.some((rsvp) => rsvp.response === "no_response");
   });
+}
+
+function getRecipientsForReminderDraft(eventRecord, draftRecord) {
+  const contacts = getActiveTeamContacts().filter((contact) => contact.email);
+
+  if (!eventRecord || !draftRecord) {
+    return [];
+  }
+
+  const group = draftRecord.draftJson?.recipients?.suggested_group || "non_responders";
+
+  switch (group) {
+    case "all_contacts":
+      return contacts;
+    case "available_players": {
+      const yesIds = new Set(getSelectedEventRsvps().filter((row) => row.response === "yes").map((row) => row.contactId));
+      return contacts.filter((contact) => yesIds.has(contact.id));
+    }
+    case "unavailable_players": {
+      const noIds = new Set(getSelectedEventRsvps().filter((row) => row.response === "no").map((row) => row.contactId));
+      return contacts.filter((contact) => noIds.has(contact.id));
+    }
+    case "custom":
+      return contacts;
+    case "non_responders":
+    default:
+      return getRecipientsForEventUpdate(eventRecord, "reminder");
+  }
+}
+
+function formatReminderTypeLabel(value) {
+  return {
+    reminder_3_day: "3-day",
+    reminder_1_day: "1-day",
+    reminder_same_day: "same-day",
+  }[value] || "scheduled";
 }
 
 function buildEventMessageText(eventRecord) {
@@ -3402,6 +3594,9 @@ function buildSingleEventRowFromAiDraft(existingEvent = null, forcedStatus = nul
       location: aiDraftEventLocationInput.value.trim() || null,
       notes: aiDraftEventNotesInput.value.trim() || null,
       status: forcedStatus || existingEvent?.status || "planned",
+      reminder_3_day_enabled: existingEvent?.reminder3DayEnabled !== false,
+      reminder_1_day_enabled: existingEvent?.reminder1DayEnabled !== false,
+      reminder_same_day_enabled: existingEvent?.reminderSameDayEnabled !== false,
       repeat_pattern: existingEvent?.repeatPattern || "once",
       repeat_end_date: existingEvent?.repeatEndDate || null,
       repeat_day_of_week: Number.isInteger(existingEvent?.repeatDayOfWeek) ? existingEvent.repeatDayOfWeek : null,
@@ -3590,12 +3785,79 @@ async function saveAiDraftStatus(status, eventId) {
       raw_prompt: aiAssistantPromptInput.value.trim(),
       draft_json: buildAiDraftPayloadFromInputs(),
       status,
+      draft_type: "manual",
+      reminder_type: null,
+      scheduled_for: null,
+      admin_notified_at: null,
+      reviewed_at: status === "used" || status === "discarded" ? new Date().toISOString() : null,
     },
     statusElement: aiDraftStatus,
     pendingMessage: "Saving draft status...",
     successMessage: "Draft status saved.",
     label: "ai draft",
   });
+}
+
+async function saveReminderDraftStatus(draftRecord, status) {
+  if (!draftRecord || !supabaseUserId) {
+    return null;
+  }
+
+  const savedRow = await saveRowToSupabase({
+    tableName: aiCommunicationDraftsTableName,
+    row: {
+      id: draftRecord.id,
+      user_id: supabaseUserId,
+      team_id: draftRecord.teamId,
+      event_id: draftRecord.eventId || null,
+      raw_prompt: draftRecord.rawPrompt || "",
+      draft_json: draftRecord.draftJson || {},
+      status,
+      draft_type: draftRecord.draftType || "scheduled_reminder",
+      reminder_type: draftRecord.reminderType || null,
+      scheduled_for: draftRecord.scheduledFor || null,
+      admin_notified_at: draftRecord.adminNotifiedAt || null,
+      reviewed_at: status === "used" || status === "discarded" ? new Date().toISOString() : (draftRecord.reviewedAt || null),
+    },
+    statusElement: messageStatus,
+    pendingMessage: status === "discarded" ? "Dismissing reminder draft..." : "Saving reminder draft...",
+    successMessage: status === "discarded" ? "Reminder draft dismissed." : "Reminder draft saved.",
+    label: "reminder draft",
+  });
+
+  const mappedDraft = mapDatabaseAiDraftToRecord(savedRow);
+  upsertAiDraftInState(mappedDraft);
+  return mappedDraft;
+}
+
+async function dismissSelectedReminderDraft() {
+  const draftRecord = getSelectedReminderDraft();
+
+  if (!draftRecord) {
+    return;
+  }
+
+  try {
+    const savedDraft = await saveReminderDraftStatus(draftRecord, "discarded");
+    if (savedDraft?.status === "discarded") {
+      removeAiDraftFromState(savedDraft.id, savedDraft.eventId);
+    }
+    reminderComposerOpen = false;
+    reminderComposerEventId = null;
+    reminderDraftSelectionEventId = null;
+    messagePreviewDraft = "";
+    persistState();
+    renderAll();
+    setStatus(messageStatus, "Reminder draft dismissed.", false);
+    clearAppLinkState();
+  } catch (error) {
+    console.error("[Reminder Draft] Dismiss failed", {
+      error,
+      message: error?.message || String(error),
+      draftId: draftRecord.id,
+    });
+    setStatus(messageStatus, error?.message || "Reminder draft could not be dismissed.", true);
+  }
 }
 
 function syncAiDraftStateFromInputs() {
@@ -3678,9 +3940,11 @@ async function sendEventUpdateEmail(mode = "all") {
   }
 
   const selectedEvent = getSelectedEvent();
+  const selectedDraft = mode === "reminder" ? getSelectedReminderDraft() : null;
   const recipients = getActiveTeamContacts()
     .filter((contact) => contact.email && state.selectedContactIds.includes(contact.id));
   const messageText = messagePreview.value.trim();
+  const subjectOverride = selectedDraft?.draftJson?.message?.email_subject || "";
 
   if (!selectedEvent) {
     setStatus(messageStatus, "Choose an event first.", true);
@@ -3715,6 +3979,7 @@ async function sendEventUpdateEmail(mode = "all") {
         contactIds: recipients.map((contact) => contact.id),
         teamName: state.config.teamName || "TeamPro team",
         messageText,
+        subject: subjectOverride,
         baseUrl: window.location.origin,
       }),
     });
@@ -3754,18 +4019,29 @@ async function sendEventUpdateEmail(mode = "all") {
       eventId: selectedEvent.id,
       deliveryMethod: result.sent ? "email" : "copy",
       recipientCount: recipients.length,
-      subject: result.subject || `${state.config.teamName || "Team"} update`,
+      subject: result.subject || subjectOverride || `${state.config.teamName || "Team"} update`,
       messageText,
     });
 
     if (result.sent) {
       await markEventAsSent(selectedEvent.id);
+      if (selectedDraft) {
+        const savedDraft = await saveReminderDraftStatus(selectedDraft, "used");
+        if (savedDraft?.status === "used") {
+          removeAiDraftFromState(savedDraft.id, savedDraft.eventId);
+        }
+        clearAppLinkState();
+      }
     }
 
     if (mode === "reminder") {
       reminderComposerOpen = false;
       reminderComposerEventId = null;
+      reminderDraftSelectionEventId = null;
     }
+    messagePreviewDraft = "";
+    persistState();
+    renderAll();
   } catch (error) {
     console.error("[Updates] Send failed", {
       error,
@@ -3864,6 +4140,9 @@ async function markEventAsSent(eventId) {
         location: nextEvent.location || null,
         notes: nextEvent.notes || null,
         status: nextEvent.status,
+        reminder_3_day_enabled: nextEvent.reminder3DayEnabled !== false,
+        reminder_1_day_enabled: nextEvent.reminder1DayEnabled !== false,
+        reminder_same_day_enabled: nextEvent.reminderSameDayEnabled !== false,
         repeat_pattern: nextEvent.repeatPattern || "once",
         repeat_end_date: nextEvent.repeatEndDate || null,
         repeat_day_of_week: Number.isInteger(nextEvent.repeatDayOfWeek) ? nextEvent.repeatDayOfWeek : null,
@@ -4773,6 +5052,7 @@ function createNewTeamDraft() {
   state.contactsByTeamId[state.activeTeamId] = [];
   state.eventsByTeamId[state.activeTeamId] = [];
   state.rsvpsByEventId = state.rsvpsByEventId || {};
+  state.aiDraftsByEventId = state.aiDraftsByEventId || {};
   state.selectedEventId = null;
   state.selectedContactIds = [];
   state.selectedTarget = null;
@@ -4832,6 +5112,12 @@ function deleteCurrentTeam() {
       delete state.rsvpsByEventId[eventId];
     }
   });
+  Object.keys(state.aiDraftsByEventId || {}).forEach((eventId) => {
+    const drafts = state.aiDraftsByEventId[eventId] || [];
+    if (drafts.some((draft) => draft.teamId === state.activeTeamId)) {
+      delete state.aiDraftsByEventId[eventId];
+    }
+  });
   state.selectedContactIds = [];
   state.selectedEventId = null;
   aiDraftState = {
@@ -4858,6 +5144,7 @@ function deleteCurrentTeam() {
     state.contactsByTeamId = {};
     state.eventsByTeamId = {};
     state.rsvpsByEventId = {};
+    state.aiDraftsByEventId = {};
     state.selectedEventId = null;
     state.selectedContactIds = [];
     state.selectedTarget = null;
@@ -4912,6 +5199,7 @@ function persistCachedStateOnly() {
     contactsByTeamId: state.contactsByTeamId,
     eventsByTeamId: state.eventsByTeamId,
     rsvpsByEventId: state.rsvpsByEventId,
+    aiDraftsByEventId: state.aiDraftsByEventId,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
   };
@@ -4931,6 +5219,7 @@ function persistUserScopedState() {
     contactsByTeamId: state.contactsByTeamId,
     eventsByTeamId: state.eventsByTeamId,
     rsvpsByEventId: state.rsvpsByEventId,
+    aiDraftsByEventId: state.aiDraftsByEventId,
     selectedEventId: state.selectedEventId,
     selectedContactIds: state.selectedContactIds,
     savedAt: Date.now(),
@@ -5409,6 +5698,28 @@ function mapDatabaseEventToRecord(row) {
     repeatEndDate: row.repeat_end_date || "",
     repeatDayOfWeek: Number.isInteger(row.repeat_day_of_week) ? row.repeat_day_of_week : (typeof row.repeat_day_of_week === "number" ? row.repeat_day_of_week : null),
     seriesId: row.series_id || "",
+    reminder3DayEnabled: row.reminder_3_day_enabled !== false,
+    reminder1DayEnabled: row.reminder_1_day_enabled !== false,
+    reminderSameDayEnabled: row.reminder_same_day_enabled !== false,
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function mapDatabaseAiDraftToRecord(row) {
+  return {
+    id: row.id,
+    userId: row.user_id || "",
+    teamId: row.team_id || "",
+    eventId: row.event_id || "",
+    rawPrompt: row.raw_prompt || "",
+    draftJson: normaliseAiDraft(row.draft_json || {}),
+    status: row.status || "draft",
+    draftType: row.draft_type || "manual",
+    reminderType: row.reminder_type || "",
+    scheduledFor: row.scheduled_for || "",
+    adminNotifiedAt: row.admin_notified_at || "",
+    reviewedAt: row.reviewed_at || "",
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
   };
@@ -5443,6 +5754,66 @@ function setStatus(element, message, isError) {
 function clearStatus(element) {
   element.textContent = "";
   element.classList.remove("is-error");
+}
+
+function readAppLinkState() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    page: params.get("page") || "",
+    eventId: params.get("eventId") || "",
+    draftId: params.get("draftId") || "",
+    draftAction: params.get("draftAction") || "",
+  };
+}
+
+async function applyAppLinkState() {
+  if (!appLinkState.page && !appLinkState.eventId && !appLinkState.draftId) {
+    return;
+  }
+
+  if (appLinkState.page && ["account", "config", "manage", "comms", "training"].includes(appLinkState.page)) {
+    state.page = appLinkState.page;
+  }
+
+  if (appLinkState.eventId && getActiveTeamEvents().some((eventRecord) => eventRecord.id === appLinkState.eventId)) {
+    state.selectedEventId = appLinkState.eventId;
+  }
+
+  if (appLinkState.draftId && state.selectedEventId) {
+    const linkedDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
+    if (linkedDraft && linkedDraft.status === "pending_review") {
+      reminderComposerOpen = true;
+      reminderComposerEventId = state.selectedEventId;
+    }
+  }
+
+  renderAll();
+
+  if (appLinkState.draftAction === "dismiss" && appLinkState.draftId) {
+    const targetDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
+    if (targetDraft) {
+      await dismissSelectedReminderDraft();
+    }
+  }
+
+  clearAppLinkState();
+}
+
+function clearAppLinkState() {
+  if (!window.history?.replaceState) {
+    return;
+  }
+
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.delete("page");
+  nextUrl.searchParams.delete("eventId");
+  nextUrl.searchParams.delete("draftId");
+  nextUrl.searchParams.delete("draftAction");
+  window.history.replaceState({}, "", nextUrl.toString());
+  appLinkState.page = "";
+  appLinkState.eventId = "";
+  appLinkState.draftId = "";
+  appLinkState.draftAction = "";
 }
 
 async function copyLineupImage() {
