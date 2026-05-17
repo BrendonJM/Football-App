@@ -2124,6 +2124,7 @@ function renderEvents() {
                 <span>${escapeHtml(formatEventDate(eventRecord.eventDate))}${getEventTimingLabel(eventRecord) ? ` | ${escapeHtml(getEventTimingLabel(eventRecord))}` : ""}</span>
                 ${eventRecord.location ? `<span>${escapeHtml(eventRecord.location)}</span>` : ""}
                 ${eventRecord.notes ? `<span>${escapeHtml(eventRecord.notes)}</span>` : ""}
+                ${getEventReminderScheduleLabel(eventRecord) ? `<span>${escapeHtml(getEventReminderScheduleLabel(eventRecord))}</span>` : ""}
               </div>
               <div class="entity-card-actions">
                 <button type="button" class="secondary-button" data-event-action="select" data-event-id="${eventRecord.id}">Open</button>
@@ -4379,6 +4380,117 @@ function formatEventTypeLabel(eventType) {
     tournament: "Tournament",
     other: "Other",
   }[eventType] || "Other";
+}
+
+function getEventReminderScheduleLabel(eventRecord) {
+  if (!eventRecord?.eventDate || !["planned", "sent"].includes(eventRecord.status)) {
+    return "";
+  }
+
+  const pendingDrafts = (state.aiDraftsByEventId[eventRecord.id] || []).filter(
+    (draft) => draft.draftType === "scheduled_reminder" && draft.status === "pending_review",
+  );
+  const existingReminderTypes = new Set(
+    (state.aiDraftsByEventId[eventRecord.id] || [])
+      .filter((draft) => draft.draftType === "scheduled_reminder" && draft.reminderType)
+      .map((draft) => draft.reminderType),
+  );
+  const reminderCandidates = getEnabledReminderCandidatesForEvent(eventRecord)
+    .filter((candidate) => !existingReminderTypes.has(candidate.type))
+    .filter((candidate) => isReminderScheduleStillUpcoming(eventRecord, candidate));
+
+  const nextReminder = reminderCandidates[0] || null;
+
+  if (nextReminder) {
+    return `Next reminder draft: ${formatReminderTypeLabel(nextReminder.type)} on ${formatEventDate(nextReminder.scheduledDate)} (early morning NZ)`;
+  }
+
+  if (pendingDrafts.length) {
+    const nextPendingDraft = pendingDrafts.sort((left, right) => {
+      const leftDate = left.scheduledFor || "";
+      const rightDate = right.scheduledFor || "";
+      return leftDate.localeCompare(rightDate);
+    })[0];
+    return `${formatReminderTypeLabel(nextPendingDraft.reminderType)} reminder draft awaiting review`;
+  }
+
+  return "No more automatic reminders scheduled";
+}
+
+function getEnabledReminderCandidatesForEvent(eventRecord) {
+  const baseDate = parseIsoDateAtNoon(eventRecord.eventDate);
+
+  if (!baseDate) {
+    return [];
+  }
+
+  const settings = normaliseUserSettings(state.userSettings);
+  const candidates = [];
+
+  if (settings.defaultReminder3DayEnabled) {
+    candidates.push({
+      type: "reminder_3_day",
+      daysBefore: 3,
+      scheduledDate: addDaysToDate(baseDate, -3),
+    });
+  }
+
+  if (settings.defaultReminder1DayEnabled) {
+    candidates.push({
+      type: "reminder_1_day",
+      daysBefore: 1,
+      scheduledDate: addDaysToDate(baseDate, -1),
+    });
+  }
+
+  if (settings.defaultReminderSameDayEnabled) {
+    candidates.push({
+      type: "reminder_same_day",
+      daysBefore: 0,
+      scheduledDate: baseDate,
+    });
+  }
+
+  return candidates;
+}
+
+function isReminderScheduleStillUpcoming(eventRecord, candidate) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const scheduledDay = new Date(
+    candidate.scheduledDate.getFullYear(),
+    candidate.scheduledDate.getMonth(),
+    candidate.scheduledDate.getDate(),
+  );
+
+  if (scheduledDay.getTime() > today.getTime()) {
+    return true;
+  }
+
+  if (scheduledDay.getTime() < today.getTime()) {
+    return false;
+  }
+
+  if (candidate.type === "reminder_same_day") {
+    return !isEventFinished(eventRecord, now);
+  }
+
+  return true;
+}
+
+function parseIsoDateAtNoon(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function addDaysToDate(date, days) {
+  const nextDate = new Date(date.getTime());
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
 }
 
 function formatEventOptionLabel(eventRecord) {
