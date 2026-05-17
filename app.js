@@ -192,6 +192,15 @@ const trainingAgeRange = document.querySelector("#trainingAgeRange");
 const trainingPlanTitle = document.querySelector("#trainingPlanTitle");
 const trainingPlanMeta = document.querySelector("#trainingPlanMeta");
 const trainingPlanBody = document.querySelector("#trainingPlanBody");
+const defaultUserSettings = {
+  id: "",
+  userId: "",
+  defaultReminder3DayEnabled: true,
+  defaultReminder1DayEnabled: true,
+  defaultReminderSameDayEnabled: true,
+  createdAt: "",
+  updatedAt: "",
+};
 
 let formationDraft = [];
 let state = loadState();
@@ -220,15 +229,6 @@ let aiDraftState = {
   data: null,
 };
 const appLinkState = readAppLinkState();
-const defaultUserSettings = {
-  id: "",
-  userId: "",
-  defaultReminder3DayEnabled: true,
-  defaultReminder1DayEnabled: true,
-  defaultReminderSameDayEnabled: true,
-  createdAt: "",
-  updatedAt: "",
-};
 let trainingState = {
   focusArea: "Passing",
   plan: null,
