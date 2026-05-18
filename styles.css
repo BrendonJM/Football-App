@@ -300,7 +300,7 @@ p {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   gap: 8px;
-  align-items: center;
+  align-items: start;
 }
 
 .player-row-number {
@@ -317,8 +317,20 @@ p {
   font-weight: 800;
 }
 
+.player-row-main {
+  display: grid;
+  gap: 5px;
+}
+
 .player-row-input {
   width: 100%;
+}
+
+.player-row-links {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding-left: 2px;
 }
 
 .contacts-card .entity-list {
@@ -330,10 +342,9 @@ p {
 }
 
 .setup-submit-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .manage-grid {

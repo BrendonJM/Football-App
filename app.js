@@ -1843,17 +1843,25 @@ function renderPlayerRows() {
   const draftNames = parsePlayerNames(playerNamesInput.value || "");
   const playersOnField = Number(playersOnFieldInput.value) || 0;
   const rowCount = Math.max(draftNames.length + 2, playersOnField + 4, 8);
+  const linkedContactsByPlayer = getLinkedContactsByPlayer();
 
   playerRows.innerHTML = Array.from({ length: rowCount }, (_, index) => `
     <label class="player-row">
       <span class="player-row-number">${index + 1}</span>
-      <input
-        type="text"
-        class="player-row-input"
-        data-player-row="${index}"
-        value="${escapeHtml(draftNames[index] || "")}"
-        placeholder="Player ${index + 1}"
-      />
+      <div class="player-row-main">
+        <input
+          type="text"
+          class="player-row-input"
+          data-player-row="${index}"
+          value="${escapeHtml(draftNames[index] || "")}"
+          placeholder="Player ${index + 1}"
+        />
+        ${
+          draftNames[index] && linkedContactsByPlayer.get(draftNames[index])?.length
+            ? `<span class="player-row-links">${escapeHtml(`Linked contacts: ${linkedContactsByPlayer.get(draftNames[index]).join(", ")}`)}</span>`
+            : ""
+        }
+      </div>
     </label>
   `).join("");
 
@@ -1863,6 +1871,30 @@ function renderPlayerRows() {
       renderContactLinkedPlayerOptions();
     });
   });
+}
+
+function getLinkedContactsByPlayer() {
+  const linkedContactsByPlayer = new Map();
+
+  getActiveTeamContacts().forEach((contact) => {
+    const contactName = (contact.contactName || "").trim();
+    if (!contactName || !Array.isArray(contact.linkedPlayers)) {
+      return;
+    }
+
+    contact.linkedPlayers
+      .map((playerName) => (playerName || "").trim())
+      .filter(Boolean)
+      .forEach((playerName) => {
+        const existingContacts = linkedContactsByPlayer.get(playerName) || [];
+        if (!existingContacts.includes(contactName)) {
+          existingContacts.push(contactName);
+        }
+        linkedContactsByPlayer.set(playerName, existingContacts);
+      });
+  });
+
+  return linkedContactsByPlayer;
 }
 
 function syncPlayerNamesFieldFromRows() {
