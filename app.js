@@ -64,6 +64,14 @@ const authGuestPanel = document.querySelector("#authGuestPanel");
 const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
+const quickReminderApprovalPanel = document.querySelector("#quickReminderApprovalPanel");
+const quickReminderApprovalHeading = document.querySelector("#quickReminderApprovalHeading");
+const quickReminderApprovalMeta = document.querySelector("#quickReminderApprovalMeta");
+const quickReminderApprovalMessage = document.querySelector("#quickReminderApprovalMessage");
+const quickReminderApprovalSendButton = document.querySelector("#quickReminderApprovalSend");
+const quickReminderApprovalReviewButton = document.querySelector("#quickReminderApprovalReview");
+const quickReminderApprovalDismissButton = document.querySelector("#quickReminderApprovalDismiss");
+const quickReminderApprovalStatus = document.querySelector("#quickReminderApprovalStatus");
 const accountSettingsPanel = document.querySelector("#accountSettingsPanel");
 const openEventReminderSettingsButton = document.querySelector("#openEventReminderSettings");
 const eventReminderSettingsPanel = document.querySelector("#eventReminderSettingsPanel");
@@ -241,6 +249,8 @@ let trainingState = {
 };
 let reminderCheckInFlight = false;
 let accountReminderSettingsOpen = false;
+let quickReminderApprovalOpen = false;
+let quickReminderApprovalDraftId = "";
 
 bootstrapApp();
 
@@ -323,6 +333,18 @@ runReminderCheckButton?.addEventListener("click", async () => {
 openEventReminderSettingsButton?.addEventListener("click", () => {
   accountReminderSettingsOpen = !accountReminderSettingsOpen;
   renderAccountSettings();
+});
+
+quickReminderApprovalSendButton?.addEventListener("click", async () => {
+  await sendQuickReminderApproval();
+});
+
+quickReminderApprovalReviewButton?.addEventListener("click", () => {
+  openReminderDraftInEvents();
+});
+
+quickReminderApprovalDismissButton?.addEventListener("click", async () => {
+  await dismissQuickReminderApproval();
 });
 
 openContactFormButton?.addEventListener("click", () => {
@@ -1947,6 +1969,7 @@ function renderFormationChoices() {
 function renderAll() {
   renderTeamSwitcher();
   renderPage();
+  renderQuickReminderApproval();
   renderAccountSettings();
   renderPlayerRows();
   renderManagerControls();
@@ -1962,6 +1985,51 @@ function renderAll() {
   renderEventRsvps();
   renderAiAssistant();
   renderTrainingView();
+}
+
+function renderQuickReminderApproval() {
+  if (!quickReminderApprovalPanel) {
+    return;
+  }
+
+  const draftRecord = getQuickReminderApprovalDraft();
+  const eventRecord = getSelectedEvent();
+  const isVisible = Boolean(
+    quickReminderApprovalOpen
+      && supabaseUserId
+      && draftRecord
+      && draftRecord.status === "pending_review"
+      && eventRecord,
+  );
+
+  quickReminderApprovalPanel.classList.toggle("hidden", !isVisible);
+
+  if (!isVisible) {
+    clearStatus(quickReminderApprovalStatus);
+    return;
+  }
+
+  const recipients = getRecipientsForReminderDraft(eventRecord, draftRecord);
+  const teamName = state.config.teamName || "TeamPro team";
+
+  if (quickReminderApprovalHeading) {
+    quickReminderApprovalHeading.textContent = `${teamName} | ${eventRecord.eventTitle}`;
+  }
+
+  if (quickReminderApprovalMeta) {
+    const reminderLabel = formatReminderTypeLabel(draftRecord.reminderType);
+    const timing = getEventTimingLabel(eventRecord) || "Time to be confirmed";
+    quickReminderApprovalMeta.textContent = `${reminderLabel} reminder • ${formatEventDate(eventRecord.eventDate)} • ${timing} • ${eventRecord.location || "Location to be confirmed"} • ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}`;
+  }
+
+  if (quickReminderApprovalMessage) {
+    quickReminderApprovalMessage.value = draftRecord.draftJson?.message?.email_body || buildEventMessageText(eventRecord);
+  }
+
+  if (quickReminderApprovalSendButton) {
+    quickReminderApprovalSendButton.disabled = sendingEventUpdate || !recipients.length;
+    quickReminderApprovalSendButton.textContent = sendingEventUpdate ? "Sending..." : "Send Now";
+  }
 }
 
 function renderAccountSettings() {
@@ -2722,6 +2790,14 @@ function getSelectedReminderDraft() {
   return getEventDrafts(selectedEvent.id).find((draft) =>
     draft.status === "pending_review" && draft.draftType === "scheduled_reminder",
   ) || null;
+}
+
+function getQuickReminderApprovalDraft() {
+  if (!quickReminderApprovalDraftId || !state.selectedEventId) {
+    return null;
+  }
+
+  return getEventDrafts(state.selectedEventId).find((draft) => draft.id === quickReminderApprovalDraftId) || null;
 }
 
 function upsertAiDraftInState(draftRecord) {
@@ -4135,6 +4211,101 @@ async function dismissSelectedReminderDraft() {
     });
     setStatus(messageStatus, error?.message || "Reminder draft could not be dismissed.", true);
   }
+}
+
+async function dismissQuickReminderApproval() {
+  const draftRecord = getQuickReminderApprovalDraft();
+
+  if (!draftRecord) {
+    setStatus(quickReminderApprovalStatus, "That reminder draft is no longer available.", true);
+    quickReminderApprovalOpen = false;
+    quickReminderApprovalDraftId = "";
+    renderAll();
+    return;
+  }
+
+  try {
+    const savedDraft = await saveReminderDraftStatus(draftRecord, "discarded");
+    if (savedDraft?.status === "discarded") {
+      removeAiDraftFromState(savedDraft.id, savedDraft.eventId);
+    }
+    quickReminderApprovalOpen = false;
+    quickReminderApprovalDraftId = "";
+    reminderComposerOpen = false;
+    reminderComposerEventId = null;
+    reminderDraftSelectionEventId = null;
+    messagePreviewDraft = "";
+    persistState();
+    setStatus(accountSettingsStatus, "Reminder draft dismissed.", false);
+    renderAll();
+    clearAppLinkState();
+  } catch (error) {
+    console.error("[Reminder Draft] Quick dismiss failed", {
+      error,
+      message: error?.message || String(error),
+      draftId: draftRecord.id,
+    });
+    setStatus(quickReminderApprovalStatus, error?.message || "Reminder draft could not be dismissed.", true);
+  }
+}
+
+async function sendQuickReminderApproval() {
+  const draftRecord = getQuickReminderApprovalDraft();
+  const eventRecord = getSelectedEvent();
+
+  if (!draftRecord || !eventRecord) {
+    setStatus(quickReminderApprovalStatus, "That reminder draft is no longer available.", true);
+    return;
+  }
+
+  const recipients = getRecipientsForReminderDraft(eventRecord, draftRecord);
+
+  if (!recipients.length) {
+    setStatus(quickReminderApprovalStatus, "No matching recipients are available for this reminder.", true);
+    return;
+  }
+
+  state.selectedContactIds = recipients.map((contact) => contact.id);
+  if (messagePreview) {
+    messagePreview.value = quickReminderApprovalMessage?.value.trim()
+      || draftRecord.draftJson?.message?.email_body
+      || buildEventMessageText(eventRecord);
+  }
+
+  clearStatus(messageStatus);
+  clearStatus(quickReminderApprovalStatus);
+  await sendEventUpdateEmail("reminder");
+
+  if (!getQuickReminderApprovalDraft()) {
+    setStatus(
+      accountSettingsStatus,
+      messageStatus?.textContent || "Reminder sent.",
+      messageStatus?.classList.contains("is-error") || false,
+    );
+    quickReminderApprovalOpen = false;
+    quickReminderApprovalDraftId = "";
+    renderAll();
+  } else if (messageStatus?.textContent) {
+    setStatus(quickReminderApprovalStatus, messageStatus.textContent, messageStatus.classList.contains("is-error"));
+  }
+}
+
+function openReminderDraftInEvents() {
+  const draftRecord = getQuickReminderApprovalDraft();
+  const eventRecord = getSelectedEvent();
+
+  if (!draftRecord || !eventRecord) {
+    return;
+  }
+
+  state.page = "comms";
+  reminderComposerOpen = true;
+  reminderComposerEventId = eventRecord.id;
+  reminderDraftSelectionEventId = draftRecord.id;
+  quickReminderApprovalOpen = false;
+  quickReminderApprovalDraftId = "";
+  persistState();
+  renderAll();
 }
 
 function syncAiDraftStateFromInputs() {
@@ -6209,8 +6380,14 @@ async function applyAppLinkState() {
   if (appLinkState.draftId && state.selectedEventId) {
     const linkedDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
     if (linkedDraft && linkedDraft.status === "pending_review") {
-      reminderComposerOpen = true;
-      reminderComposerEventId = state.selectedEventId;
+      if (appLinkState.draftAction === "send") {
+        state.page = "account";
+        quickReminderApprovalOpen = true;
+        quickReminderApprovalDraftId = linkedDraft.id;
+      } else {
+        reminderComposerOpen = true;
+        reminderComposerEventId = state.selectedEventId;
+      }
     }
   }
 
@@ -6220,13 +6397,6 @@ async function applyAppLinkState() {
     const targetDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
     if (targetDraft) {
       await dismissSelectedReminderDraft();
-    }
-  }
-
-  if (appLinkState.draftAction === "send" && appLinkState.draftId) {
-    const targetDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
-    if (targetDraft && targetDraft.status === "pending_review") {
-      await sendEventUpdateEmail("reminder");
     }
   }
 

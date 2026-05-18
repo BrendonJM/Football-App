@@ -689,6 +689,7 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
   const reviewUrl = buildReminderReviewLink({ baseUrl, eventId: eventRecord.id, draftId: draftRow.id });
   const sendNowUrl = buildReminderReviewLink({
     baseUrl,
+    page: "account",
     eventId: eventRecord.id,
     draftId: draftRow.id,
     draftAction: "send",
@@ -884,9 +885,9 @@ function buildAppBaseUrl() {
   return buildRsvpBaseUrl(process.env.TEAMPRO_APP_BASE_URL || "https://www.teampro.co.nz");
 }
 
-function buildReminderReviewLink({ baseUrl, eventId, draftId, draftAction = "" }) {
+function buildReminderReviewLink({ baseUrl, eventId, draftId, draftAction = "", page = "comms" }) {
   const url = new URL(buildAppBaseUrl(baseUrl));
-  url.searchParams.set("page", "comms");
+  url.searchParams.set("page", page);
   url.searchParams.set("eventId", eventId);
   url.searchParams.set("draftId", draftId);
   if (draftAction) {

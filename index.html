@@ -75,6 +75,21 @@
 
               <p id="authStatus" class="status-text" aria-live="polite"></p>
 
+              <div id="quickReminderApprovalPanel" class="info-card hidden">
+                <strong id="quickReminderApprovalHeading">Reminder ready to send</strong>
+                <p id="quickReminderApprovalMeta"></p>
+                <label class="field">
+                  <span>Message preview</span>
+                  <textarea id="quickReminderApprovalMessage" rows="6" readonly></textarea>
+                </label>
+                <div class="button-row">
+                  <button id="quickReminderApprovalSend" type="button" class="primary-button">Send Now</button>
+                  <button id="quickReminderApprovalReview" type="button" class="secondary-button">Review in Events</button>
+                  <button id="quickReminderApprovalDismiss" type="button" class="ghost-button">Dismiss</button>
+                </div>
+                <p id="quickReminderApprovalStatus" class="status-text" aria-live="polite"></p>
+              </div>
+
               <div id="accountSettingsPanel" class="info-card hidden">
                 <strong>Settings</strong>
                 <div class="stack-form compact-stack account-settings-stack">
