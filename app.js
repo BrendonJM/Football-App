@@ -1309,23 +1309,7 @@ async function runReminderSchedulerCheck() {
   setStatus(accountSettingsStatus, "Checking for due reminders...", false);
 
   try {
-    const response = await fetch(reminderSchedulerEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        accessToken: supabaseAccessToken,
-      }),
-    });
-
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(result.error || "Reminder check failed.");
-    }
-
+    const result = await executeReminderSchedulerCheck();
     console.info("[Reminder Scheduler] Manual reminder check completed", result);
     await hydrateStateFromSupabase();
     setStatus(accountSettingsStatus, formatReminderSchedulerResult(result), false);
@@ -1339,6 +1323,27 @@ async function runReminderSchedulerCheck() {
     reminderCheckInFlight = false;
     renderAccountSettings();
   }
+}
+
+async function executeReminderSchedulerCheck() {
+  const response = await fetch(reminderSchedulerEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      accessToken: supabaseAccessToken,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.error || "Reminder check failed.");
+  }
+
+  return result;
 }
 
 function formatReminderSchedulerResult(result) {
@@ -2938,6 +2943,7 @@ async function saveEventFromForm() {
     return;
   }
 
+  const isEditingExistingEvent = Boolean(eventIdInput.value);
   const eventRecord = buildEventRowsFromForm();
 
   if (!eventRecord.ok) {
@@ -2968,11 +2974,30 @@ async function saveEventFromForm() {
     persistState();
     resetEventForm();
     renderAll();
-    setStatus(
-      eventStatusMessage,
-      mappedEvents.length === 1 ? "Event saved." : `${mappedEvents.length} events saved.`,
-      false,
-    );
+    let saveMessage = mappedEvents.length === 1 ? "Event saved." : `${mappedEvents.length} events saved.`;
+
+    if (!isEditingExistingEvent && mappedEvents.some(shouldAutoTriggerImmediateReminderApproval)) {
+      setStatus(eventStatusMessage, `${saveMessage} Generating reminder approval draft...`, false);
+
+      try {
+        const reminderResult = await executeReminderSchedulerCheck();
+        console.info("[Reminder Scheduler] Auto-triggered after event save", {
+          eventIds: mappedEvents.map((eventRow) => eventRow.id),
+          result: reminderResult,
+        });
+        await hydrateStateFromSupabase();
+        saveMessage = `${saveMessage} ${formatReminderSchedulerResult(reminderResult)}`;
+      } catch (reminderError) {
+        console.error("[Reminder Scheduler] Auto-trigger failed after event save", {
+          error: reminderError,
+          message: reminderError?.message || String(reminderError),
+          eventIds: mappedEvents.map((eventRow) => eventRow.id),
+        });
+        saveMessage = `${saveMessage} Reminder check could not run automatically: ${reminderError?.message || "Reminder check failed."}`;
+      }
+    }
+
+    setStatus(eventStatusMessage, saveMessage, false);
   } catch (error) {
     console.error("[Supabase] event save failed", {
       error,
@@ -2981,6 +3006,43 @@ async function saveEventFromForm() {
     });
     setStatus(eventStatusMessage, `Event save failed: ${describeSupabaseError(error)}`, true);
   }
+}
+
+function shouldAutoTriggerImmediateReminderApproval(eventRecord) {
+  if (!eventRecord?.eventDate || !["planned", "sent"].includes(eventRecord.status)) {
+    return false;
+  }
+
+  const eventDateTime = getEventStartDateTime(eventRecord);
+
+  if (!eventDateTime) {
+    return false;
+  }
+
+  const now = new Date();
+  const msUntilEvent = eventDateTime.getTime() - now.getTime();
+
+  if (msUntilEvent <= 0 || msUntilEvent > 24 * 60 * 60 * 1000) {
+    return false;
+  }
+
+  const settings = normaliseUserSettings(state.userSettings);
+  const todayKey = formatDateForStorage(now);
+  const dueReminderTypes = [];
+
+  if (settings.defaultReminder1DayEnabled) {
+    dueReminderTypes.push("reminder_1_day");
+  }
+  if (settings.defaultReminderSameDayEnabled) {
+    dueReminderTypes.push("reminder_same_day");
+  }
+
+  const immediateCandidates = getEnabledReminderCandidatesForEvent(eventRecord)
+    .filter((candidate) => dueReminderTypes.includes(candidate.type))
+    .filter((candidate) => formatDateForStorage(candidate.scheduledDate) === todayKey)
+    .filter((candidate) => isReminderScheduleStillUpcoming(eventRecord, candidate));
+
+  return immediateCandidates.length > 0;
 }
 
 function openEventForm() {
@@ -4373,6 +4435,16 @@ function getEventTimingLabel(eventRecord) {
   return formatEventTimeRange(eventRecord.startTime, eventRecord.endTime);
 }
 
+function getEventStartDateTime(eventRecord) {
+  if (!eventRecord?.eventDate) {
+    return null;
+  }
+
+  const timeValue = eventRecord.startTime || "23:59";
+  const parsed = new Date(`${eventRecord.eventDate}T${timeValue}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatEventTypeLabel(eventType) {
   return {
     training: "Training",
@@ -4491,6 +4563,17 @@ function addDaysToDate(date, days) {
   const nextDate = new Date(date.getTime());
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
+}
+
+function formatDateForStorage(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatEventOptionLabel(eventRecord) {
