@@ -1,6 +1,7 @@
 const {
   assertSupabaseAdminConfig,
   buildRsvpBaseUrl,
+  createReminderApprovalToken,
   escapeHtml,
   fetchAdminUserById,
   fetchAuthenticatedUser,
@@ -687,13 +688,13 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
 
   const baseUrl = buildAppBaseUrl();
   const reviewUrl = buildReminderReviewLink({ baseUrl, eventId: eventRecord.id, draftId: draftRow.id });
-  const sendNowUrl = buildReminderReviewLink({
-    baseUrl,
-    page: "account",
-    eventId: eventRecord.id,
+  const approvalToken = createReminderApprovalToken({
     draftId: draftRow.id,
-    draftAction: "send",
+    eventId: eventRecord.id,
+    teamId: eventRecord.team_id,
+    expiresAt: buildAdminApprovalExpiry(eventRecord.event_date),
   });
+  const approvalUrl = buildReminderApprovalPageUrl({ baseUrl, token: approvalToken });
   const dismissUrl = buildReminderReviewLink({
     baseUrl,
     eventId: eventRecord.id,
@@ -719,8 +720,8 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
         teamName,
         recipientContacts,
         summary,
+        approvalUrl,
         reviewUrl,
-        sendNowUrl,
         dismissUrl,
       }),
       html: buildAdminReminderEmailHtml({
@@ -729,8 +730,8 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
         teamName,
         recipientContacts,
         summary,
+        approvalUrl,
         reviewUrl,
-        sendNowUrl,
         dismissUrl,
       }),
     }),
@@ -790,7 +791,7 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
   return { notified: true };
 }
 
-function buildAdminReminderEmailText({ draftRow, eventRecord, teamName, recipientContacts, summary, reviewUrl, sendNowUrl, dismissUrl }) {
+function buildAdminReminderEmailText({ draftRow, eventRecord, teamName, recipientContacts, summary, approvalUrl, reviewUrl, dismissUrl }) {
   const recipientPreview = recipientContacts.length
     ? recipientContacts
         .slice(0, 8)
@@ -821,13 +822,13 @@ function buildAdminReminderEmailText({ draftRow, eventRecord, teamName, recipien
     "",
     draftRow.draft_json?.message?.email_body || "",
     "",
-    `Review & Send: ${reviewUrl}`,
-    `Accept & Send now: ${sendNowUrl}`,
+    `Open approval page: ${approvalUrl}`,
+    `Review in Events: ${reviewUrl}`,
     `Dismiss: ${dismissUrl}`,
   ].join("\n");
 }
 
-function buildAdminReminderEmailHtml({ draftRow, eventRecord, teamName, recipientContacts, summary, reviewUrl, sendNowUrl, dismissUrl }) {
+function buildAdminReminderEmailHtml({ draftRow, eventRecord, teamName, recipientContacts, summary, approvalUrl, reviewUrl, dismissUrl }) {
   const recipientPreview = recipientContacts.length
     ? recipientContacts
         .slice(0, 8)
@@ -844,7 +845,7 @@ function buildAdminReminderEmailHtml({ draftRow, eventRecord, teamName, recipien
   return `
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <h2 style="margin-bottom: 12px;">Reminder draft ready for review</h2>
-      <p style="margin-top:0;color:#4b5563;">Nothing has been sent to team members yet. Review the draft first, then approve it from TeamPro.</p>
+      <p style="margin-top:0;color:#4b5563;">Nothing has been sent to team members yet. Open the approval page to send immediately or jump into Events if you want to make changes.</p>
       <p><strong>Team:</strong> ${escapeHtml(teamName || "TeamPro team")}</p>
       <p><strong>Event:</strong> ${escapeHtml(eventRecord.event_title || "Untitled event")}</p>
       <p><strong>Date:</strong> ${escapeHtml(eventRecord.event_date || "To be confirmed")}</p>
@@ -859,8 +860,8 @@ function buildAdminReminderEmailHtml({ draftRow, eventRecord, teamName, recipien
       </div>
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(draftRow.draft_json?.message?.email_body || "")}</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;">
-        <a href="${reviewUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b69258;color:#111827;text-decoration:none;font-weight:700;">Review &amp; Send</a>
-        <a href="${sendNowUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#1f7a45;color:#ffffff;text-decoration:none;font-weight:700;">Accept &amp; Send</a>
+        <a href="${approvalUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#1f7a45;color:#ffffff;text-decoration:none;font-weight:700;">Accept &amp; Send</a>
+        <a href="${reviewUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b69258;color:#111827;text-decoration:none;font-weight:700;">Review in Events</a>
         <a href="${dismissUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#e5e7eb;color:#111827;text-decoration:none;font-weight:700;">Dismiss</a>
       </div>
     </div>
@@ -894,6 +895,22 @@ function buildReminderReviewLink({ baseUrl, eventId, draftId, draftAction = "", 
     url.searchParams.set("draftAction", draftAction);
   }
   return url.toString();
+}
+
+function buildReminderApprovalPageUrl({ baseUrl, token }) {
+  const url = new URL(`${buildAppBaseUrl(baseUrl)}/reminder-approval`);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function buildAdminApprovalExpiry(eventDate) {
+  if (!eventDate) {
+    return new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString();
+  }
+
+  const parsed = new Date(`${eventDate}T23:59:59Z`);
+  const fallback = Number.isNaN(parsed.getTime()) ? Date.now() : parsed.getTime();
+  return new Date(fallback + 1000 * 60 * 60 * 24 * 14).toISOString();
 }
 
 function groupBy(rows, key) {

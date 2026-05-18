@@ -8,6 +8,7 @@ const teamUpdateApiHandler = require("./api/team-update");
 const rsvpApiHandler = require("./api/rsvp");
 const aiCommunicationDraftApiHandler = require("./api/ai/communication-draft");
 const reminderSchedulerApiHandler = require("./api/reminder-scheduler");
+const reminderApprovalApiHandler = require("./api/reminder-approval");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -221,6 +222,11 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/reminder-scheduler") {
     await invokeApiHandler(reminderSchedulerApiHandler, request, response, requestUrl);
+    return;
+  }
+
+  if ((request.method === "GET" || request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/reminder-approval") {
+    await invokeApiHandler(reminderApprovalApiHandler, request, response, requestUrl);
     return;
   }
 
@@ -1124,7 +1130,11 @@ function readJsonBody(request) {
 }
 
 function serveStaticFile(pathname, response) {
-  const safePath = pathname === "/" ? "/index.html" : (pathname === "/rsvp" ? "/rsvp.html" : pathname);
+  const safePath = pathname === "/"
+    ? "/index.html"
+    : (pathname === "/rsvp"
+        ? "/rsvp.html"
+        : (pathname === "/reminder-approval" ? "/reminder-approval.html" : pathname));
   const normalizedPath = path.normalize(safePath).replace(/^(\.\.[/\\])+/, "");
   const filePath = path.join(rootDir, normalizedPath);
 

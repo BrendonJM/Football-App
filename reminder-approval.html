@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TeamPro Reminder Approval</title>
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <link rel="apple-touch-icon" href="./favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell rsvp-shell">
+      <main>
+        <section class="layout-grid single-panel-layout">
+          <section class="panel">
+            <div class="panel-heading">
+              <div class="brandmark" aria-label="TeamPro">
+                <span class="brandmark-team">Team</span><span class="brandmark-pro">Pro</span>
+              </div>
+              <h2>Reminder Approval</h2>
+            </div>
+
+            <div id="approvalLoading" class="info-card">
+              <strong>Loading reminder</strong>
+              <p>Please wait while TeamPro checks this approval link.</p>
+            </div>
+
+            <div id="approvalError" class="info-card hidden">
+              <strong>We couldn’t load this reminder</strong>
+              <p id="approvalErrorText"></p>
+            </div>
+
+            <div id="approvalContent" class="stack-form hidden">
+              <div class="info-card">
+                <strong id="approvalTeamName">Team</strong>
+                <p id="approvalEventSummary"></p>
+                <p id="approvalEventLocation"></p>
+                <p id="approvalReminderMeta"></p>
+              </div>
+
+              <div class="info-card">
+                <strong>Message preview</strong>
+                <p id="approvalRecipientSummary"></p>
+                <textarea id="approvalMessageText" rows="8" readonly></textarea>
+              </div>
+
+              <div class="button-row">
+                <button id="approvalSendNow" type="button" class="primary-button">Send Now</button>
+                <a id="approvalReviewLink" href="/" class="secondary-button">Review in Events</a>
+                <button id="approvalDismiss" type="button" class="ghost-button">Dismiss</button>
+              </div>
+
+              <p id="approvalStatus" class="status-text" aria-live="polite"></p>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./reminder-approval.js"></script>
+  </body>
+</html>

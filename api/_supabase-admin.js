@@ -127,6 +127,94 @@ function createSecureToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
+function toBase64Url(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function fromBase64Url(value) {
+  const normalized = String(value || "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8");
+}
+
+function getReminderApprovalSecret() {
+  return String(process.env.REMINDER_APPROVAL_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+}
+
+function createReminderApprovalToken({ draftId, eventId, teamId = "", expiresAt }) {
+  const secret = getReminderApprovalSecret();
+
+  if (!secret) {
+    throw new Error("REMINDER_APPROVAL_SECRET or SUPABASE_SERVICE_ROLE_KEY must be configured.");
+  }
+
+  const payload = {
+    type: "reminder_approval",
+    draftId,
+    eventId,
+    teamId,
+    exp: expiresAt,
+  };
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(encodedPayload)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyReminderApprovalToken(token) {
+  const secret = getReminderApprovalSecret();
+
+  if (!secret) {
+    throw new Error("REMINDER_APPROVAL_SECRET or SUPABASE_SERVICE_ROLE_KEY must be configured.");
+  }
+
+  const [encodedPayload, signature] = String(token || "").split(".");
+
+  if (!encodedPayload || !signature) {
+    throw new Error("Reminder approval link is invalid.");
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(encodedPayload)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+  if (signature.length !== expectedSignature.length) {
+    throw new Error("Reminder approval link is invalid.");
+  }
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+    throw new Error("Reminder approval link is invalid.");
+  }
+
+  const payload = JSON.parse(fromBase64Url(encodedPayload));
+
+  if (payload?.type !== "reminder_approval" || !payload?.draftId || !payload?.eventId) {
+    throw new Error("Reminder approval link is invalid.");
+  }
+
+  if (payload.exp && Date.now() > new Date(payload.exp).getTime()) {
+    throw new Error("Reminder approval link has expired.");
+  }
+
+  return payload;
+}
+
 function buildRsvpBaseUrl(baseUrl) {
   const safeBase = String(baseUrl || "").trim().replace(/\/$/, "");
   return safeBase || "https://www.teampro.co.nz";
@@ -165,10 +253,13 @@ module.exports = {
   buildRsvpBaseUrl,
   buildRsvpLink,
   buildTokenExpiry,
+  createReminderApprovalToken,
   createSecureToken,
   escapeHtml,
   fetchAdminUserById,
   fetchAuthenticatedUser,
   getSupabaseAdminConfig,
+  getReminderApprovalSecret,
   supabaseAdminRequest,
+  verifyReminderApprovalToken,
 };
