@@ -202,7 +202,11 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - Instead, it creates one `pending_review` draft per event per reminder type in `ai_communication_drafts`.
 - Duplicate drafts are prevented with a unique index on `event_id + reminder_type`.
 - After a reminder draft is created, TeamPro emails the signed-in team admin a review link and dismiss link.
-- The admin opens TeamPro, reviews the draft, adjusts recipients if needed, and explicitly approves sending.
+- The admin email includes:
+  - `Review & Send` to open the draft in TeamPro and edit before sending
+  - `Accept & Send` to open TeamPro and immediately send the pending reminder if no edits are needed
+  - `Dismiss` to discard the reminder draft
+- The admin can still review the draft, adjust recipients if needed, and explicitly approve sending from inside TeamPro.
 - The production fallback for Vercel Hobby is:
   - one daily cron run via `vercel.json`
   - plus the `Generate Due Reminders` button in the Account tab for immediate/manual checks

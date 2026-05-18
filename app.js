@@ -6182,6 +6182,13 @@ async function applyAppLinkState() {
     }
   }
 
+  if (appLinkState.draftAction === "send" && appLinkState.draftId) {
+    const targetDraft = getEventDrafts(state.selectedEventId).find((draft) => draft.id === appLinkState.draftId);
+    if (targetDraft && targetDraft.status === "pending_review") {
+      await sendEventUpdateEmail("reminder");
+    }
+  }
+
   clearAppLinkState();
 }
 

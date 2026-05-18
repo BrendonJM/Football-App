@@ -14,6 +14,7 @@ const RSVP_TABLE_NAME = "event_rsvps";
 const DRAFTS_TABLE_NAME = "ai_communication_drafts";
 const UPDATE_LOGS_TABLE_NAME = "event_update_logs";
 const USER_SETTINGS_TABLE_NAME = "user_settings";
+const TEAMS_TABLE_NAME = "teams";
 const TIME_ZONE = "Pacific/Auckland";
 
 const reminderDraftSchema = {
@@ -227,7 +228,16 @@ async function runReminderScheduler({ adminConfig }) {
 
   const userIds = Array.from(new Set(events.map((eventRecord) => eventRecord.user_id).filter(Boolean)));
 
-  const [contactRows, rsvpRows, existingDraftRows, userSettingsRows] = await Promise.all([
+  const [teamRows, contactRows, rsvpRows, existingDraftRows, userSettingsRows] = await Promise.all([
+    supabaseAdminRequest({
+      supabaseUrl: adminConfig.supabaseUrl,
+      serviceRoleKey: adminConfig.serviceRoleKey,
+      tableName: TEAMS_TABLE_NAME,
+      query: {
+        select: "id,team_name",
+        id: `in.(${teamIds.join(",")})`,
+      },
+    }),
     supabaseAdminRequest({
       supabaseUrl: adminConfig.supabaseUrl,
       serviceRoleKey: adminConfig.serviceRoleKey,
@@ -271,6 +281,11 @@ async function runReminderScheduler({ adminConfig }) {
   ]);
 
   const contactsByTeamId = groupBy((Array.isArray(contactRows) ? contactRows : []), "team_id");
+  const teamNameByTeamId = Object.fromEntries(
+    (Array.isArray(teamRows) ? teamRows : [])
+      .filter((row) => row?.id)
+      .map((row) => [row.id, row.team_name || "TeamPro team"]),
+  );
   const rsvpsByEventId = groupBy((Array.isArray(rsvpRows) ? rsvpRows : []), "event_id");
   const userSettingsByUserId = Object.fromEntries(
     (Array.isArray(userSettingsRows) ? userSettingsRows : [])
@@ -332,6 +347,7 @@ async function runReminderScheduler({ adminConfig }) {
             adminConfig,
             draftRow: existingDraft,
             eventRecord,
+            teamName: teamNameByTeamId[eventRecord.team_id] || "TeamPro team",
             teamContacts,
             eventRsvps,
           });
@@ -399,6 +415,7 @@ async function runReminderScheduler({ adminConfig }) {
         adminConfig,
         draftRow: createdDraft,
         eventRecord,
+        teamName: teamNameByTeamId[eventRecord.team_id] || "TeamPro team",
         teamContacts,
         eventRsvps,
       });
@@ -638,7 +655,7 @@ function buildFallbackReminderDraft({ eventRecord, reminderRecipients, eventRsvp
   };
 }
 
-async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord, teamContacts, eventRsvps }) {
+async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord, teamName, teamContacts, eventRsvps }) {
   const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
   const resendFromEmail = String(process.env.RESEND_FROM_EMAIL || "").trim();
 
@@ -670,6 +687,12 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
 
   const baseUrl = buildAppBaseUrl();
   const reviewUrl = buildReminderReviewLink({ baseUrl, eventId: eventRecord.id, draftId: draftRow.id });
+  const sendNowUrl = buildReminderReviewLink({
+    baseUrl,
+    eventId: eventRecord.id,
+    draftId: draftRow.id,
+    draftAction: "send",
+  });
   const dismissUrl = buildReminderReviewLink({
     baseUrl,
     eventId: eventRecord.id,
@@ -688,21 +711,25 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
     body: JSON.stringify({
       from: resendFromEmail,
       to: [ownerEmail],
-      subject: `Review reminder draft: ${eventRecord.event_title}`,
+      subject: `Review reminder draft: ${teamName || "TeamPro team"} - ${eventRecord.event_title}`,
       text: buildAdminReminderEmailText({
         draftRow,
         eventRecord,
+        teamName,
         recipientContacts,
         summary,
         reviewUrl,
+        sendNowUrl,
         dismissUrl,
       }),
       html: buildAdminReminderEmailHtml({
         draftRow,
         eventRecord,
+        teamName,
         recipientContacts,
         summary,
         reviewUrl,
+        sendNowUrl,
         dismissUrl,
       }),
     }),
@@ -754,7 +781,7 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
       event_id: eventRecord.id,
       delivery_method: "admin_review_email",
       recipient_count: recipientContacts.length,
-      subject: `Review reminder draft: ${eventRecord.event_title}`,
+      subject: `Review reminder draft: ${teamName || "TeamPro team"} - ${eventRecord.event_title}`,
       message_text: draftRow.draft_json?.message?.email_body || "",
     },
   });
@@ -762,7 +789,7 @@ async function notifyAdminForReminderDraft({ adminConfig, draftRow, eventRecord,
   return { notified: true };
 }
 
-function buildAdminReminderEmailText({ draftRow, eventRecord, recipientContacts, summary, reviewUrl, dismissUrl }) {
+function buildAdminReminderEmailText({ draftRow, eventRecord, teamName, recipientContacts, summary, reviewUrl, sendNowUrl, dismissUrl }) {
   const recipientPreview = recipientContacts.length
     ? recipientContacts
         .slice(0, 8)
@@ -779,6 +806,7 @@ function buildAdminReminderEmailText({ draftRow, eventRecord, recipientContacts,
     "A TeamPro reminder draft is ready for review.",
     "Nothing has been sent to team members yet.",
     "",
+    `Team: ${teamName || "TeamPro team"}`,
     `Event: ${eventRecord.event_title}`,
     `Date: ${eventRecord.event_date || "To be confirmed"}`,
     `Time: ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) || "To be confirmed"}`,
@@ -793,11 +821,12 @@ function buildAdminReminderEmailText({ draftRow, eventRecord, recipientContacts,
     draftRow.draft_json?.message?.email_body || "",
     "",
     `Review & Send: ${reviewUrl}`,
+    `Accept & Send now: ${sendNowUrl}`,
     `Dismiss: ${dismissUrl}`,
   ].join("\n");
 }
 
-function buildAdminReminderEmailHtml({ draftRow, eventRecord, recipientContacts, summary, reviewUrl, dismissUrl }) {
+function buildAdminReminderEmailHtml({ draftRow, eventRecord, teamName, recipientContacts, summary, reviewUrl, sendNowUrl, dismissUrl }) {
   const recipientPreview = recipientContacts.length
     ? recipientContacts
         .slice(0, 8)
@@ -815,6 +844,7 @@ function buildAdminReminderEmailHtml({ draftRow, eventRecord, recipientContacts,
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <h2 style="margin-bottom: 12px;">Reminder draft ready for review</h2>
       <p style="margin-top:0;color:#4b5563;">Nothing has been sent to team members yet. Review the draft first, then approve it from TeamPro.</p>
+      <p><strong>Team:</strong> ${escapeHtml(teamName || "TeamPro team")}</p>
       <p><strong>Event:</strong> ${escapeHtml(eventRecord.event_title || "Untitled event")}</p>
       <p><strong>Date:</strong> ${escapeHtml(eventRecord.event_date || "To be confirmed")}</p>
       <p><strong>Time:</strong> ${escapeHtml(formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) || "To be confirmed")}</p>
@@ -829,6 +859,7 @@ function buildAdminReminderEmailHtml({ draftRow, eventRecord, recipientContacts,
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(draftRow.draft_json?.message?.email_body || "")}</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;">
         <a href="${reviewUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#b69258;color:#111827;text-decoration:none;font-weight:700;">Review &amp; Send</a>
+        <a href="${sendNowUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#1f7a45;color:#ffffff;text-decoration:none;font-weight:700;">Accept &amp; Send</a>
         <a href="${dismissUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#e5e7eb;color:#111827;text-decoration:none;font-weight:700;">Dismiss</a>
       </div>
     </div>
