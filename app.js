@@ -6364,6 +6364,40 @@ function readAppLinkState() {
   };
 }
 
+function activateTeamForEventLink(eventId) {
+  if (!eventId) {
+    return false;
+  }
+
+  const teamId = Object.entries(state.eventsByTeamId || {}).find(([, rows]) =>
+    Array.isArray(rows) && rows.some((eventRecord) => eventRecord?.id === eventId),
+  )?.[0];
+
+  if (!teamId) {
+    return false;
+  }
+
+  if (teamId !== state.activeTeamId) {
+    upsertCurrentTeam();
+    const record = state.teams.find((team) => team.id === teamId);
+
+    if (!record) {
+      return false;
+    }
+
+    const runtime = hydrateTeamRuntime(record);
+    state.activeTeamId = record.id;
+    state.config = runtime.config;
+    state.players = runtime.players;
+    state.lineup = runtime.lineup;
+    state.selectedContactIds = [];
+    state.selectedTarget = null;
+  }
+
+  state.selectedEventId = eventId;
+  return true;
+}
+
 async function applyAppLinkState() {
   if (!appLinkState.page && !appLinkState.eventId && !appLinkState.draftId) {
     return;
@@ -6373,8 +6407,8 @@ async function applyAppLinkState() {
     state.page = appLinkState.page;
   }
 
-  if (appLinkState.eventId && getActiveTeamEvents().some((eventRecord) => eventRecord.id === appLinkState.eventId)) {
-    state.selectedEventId = appLinkState.eventId;
+  if (appLinkState.eventId) {
+    activateTeamForEventLink(appLinkState.eventId);
   }
 
   if (appLinkState.draftId && state.selectedEventId) {
