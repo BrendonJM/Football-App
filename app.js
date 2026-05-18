@@ -6436,6 +6436,11 @@ async function applyAppLinkState() {
     }
   }
 
+  persistCachedStateOnly();
+  if (supabaseUserId) {
+    persistUserScopedState();
+  }
+
   renderAll();
 
   if (appLinkState.draftAction === "dismiss" && appLinkState.draftId) {
