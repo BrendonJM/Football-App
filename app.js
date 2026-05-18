@@ -6403,7 +6403,9 @@ async function applyAppLinkState() {
     return;
   }
 
-  if (appLinkState.page && ["account", "config", "manage", "comms", "training"].includes(appLinkState.page)) {
+  if (appLinkState.draftAction === "send") {
+    state.page = "account";
+  } else if (appLinkState.page && ["account", "config", "manage", "comms", "training"].includes(appLinkState.page)) {
     state.page = appLinkState.page;
   }
 
@@ -6422,6 +6424,15 @@ async function applyAppLinkState() {
         reminderComposerOpen = true;
         reminderComposerEventId = state.selectedEventId;
       }
+    } else if (appLinkState.draftAction === "send") {
+      state.page = "account";
+      quickReminderApprovalOpen = false;
+      quickReminderApprovalDraftId = "";
+      setStatus(
+        accountSettingsStatus,
+        "That reminder draft is no longer available. Open the event in Events if you want to review it there.",
+        true,
+      );
     }
   }
 
