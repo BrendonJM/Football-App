@@ -2402,17 +2402,10 @@ function renderAiAssistant() {
     ? `Follow-up: ${draft.follow_up.suggested_reminder_timing || "Reminder recommended."}`
     : "Follow-up: No reminder recommended yet.";
 
-  const missingInformation = Array.isArray(draft.missing_information)
-    ? draft.missing_information.filter(Boolean)
-    : [];
-
-  aiDraftMissingInfo.classList.toggle("hidden", missingInformation.length === 0);
-  aiDraftMissingInfo.innerHTML = missingInformation.length
-    ? `
-        <strong>Things to confirm</strong>
-        <ul>${missingInformation.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-      `
-    : "";
+  if (aiDraftMissingInfo) {
+    aiDraftMissingInfo.classList.add("hidden");
+    aiDraftMissingInfo.innerHTML = "";
+  }
 
   aiDraftEventTitleInput.value = draft.event_action?.suggested_event_title || "";
   aiDraftEventTypeInput.value = draft.event_action?.event_type || "other";
