@@ -65,6 +65,8 @@ const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
 const accountSettingsPanel = document.querySelector("#accountSettingsPanel");
+const openEventReminderSettingsButton = document.querySelector("#openEventReminderSettings");
+const eventReminderSettingsPanel = document.querySelector("#eventReminderSettingsPanel");
 const accountReminder3DayInput = document.querySelector("#accountReminder3Day");
 const accountReminder1DayInput = document.querySelector("#accountReminder1Day");
 const accountReminderSameDayInput = document.querySelector("#accountReminderSameDay");
@@ -238,6 +240,7 @@ let trainingState = {
   accepted: false,
 };
 let reminderCheckInFlight = false;
+let accountReminderSettingsOpen = false;
 
 bootstrapApp();
 
@@ -315,6 +318,11 @@ saveAccountSettingsButton?.addEventListener("click", async () => {
 
 runReminderCheckButton?.addEventListener("click", async () => {
   await runReminderSchedulerCheck();
+});
+
+openEventReminderSettingsButton?.addEventListener("click", () => {
+  accountReminderSettingsOpen = !accountReminderSettingsOpen;
+  renderAccountSettings();
 });
 
 openContactFormButton?.addEventListener("click", () => {
@@ -1926,6 +1934,14 @@ function renderAll() {
 
 function renderAccountSettings() {
   const settings = normaliseUserSettings(state.userSettings);
+  if (eventReminderSettingsPanel) {
+    eventReminderSettingsPanel.classList.toggle("hidden", !accountReminderSettingsOpen);
+  }
+  if (openEventReminderSettingsButton) {
+    openEventReminderSettingsButton.textContent = accountReminderSettingsOpen
+      ? "Hide Event Reminders"
+      : "Event Reminders";
+  }
   if (accountReminder3DayInput) {
     accountReminder3DayInput.checked = settings.defaultReminder3DayEnabled;
   }

@@ -419,6 +419,14 @@ p {
   margin-bottom: 0;
 }
 
+.account-settings-stack {
+  gap: 10px;
+}
+
+.settings-trigger-button {
+  align-self: start;
+}
+
 .panel-heading p,
 .helper-text,
 .status-text,
