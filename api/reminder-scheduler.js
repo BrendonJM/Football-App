@@ -186,6 +186,7 @@ async function runReminderScheduler({ adminConfig }) {
   const dateCandidates = [
     todayKey,
     addDaysToDateKey(todayKey, 1),
+    addDaysToDateKey(todayKey, 2),
     addDaysToDateKey(todayKey, 3),
   ];
 
@@ -439,30 +440,53 @@ async function runReminderScheduler({ adminConfig }) {
 }
 
 function getDueReminderTypes({ eventRecord, userSettings, todayKey, now }) {
-  if (!eventRecord?.event_date) {
+  if (!eventRecord?.event_date || isEventFinished(eventRecord, now)) {
     return [];
   }
 
-  const eventDateKey = eventRecord.event_date;
-  const daysUntil = dayDifference(todayKey, eventDateKey);
+  const dueCandidates = getEnabledReminderCandidates({ eventRecord, userSettings })
+    .filter((candidate) => isReminderCandidateDueNow(candidate, todayKey))
+    .sort((left, right) => right.scheduledDateKey.localeCompare(left.scheduledDateKey));
+
+  return dueCandidates[0] ? [dueCandidates[0].type] : [];
+}
+
+function getEnabledReminderCandidates({ eventRecord, userSettings }) {
   const reminder3DayEnabled = userSettings?.default_reminder_3_day_enabled !== false;
   const reminder1DayEnabled = userSettings?.default_reminder_1_day_enabled !== false;
   const reminderSameDayEnabled = userSettings?.default_reminder_same_day_enabled !== false;
-  const types = [];
+  const candidates = [];
 
-  if (daysUntil === 3 && reminder3DayEnabled) {
-    types.push("reminder_3_day");
+  if (reminder3DayEnabled) {
+    candidates.push({
+      type: "reminder_3_day",
+      scheduledDateKey: addDaysToDateKey(eventRecord.event_date, -3),
+    });
   }
 
-  if (daysUntil === 1 && reminder1DayEnabled) {
-    types.push("reminder_1_day");
+  if (reminder1DayEnabled) {
+    candidates.push({
+      type: "reminder_1_day",
+      scheduledDateKey: addDaysToDateKey(eventRecord.event_date, -1),
+    });
   }
 
-  if (daysUntil === 0 && reminderSameDayEnabled && !isEventFinished(eventRecord, now)) {
-    types.push("reminder_same_day");
+  if (reminderSameDayEnabled) {
+    candidates.push({
+      type: "reminder_same_day",
+      scheduledDateKey: eventRecord.event_date,
+    });
   }
 
-  return types;
+  return candidates;
+}
+
+function isReminderCandidateDueNow(candidate, todayKey) {
+  if (!candidate?.scheduledDateKey) {
+    return false;
+  }
+
+  return candidate.scheduledDateKey <= todayKey;
 }
 
 function getReminderRecipientsForEvent({ contacts, rsvps }) {

@@ -3126,40 +3126,13 @@ async function saveEventFromForm() {
 }
 
 function shouldAutoTriggerImmediateReminderApproval(eventRecord) {
-  if (!eventRecord?.eventDate || !["planned", "sent"].includes(eventRecord.status)) {
-    return false;
-  }
-
-  const eventDateTime = getEventStartDateTime(eventRecord);
-
-  if (!eventDateTime) {
-    return false;
-  }
-
   const now = new Date();
-  const msUntilEvent = eventDateTime.getTime() - now.getTime();
 
-  if (msUntilEvent <= 0 || msUntilEvent > 24 * 60 * 60 * 1000) {
+  if (!eventRecord?.eventDate || !["planned", "sent"].includes(eventRecord.status) || isEventFinished(eventRecord, now)) {
     return false;
   }
 
-  const settings = normaliseUserSettings(state.userSettings);
-  const todayKey = formatDateForStorage(now);
-  const dueReminderTypes = [];
-
-  if (settings.defaultReminder1DayEnabled) {
-    dueReminderTypes.push("reminder_1_day");
-  }
-  if (settings.defaultReminderSameDayEnabled) {
-    dueReminderTypes.push("reminder_same_day");
-  }
-
-  const immediateCandidates = getEnabledReminderCandidatesForEvent(eventRecord)
-    .filter((candidate) => dueReminderTypes.includes(candidate.type))
-    .filter((candidate) => formatDateForStorage(candidate.scheduledDate) === todayKey)
-    .filter((candidate) => isReminderScheduleStillUpcoming(eventRecord, candidate));
-
-  return immediateCandidates.length > 0;
+  return getDueReminderCandidatesForEvent(eventRecord, now).length > 0;
 }
 
 function openEventForm() {
@@ -4682,8 +4655,18 @@ function getEventReminderScheduleLabel(eventRecord) {
   const reminderCandidates = getEnabledReminderCandidatesForEvent(eventRecord)
     .filter((candidate) => !existingReminderTypes.has(candidate.type))
     .filter((candidate) => isReminderScheduleStillUpcoming(eventRecord, candidate));
+  const dueCandidates = getDueReminderCandidatesForEvent(eventRecord).filter(
+    (candidate) => !existingReminderTypes.has(candidate.type),
+  );
 
-  const nextReminder = reminderCandidates[0] || null;
+  const dueReminder = dueCandidates[0] || null;
+  const nextReminder = reminderCandidates.find(
+    (candidate) => !dueReminder || candidate.type !== dueReminder.type,
+  ) || null;
+
+  if (dueReminder) {
+    return `${formatReminderTypeLabel(dueReminder.type)} reminder draft due now`;
+  }
 
   if (nextReminder) {
     return `Next reminder draft: ${formatReminderTypeLabel(nextReminder.type)} on ${formatEventDate(nextReminder.scheduledDate)} (early morning NZ)`;
@@ -4736,6 +4719,18 @@ function getEnabledReminderCandidatesForEvent(eventRecord) {
   }
 
   return candidates;
+}
+
+function getDueReminderCandidatesForEvent(eventRecord, now = new Date()) {
+  if (!eventRecord?.eventDate || isEventFinished(eventRecord, now)) {
+    return [];
+  }
+
+  const todayKey = formatDateForStorage(now);
+
+  return getEnabledReminderCandidatesForEvent(eventRecord)
+    .filter((candidate) => formatDateForStorage(candidate.scheduledDate) <= todayKey)
+    .sort((left, right) => right.scheduledDate.getTime() - left.scheduledDate.getTime());
 }
 
 function isReminderScheduleStillUpcoming(eventRecord, candidate) {
