@@ -3060,7 +3060,6 @@ async function saveEventFromForm() {
     return;
   }
 
-  const isEditingExistingEvent = Boolean(eventIdInput.value);
   const eventRecord = buildEventRowsFromForm();
 
   if (!eventRecord.ok) {
@@ -3093,8 +3092,8 @@ async function saveEventFromForm() {
     renderAll();
     let saveMessage = mappedEvents.length === 1 ? "Event saved." : `${mappedEvents.length} events saved.`;
 
-    if (!isEditingExistingEvent && mappedEvents.some(shouldAutoTriggerImmediateReminderApproval)) {
-      setStatus(eventStatusMessage, `${saveMessage} Generating reminder approval draft...`, false);
+    if (mappedEvents.some(shouldAutoTriggerImmediateReminderApproval)) {
+      setStatus(eventStatusMessage, `${saveMessage} Checking for due reminder approvals...`, false);
 
       try {
         const reminderResult = await executeReminderSchedulerCheck();
