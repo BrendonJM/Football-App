@@ -251,6 +251,8 @@ let reminderCheckInFlight = false;
 let accountReminderSettingsOpen = false;
 let quickReminderApprovalOpen = false;
 let quickReminderApprovalDraftId = "";
+let reminderAutoCatchUpInFlight = false;
+let reminderAutoCatchUpAttemptKey = "";
 
 bootstrapApp();
 
@@ -851,6 +853,7 @@ async function applyAuthSession(session) {
     await hydrateStateFromSupabase();
     persistUserScopedState();
     await applyAppLinkState();
+    void ensureDueReminderCoverageInBackground();
   } catch (error) {
     console.error("[Supabase] Failed to hydrate teams after login", {
       userId: supabaseUserId,
@@ -4681,6 +4684,68 @@ function getEventReminderScheduleLabel(eventRecord) {
   }
 
   return "No more automatic reminders scheduled";
+}
+
+function getAllVisibleEvents(now = new Date()) {
+  return Object.values(state.eventsByTeamId || {})
+    .flatMap((rows) => (Array.isArray(rows) ? rows : []))
+    .filter((eventRecord) => !isEventFinished(eventRecord, now))
+    .sort(compareEvents);
+}
+
+function hasDueReminderCoverageGap(now = new Date()) {
+  return getAllVisibleEvents(now).some((eventRecord) => {
+    if (!eventRecord?.eventDate || !["planned", "sent"].includes(eventRecord.status)) {
+      return false;
+    }
+
+    const existingReminderTypes = new Set(
+      (state.aiDraftsByEventId[eventRecord.id] || [])
+        .filter((draft) => draft.draftType === "scheduled_reminder" && draft.reminderType)
+        .map((draft) => draft.reminderType),
+    );
+
+    return getDueReminderCandidatesForEvent(eventRecord, now).some(
+      (candidate) => !existingReminderTypes.has(candidate.type),
+    );
+  });
+}
+
+async function ensureDueReminderCoverageInBackground() {
+  if (!supabaseUserId || !supabaseAccessToken || reminderCheckInFlight || reminderAutoCatchUpInFlight) {
+    return;
+  }
+
+  const todayKey = formatDateForStorage(new Date());
+  const attemptKey = `${supabaseUserId}:${todayKey}`;
+
+  if (reminderAutoCatchUpAttemptKey === attemptKey || !hasDueReminderCoverageGap()) {
+    return;
+  }
+
+  reminderAutoCatchUpAttemptKey = attemptKey;
+  reminderAutoCatchUpInFlight = true;
+
+  try {
+    console.info("[Reminder Scheduler] Background due-reminder catch-up started", {
+      userId: supabaseUserId,
+      attemptKey,
+    });
+    const result = await executeReminderSchedulerCheck();
+    console.info("[Reminder Scheduler] Background due-reminder catch-up completed", result);
+
+    if (Number(result?.dueCount || 0) > 0 || Number(result?.draftCount || 0) > 0 || Number(result?.notifiedCount || 0) > 0) {
+      await hydrateStateFromSupabase();
+    }
+  } catch (error) {
+    reminderAutoCatchUpAttemptKey = "";
+    console.error("[Reminder Scheduler] Background due-reminder catch-up failed", {
+      error,
+      message: error?.message || String(error),
+    });
+  } finally {
+    reminderAutoCatchUpInFlight = false;
+  }
 }
 
 function getEnabledReminderCandidatesForEvent(eventRecord) {
