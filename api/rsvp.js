@@ -113,18 +113,20 @@ module.exports = async (request, response) => {
       const updatedRsvp = Array.isArray(updatedRows) ? updatedRows[0] : updatedRows;
 
       if (responseValue !== "no_response") {
-        void notifyOwnerOfRsvpResponse({
-          adminConfig,
-          detail,
-          updatedRsvp,
-        }).catch((error) => {
+        try {
+          await notifyOwnerOfRsvpResponse({
+            adminConfig,
+            detail,
+            updatedRsvp,
+          });
+        } catch (error) {
           console.warn("[RSVP] Owner notification failed", {
             error,
             message: error?.message || String(error),
             rsvpId: detail.id,
             ownerUserId: detail.user_id,
           });
-        });
+        }
       }
 
       response.status(200).json({
