@@ -458,17 +458,8 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
   const lines = [
     isCancellation ? `${teamName} event cancelled` : `${teamName} update`,
     "",
-    `Event: ${eventRecord.event_title}`,
-    `Type: ${formatEventTypeLabel(eventRecord.event_type)}`,
-    `Date: ${eventRecord.event_date || "To be confirmed"}`,
-    `Time: ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) || "To be confirmed"}`,
-    `Location: ${eventRecord.location || "To be confirmed"}`,
-    eventRecord.notes ? `Notes: ${eventRecord.notes}` : null,
-    "",
-    messageText,
-    "",
     includeRsvp && !isCancellation
-      ? `Hello ${contact.contact_name || "there"}, you can RSVP without logging in:`
+      ? `Hello ${contact.contact_name || "there"}, please RSVP here first:`
       : `Hello ${contact.contact_name || "there"},`,
   ].filter(Boolean);
 
@@ -487,6 +478,19 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
 
     lines.push("", "If you prefer, open any of the links above and add an optional note.");
   }
+
+  lines.push(
+    "",
+    `Event: ${eventRecord.event_title}`,
+    `Type: ${formatEventTypeLabel(eventRecord.event_type)}`,
+    `Date: ${eventRecord.event_date || "To be confirmed"}`,
+    `Time: ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) || "To be confirmed"}`,
+    `Location: ${eventRecord.location || "To be confirmed"}`,
+    eventRecord.notes ? `Notes: ${eventRecord.notes}` : null,
+    "",
+    messageText,
+  );
+
   return lines.join("\n");
 }
 
@@ -496,16 +500,10 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
       <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} ${isCancellation ? "event cancelled" : "update"}</h2>
       <p>Hello ${escapeHtml(contact.contact_name || "there")},</p>
-      <p><strong>Event:</strong> ${escapeHtml(String(eventRecord.event_title || ""))}</p>
-      ${eventRecord.event_type ? `<p><strong>Type:</strong> ${escapeHtml(formatEventTypeLabel(String(eventRecord.event_type || "")))}</p>` : ""}
-      ${eventRecord.event_date ? `<p><strong>Date:</strong> ${escapeHtml(String(eventRecord.event_date))}</p>` : ""}
-      ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) ? `<p><strong>Time:</strong> ${escapeHtml(formatEventTimeRange(eventRecord.start_time, eventRecord.end_time))}</p>` : ""}
-      ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
-      <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
       ${
         includeRsvp && !isCancellation
-          ? `<div style="margin-top: 20px;">
-              <p style="margin-bottom: 8px;"><strong>RSVP without logging in</strong></p>
+          ? `<div style="margin: 0 0 20px;">
+              <p style="margin-bottom: 8px;"><strong>RSVP first</strong></p>
               ${rsvpRows
                 .map((row) => {
                   const yesLink = buildRsvpLink({ baseUrl, token: row.token, response: "yes" });
@@ -531,6 +529,12 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
             </div>`
           : ""
       }
+      <p><strong>Event:</strong> ${escapeHtml(String(eventRecord.event_title || ""))}</p>
+      ${eventRecord.event_type ? `<p><strong>Type:</strong> ${escapeHtml(formatEventTypeLabel(String(eventRecord.event_type || "")))}</p>` : ""}
+      ${eventRecord.event_date ? `<p><strong>Date:</strong> ${escapeHtml(String(eventRecord.event_date))}</p>` : ""}
+      ${formatEventTimeRange(eventRecord.start_time, eventRecord.end_time) ? `<p><strong>Time:</strong> ${escapeHtml(formatEventTimeRange(eventRecord.start_time, eventRecord.end_time))}</p>` : ""}
+      ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
+      <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
     </div>
   `;
 }
