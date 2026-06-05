@@ -906,6 +906,7 @@ async function applyAuthSession(session) {
 
 function renderAuthState() {
   const isLoggedIn = Boolean(supabaseUserId);
+  document.body.classList.toggle("guest-mode", !isLoggedIn);
   appShell?.classList.toggle("is-guest-shell", !isLoggedIn);
   landingPage?.classList.toggle("hidden", isLoggedIn);
   accountSignedInContent?.classList.toggle("hidden", !isLoggedIn);

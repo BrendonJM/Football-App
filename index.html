@@ -56,7 +56,7 @@
                 <p class="landing-kicker">Completely free for grassroots teams</p>
                 <h1>Organise your team, not your group chat.</h1>
                 <p class="landing-subheading">
-                  The free team management app for grassroots coaches, managers and parents.
+                  TeamPro helps coaches, managers and parents stay organised with availability tracking, team communication, events and reminders.
                 </p>
                 <div class="button-row landing-cta-row">
                   <button type="button" class="primary-button" data-cta-auth>Create Your Free Team</button>
@@ -70,174 +70,144 @@
               </div>
 
               <div class="landing-hero-stack">
-                <div id="authGuestPanel" class="panel landing-signup-card">
-                  <div class="landing-signup-header">
-                    <p class="landing-kicker small-eyebrow">Start in minutes</p>
-                    <h2>Create your free team</h2>
-                    <p>Set up your team once, invite parents, and stop chasing replies in group chat.</p>
-                  </div>
-                  <form id="signupForm" class="stack-form landing-signup-form">
-                    <label class="field">
-                      <span>Email</span>
-                      <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
-                    </label>
-                    <label class="field">
-                      <span>Password</span>
-                      <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
-                    </label>
-                    <div class="button-row">
-                      <button type="submit" class="primary-button">Create Account</button>
-                      <button id="loginButton" type="button" class="secondary-button">Log In</button>
-                    </div>
-                  </form>
-                  <div class="landing-signup-note">
-                    <span>Free forever for grassroots teams</span>
-                    <span>Set up takes just a few minutes</span>
-                  </div>
-                  <p id="authStatus" class="status-text" aria-live="polite"></p>
-                </div>
-
                 <div class="panel landing-dashboard-card" aria-label="Sample TeamPro dashboard">
                   <div class="landing-dashboard-header">
                     <div>
                       <p class="landing-kicker small-eyebrow">Sample team</p>
-                      <h2>Tawa Defenders U11</h2>
+                      <h2>Westfield Under 12s</h2>
                     </div>
-                    <span class="landing-dashboard-badge">This week</span>
+                    <span class="landing-dashboard-badge">16 players</span>
                   </div>
 
                   <div class="landing-dashboard-grid">
                     <div class="landing-metric-card">
                       <span class="landing-metric-label">Upcoming game</span>
-                      <strong>Saturday 9:00 AM</strong>
-                      <p>Petone Memorial Park</p>
-                    </div>
-                    <div class="landing-metric-card">
-                      <span class="landing-metric-label">Training</span>
-                      <strong>Wednesday 5:00 PM</strong>
-                      <p>Grenada North</p>
+                      <strong>Saturday 10:15am</strong>
+                      <p>vs Riverside Rovers</p>
                     </div>
                     <div class="landing-metric-card">
                       <span class="landing-metric-label">Availability</span>
-                      <strong>10 yes • 2 maybe</strong>
-                      <p>3 parents still to reply</p>
+                      <strong>11 yes • 3 no • 2 pending</strong>
+                      <p>Know who’s ready before game day</p>
                     </div>
                     <div class="landing-metric-card">
-                      <span class="landing-metric-label">Team reminders</span>
-                      <strong>Boots + water bottles</strong>
-                      <p>Warm-up starts 15 minutes early</p>
+                      <span class="landing-metric-label">Training</span>
+                      <strong>Thursday 6:30pm</strong>
+                      <p>Community Park — Pitch 2</p>
+                    </div>
+                    <div class="landing-metric-card">
+                      <span class="landing-metric-label">Reminders</span>
+                      <strong>Kit wash rota sent</strong>
+                      <p>Match fees due Friday</p>
                     </div>
                   </div>
-
-                  <div class="landing-dashboard-footer">
-                    <div class="landing-mini-list">
-                      <span class="landing-mini-dot is-live"></span>
-                      <p>Reminders ready for approval before they go out</p>
-                    </div>
-                    <div class="landing-mini-list">
-                      <span class="landing-mini-dot"></span>
-                      <p>Parents can reply fast with RSVP buttons in email</p>
-                    </div>
-                  </div>
-                  <div class="landing-dashboard-ribbon">Everything your team needs in one simple place</div>
                 </div>
               </div>
             </section>
 
-            <section class="landing-section panel">
+            <section id="authGuestPanel" class="landing-signup-band panel">
+              <div class="landing-signup-band-copy">
+                <p class="landing-kicker small-eyebrow">Start free</p>
+                <h2>Create your free team</h2>
+                <p>Set up your team, invite parents and stop chasing replies in group chat.</p>
+              </div>
+              <form id="signupForm" class="stack-form landing-signup-form landing-signup-band-form">
+                <div class="split-fields landing-auth-fields">
+                  <label class="field">
+                    <span>Email</span>
+                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+                  </label>
+                  <label class="field">
+                    <span>Password</span>
+                    <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
+                  </label>
+                </div>
+                <div class="button-row">
+                  <button type="submit" class="primary-button">Create Account</button>
+                  <button id="loginButton" type="button" class="secondary-button">Log In</button>
+                </div>
+                <div class="landing-signup-note">
+                  <span>Completely free</span>
+                  <span>No credit card required</span>
+                  <span>Built for grassroots sport</span>
+                </div>
+                <p id="authStatus" class="status-text" aria-live="polite"></p>
+              </form>
+            </section>
+
+            <section class="landing-section landing-soft-section">
               <div class="landing-section-heading">
                 <h2>Running a team shouldn’t feel like a second job.</h2>
-                <p>TeamPro puts the important stuff in one simple place.</p>
               </div>
-              <div class="landing-story-row">
-                <div class="landing-story-copy">
-                  <p>Endless group chats. Chasing parents. Missed messages. Last-minute player shortages.</p>
-                  <p>TeamPro replaces the messy admin with one simple place to organise events, reminders and availability.</p>
-                </div>
-                <div class="landing-graphic-panel">
-                  <div class="landing-graphic-card">
-                    <span class="landing-graphic-label">Before</span>
-                    <strong>6 places to check</strong>
-                    <p>Chat, email, calendar, spreadsheet, notes, reminders.</p>
-                  </div>
-                  <div class="landing-graphic-card">
-                    <span class="landing-graphic-label">After</span>
-                    <strong>One clear team view</strong>
-                    <p>Events, availability, reminders and team updates in one flow.</p>
-                  </div>
-                </div>
+              <div class="landing-problem-grid">
+                <article class="landing-problem-card"><strong>Endless group chats</strong></article>
+                <article class="landing-problem-card"><strong>Chasing parents for availability</strong></article>
+                <article class="landing-problem-card"><strong>Missed messages</strong></article>
+                <article class="landing-problem-card"><strong>Last-minute player shortages</strong></article>
+                <article class="landing-problem-card"><strong>Multiple apps and spreadsheets</strong></article>
+                <article class="landing-problem-card"><strong>Manual reminders</strong></article>
               </div>
+              <p class="landing-section-note">TeamPro puts the important stuff in one simple place.</p>
             </section>
 
             <section id="landingBenefits" class="landing-section">
               <div class="landing-section-heading">
-                <h2>Everything you need to keep your team organised.</h2>
+                <h2>Everything your team needs</h2>
               </div>
-              <div class="landing-feature-split">
-                <div class="landing-story-copy">
+              <div class="landing-benefit-grid">
+                <article class="landing-benefit-card">
+                  <div class="landing-benefit-icon is-blue"></div>
                   <h3>Know who’s available</h3>
                   <p>Parents can respond quickly so coaches know who can make training and game day.</p>
-
+                </article>
+                <article class="landing-benefit-card">
+                  <div class="landing-benefit-icon is-orange"></div>
                   <h3>Keep everyone informed</h3>
                   <p>Send updates once and keep your team on the same page.</p>
-
+                </article>
+                <article class="landing-benefit-card">
+                  <div class="landing-benefit-icon is-green"></div>
+                  <h3>Never miss an event</h3>
+                  <p>Manage trainings, games and team activities with simple reminders.</p>
+                </article>
+                <article class="landing-benefit-card">
+                  <div class="landing-benefit-icon is-pink"></div>
                   <h3>Less admin, more coaching</h3>
                   <p>Spend less time organising and more time helping your team enjoy the game.</p>
-                </div>
-                <div class="landing-graphic-panel landing-availability-graphic">
-                  <div class="landing-availability-header">
-                    <span class="landing-graphic-label">Availability</span>
-                    <strong>Saturday game</strong>
-                  </div>
-                  <div class="landing-availability-bars">
-                    <div class="landing-availability-bar">
-                      <span>Yes</span>
-                      <strong>10</strong>
-                    </div>
-                    <div class="landing-availability-bar is-muted">
-                      <span>Maybe</span>
-                      <strong>2</strong>
-                    </div>
-                    <div class="landing-availability-bar is-light">
-                      <span>No reply</span>
-                      <strong>3</strong>
-                    </div>
-                  </div>
-                  <p>See who is ready to play before the last-minute scramble starts.</p>
-                </div>
+                </article>
               </div>
             </section>
 
-            <section class="landing-section panel landing-free-banner">
+            <section class="landing-section landing-free-section">
               <div class="landing-section-heading">
                 <h2>Completely free for grassroots teams.</h2>
                 <p>
-                  Built by a grassroots coach. No subscription. No hidden fees. No credit card required.
+                  TeamPro was built by a grassroots coach to make team admin easier. No subscriptions, no hidden fees and no credit card required.
                 </p>
+              </div>
+              <div class="landing-check-row">
+                <span>Free forever</span>
+                <span>No hidden costs</span>
+                <span>No card required</span>
+              </div>
+            </section>
+
+            <section class="landing-section landing-soft-section">
+              <div class="landing-section-heading">
+                <h2>Who it’s for</h2>
+              </div>
+              <div class="landing-who-grid">
+                <article class="landing-who-card">Football teams</article>
+                <article class="landing-who-card">Coaches</article>
+                <article class="landing-who-card">Team managers</article>
+                <article class="landing-who-card">Parents</article>
+                <article class="landing-who-card">Junior &amp; youth sport</article>
               </div>
             </section>
 
             <section class="landing-section">
               <div class="landing-section-heading">
-                <h2>Built for the people who keep community sport moving.</h2>
-              </div>
-              <div class="landing-story-row">
-                <div class="landing-story-copy">
-                  <p>Made for football teams, coaches, team managers, parents, and junior or youth sport.</p>
-                </div>
-                <div class="landing-graphic-panel landing-community-graphic">
-                  <div class="landing-community-pill">Football teams</div>
-                  <div class="landing-community-pill">Coaches</div>
-                  <div class="landing-community-pill">Managers</div>
-                  <div class="landing-community-pill">Parents</div>
-                  <div class="landing-community-pill">Junior sport</div>
-                </div>
-              </div>
-            </section>
-
-            <section class="landing-section panel">
-              <div class="landing-section-heading">
-                <h2>TeamPro features</h2>
+                <h2>Features built for team life</h2>
               </div>
               <div class="landing-feature-list is-simple">
                 <span class="landing-feature-pill">Team calendar</span>
@@ -251,7 +221,7 @@
               </div>
             </section>
 
-            <section class="landing-section panel landing-final-cta">
+            <section class="landing-section landing-final-cta">
               <div class="landing-section-heading">
                 <h2>Ready to simplify your team admin?</h2>
                 <p>Create your free TeamPro team and spend less time chasing messages.</p>
@@ -260,6 +230,36 @@
                 <button type="button" class="primary-button" data-cta-auth>Create Your Free Team</button>
               </div>
             </section>
+
+            <footer class="landing-footer">
+              <div class="landing-footer-grid">
+                <div class="landing-footer-brand">
+                  <div class="brandmark" aria-label="TeamPro">
+                    <span class="brandmark-team">Team</span><span class="brandmark-pro">Pro</span>
+                  </div>
+                  <p>The free team management app for grassroots sport teams.</p>
+                </div>
+                <div class="landing-footer-column">
+                  <strong>Product</strong>
+                  <span>Features</span>
+                  <span>Benefits</span>
+                </div>
+                <div class="landing-footer-column">
+                  <strong>Company</strong>
+                  <span>About</span>
+                  <span>Contact</span>
+                  <span>Blog</span>
+                </div>
+                <div class="landing-footer-column">
+                  <strong>Legal</strong>
+                  <span>Privacy Policy</span>
+                  <span>Terms of Service</span>
+                </div>
+              </div>
+              <div class="landing-footer-bottom">
+                <span>© 2026 TeamPro. All rights reserved.</span>
+              </div>
+            </footer>
           </section>
 
           <div id="accountSignedInContent" class="layout-grid single-panel-layout hidden">
