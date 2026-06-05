@@ -438,7 +438,7 @@ function formatApprovalLabel(draftRecord) {
     return "Cancellation message";
   }
 
-  return `${formatReminderLabel(draftRecord?.reminder_type)} reminder`;
+  return `${formatReminderTypeLabel(draftRecord?.reminder_type)} reminder`;
 }
 
 function groupRowsByContactId(rows) {
