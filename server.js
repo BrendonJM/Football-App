@@ -9,6 +9,7 @@ const rsvpApiHandler = require("./api/rsvp");
 const aiCommunicationDraftApiHandler = require("./api/ai/communication-draft");
 const reminderSchedulerApiHandler = require("./api/reminder-scheduler");
 const reminderApprovalApiHandler = require("./api/reminder-approval");
+const eventCancellationApiHandler = require("./api/event-cancellation");
 
 const PORT = Number(process.env.PORT || 3000);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -227,6 +228,11 @@ const server = http.createServer(async (request, response) => {
 
   if ((request.method === "GET" || request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/reminder-approval") {
     await invokeApiHandler(reminderApprovalApiHandler, request, response, requestUrl);
+    return;
+  }
+
+  if ((request.method === "POST" || request.method === "OPTIONS") && requestUrl.pathname === "/api/event-cancellation") {
+    await invokeApiHandler(eventCancellationApiHandler, request, response, requestUrl);
     return;
   }
 

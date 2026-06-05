@@ -187,6 +187,7 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - AI communication drafts are saved in `ai_communication_drafts` and remain private to the authenticated coach through RLS.
 - Reminder schedule defaults live in `user_settings` and are managed globally from the Account tab.
 - Scheduled reminders create `pending_review` drafts in `ai_communication_drafts`; no team-member emails are sent automatically.
+- Changing an event to `Cancelled` creates an admin approval draft for a cancellation message before anything is sent to team contacts.
 - On Vercel Hobby, a daily cron calls `/api/reminder-scheduler` around early NZ morning and admins can also trigger `Generate Due Reminders` from the Account tab at any time.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
@@ -200,6 +201,7 @@ Then add the same environment variables in Vercel and redeploy if needed.
   - day of event
 - The scheduler never emails team members directly.
 - Instead, it creates one `pending_review` draft per event per reminder type in `ai_communication_drafts`.
+- Event cancellations also create `pending_review` drafts in `ai_communication_drafts` using the `event_cancellation` draft type.
 - Duplicate drafts are prevented with a unique index on `event_id + reminder_type`.
 - After a reminder draft is created, TeamPro emails the signed-in team admin a review link and dismiss link.
 - The admin email includes:

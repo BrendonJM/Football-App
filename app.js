@@ -37,6 +37,7 @@ const trainingPlanEndpoint = "/api/training-plan";
 const teamUpdateEndpoint = "/api/team-update";
 const aiCommunicationDraftEndpoint = "/api/ai/communication-draft";
 const reminderSchedulerEndpoint = "/api/reminder-scheduler";
+const eventCancellationEndpoint = "/api/event-cancellation";
 const teamsTableName = "teams";
 const teamContactsTableName = "team_contacts";
 const teamEventsTableName = "team_events";
@@ -2014,15 +2015,15 @@ function renderQuickReminderApproval() {
 
   const recipients = getRecipientsForReminderDraft(eventRecord, draftRecord);
   const teamName = state.config.teamName || "TeamPro team";
+  const approvalLabel = formatApprovalDraftLabel(draftRecord);
 
   if (quickReminderApprovalHeading) {
     quickReminderApprovalHeading.textContent = `${teamName} | ${eventRecord.eventTitle}`;
   }
 
   if (quickReminderApprovalMeta) {
-    const reminderLabel = formatReminderTypeLabel(draftRecord.reminderType);
     const timing = getEventTimingLabel(eventRecord) || "Time to be confirmed";
-    quickReminderApprovalMeta.textContent = `${reminderLabel} reminder • ${formatEventDate(eventRecord.eventDate)} • ${timing} • ${eventRecord.location || "Location to be confirmed"} • ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}`;
+    quickReminderApprovalMeta.textContent = `${approvalLabel} • ${formatEventDate(eventRecord.eventDate)} • ${timing} • ${eventRecord.location || "Location to be confirmed"} • ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}`;
   }
 
   if (quickReminderApprovalMessage) {
@@ -2312,7 +2313,7 @@ function renderEventMessaging() {
     } else if (!emailContacts.length) {
       messageRecipientSummary.textContent = "No contacts with email addresses are available for this team yet.";
     } else if (selectedDraft) {
-      messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected for this ${formatReminderTypeLabel(selectedDraft.reminderType)} reminder. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact is" : "contacts are"} suggested by the draft.`;
+      messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected for this ${formatApprovalDraftLabel(selectedDraft).toLowerCase()}. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact is" : "contacts are"} suggested by the draft.`;
     } else {
       messageRecipientSummary.textContent = `${selectedReminderContacts.length} contact${selectedReminderContacts.length === 1 ? "" : "s"} selected. ${reminderRecipientContacts.length} ${reminderRecipientContacts.length === 1 ? "contact has" : "contacts have"} not replied yet.`;
     }
@@ -2325,7 +2326,7 @@ function renderEventMessaging() {
     } else {
       reminderDraftSummary.classList.remove("hidden");
       reminderDraftSummary.innerHTML = `
-        <strong>${escapeHtml(formatReminderTypeLabel(selectedDraft.reminderType))} reminder draft ready</strong>
+        <strong>${escapeHtml(formatApprovalDraftLabel(selectedDraft))} ready</strong>
         <p>Generated for ${escapeHtml(selectedEvent.eventTitle)} and waiting for your review before anything is sent.</p>
       `;
     }
@@ -2375,9 +2376,13 @@ function renderEventMessaging() {
       || sendingEventUpdate
       || (showReminderComposer ? !selectedReminderContacts.length : !emailContacts.length);
     if (showReminderComposer) {
-      sendReminderEmailButton.textContent = selectedDraft ? "Approve & Send Reminder" : "Send Reminder Now";
+      sendReminderEmailButton.textContent = selectedDraft
+        ? selectedDraft.draftType === "event_cancellation"
+          ? "Approve & Send Cancellation"
+          : "Approve & Send Reminder"
+        : "Send Reminder Now";
     } else {
-      sendReminderEmailButton.textContent = "Send Reminder";
+      sendReminderEmailButton.textContent = selectedDraft?.draftType === "event_cancellation" ? "Send Cancellation" : "Send Reminder";
     }
   }
 
@@ -2791,7 +2796,7 @@ function getSelectedReminderDraft() {
   }
 
   return getEventDrafts(selectedEvent.id).find((draft) =>
-    draft.status === "pending_review" && draft.draftType === "scheduled_reminder",
+    draft.status === "pending_review" && ["scheduled_reminder", "event_cancellation"].includes(draft.draftType),
   ) || null;
 }
 
@@ -3063,6 +3068,10 @@ async function saveEventFromForm() {
     return;
   }
 
+  const existingEventId = eventIdInput.value || "";
+  const existingEvent = existingEventId
+    ? getActiveTeamEvents().find((item) => item.id === existingEventId) || null
+    : null;
   const eventRecord = buildEventRowsFromForm();
 
   if (!eventRecord.ok) {
@@ -3116,6 +3125,30 @@ async function saveEventFromForm() {
       }
     }
 
+    if (mappedEvents.some((eventRow) => shouldAutoTriggerCancellationApproval({ eventRecord: eventRow, existingEvent }))) {
+      setStatus(eventStatusMessage, `${saveMessage} Preparing cancellation approval...`, false);
+
+      try {
+        const cancellationResult = await executeCancellationApprovalDraft({
+          teamId: state.activeTeamId,
+          eventId: mappedEvents[0].id,
+        });
+        console.info("[Cancellation Draft] Auto-triggered after event save", {
+          eventIds: mappedEvents.map((eventRow) => eventRow.id),
+          result: cancellationResult,
+        });
+        await hydrateStateFromSupabase();
+        saveMessage = `${saveMessage} ${formatCancellationDraftResult(cancellationResult)}`;
+      } catch (cancellationError) {
+        console.error("[Cancellation Draft] Auto-trigger failed after event save", {
+          error: cancellationError,
+          message: cancellationError?.message || String(cancellationError),
+          eventIds: mappedEvents.map((eventRow) => eventRow.id),
+        });
+        saveMessage = `${saveMessage} Cancellation approval could not be prepared automatically: ${cancellationError?.message || "Cancellation check failed."}`;
+      }
+    }
+
     setStatus(eventStatusMessage, saveMessage, false);
   } catch (error) {
     console.error("[Supabase] event save failed", {
@@ -3135,6 +3168,14 @@ function shouldAutoTriggerImmediateReminderApproval(eventRecord) {
   }
 
   return getDueReminderCandidatesForEvent(eventRecord, now).length > 0;
+}
+
+function shouldAutoTriggerCancellationApproval({ eventRecord, existingEvent }) {
+  if (!eventRecord || eventRecord.status !== "cancelled") {
+    return false;
+  }
+
+  return existingEvent?.status !== "cancelled";
 }
 
 function openEventForm() {
@@ -3604,6 +3645,14 @@ function formatReminderTypeLabel(value) {
     reminder_1_day: "1-day",
     reminder_same_day: "same-day",
   }[value] || "scheduled";
+}
+
+function formatApprovalDraftLabel(draftRecord) {
+  if (draftRecord?.draftType === "event_cancellation") {
+    return "Cancellation message";
+  }
+
+  return `${formatReminderTypeLabel(draftRecord?.reminderType)} reminder`;
 }
 
 function buildEventMessageText(eventRecord) {
@@ -4375,18 +4424,28 @@ async function sendEventUpdateEmail(mode = "all") {
   }
 
   if (!recipients.length) {
-    setStatus(messageStatus, "Select at least one contact for this reminder.", true);
+    setStatus(messageStatus, selectedDraft?.draftType === "event_cancellation"
+      ? "Select at least one contact for this cancellation."
+      : "Select at least one contact for this reminder.", true);
     return;
   }
 
   if (!messageText) {
-    setStatus(messageStatus, "Add a reminder message before sending.", true);
+    setStatus(messageStatus, selectedDraft?.draftType === "event_cancellation"
+      ? "Add a cancellation message before sending."
+      : "Add a reminder message before sending.", true);
     return;
   }
 
   sendingEventUpdate = true;
   renderEventMessaging();
-  setStatus(messageStatus, mode === "reminder" ? "Sending reminder..." : "Sending update...", false);
+  setStatus(
+    messageStatus,
+    mode === "reminder"
+      ? (selectedDraft?.draftType === "event_cancellation" ? "Sending cancellation..." : "Sending reminder...")
+      : "Sending update...",
+    false,
+  );
 
   try {
     const response = await fetch(teamUpdateEndpoint, {
@@ -4403,6 +4462,7 @@ async function sendEventUpdateEmail(mode = "all") {
         teamName: state.config.teamName || "TeamPro team",
         messageText,
         subject: subjectOverride,
+        includeRsvp: selectedDraft ? selectedDraft.draftJson?.rsvp?.rsvp_required !== false : true,
         baseUrl: window.location.origin,
       }),
     });
@@ -4447,7 +4507,9 @@ async function sendEventUpdateEmail(mode = "all") {
     });
 
     if (result.sent) {
-      await markEventAsSent(selectedEvent.id);
+      if (!selectedDraft || selectedDraft.draftType === "scheduled_reminder") {
+        await markEventAsSent(selectedEvent.id);
+      }
       if (selectedDraft) {
         const savedDraft = await saveReminderDraftStatus(selectedDraft, "used");
         if (savedDraft?.status === "used") {
@@ -4684,6 +4746,46 @@ function getEventReminderScheduleLabel(eventRecord) {
   }
 
   return "No more automatic reminders scheduled";
+}
+
+async function executeCancellationApprovalDraft({ teamId, eventId }) {
+  const response = await fetch(eventCancellationEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      accessToken: supabaseAccessToken,
+      teamId,
+      eventId,
+      baseUrl: window.location.origin,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.error || "Cancellation approval could not be prepared.");
+  }
+
+  return result;
+}
+
+function formatCancellationDraftResult(result) {
+  if (result?.duplicate && result?.notified) {
+    return "Cancellation approval email re-sent to the coach.";
+  }
+  if (result?.duplicate) {
+    return "A cancellation approval draft is already waiting for review.";
+  }
+  if (result?.notified) {
+    return "Cancellation approval email sent to the coach.";
+  }
+  if (result?.draftCreated) {
+    return "Cancellation approval draft created.";
+  }
+  return "Cancellation approval prepared.";
 }
 
 function getAllVisibleEvents(now = new Date()) {

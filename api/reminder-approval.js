@@ -119,8 +119,8 @@ async function loadReminderApprovalContext({ adminConfig, token }) {
 
   const draftRecord = Array.isArray(draftRows) ? draftRows[0] : null;
 
-  if (!draftRecord || draftRecord.status !== "pending_review" || draftRecord.draft_type !== "scheduled_reminder") {
-    throw new Error("That reminder draft is no longer available.");
+  if (!draftRecord || draftRecord.status !== "pending_review" || !["scheduled_reminder", "event_cancellation"].includes(draftRecord.draft_type)) {
+    throw new Error("That approval draft is no longer available.");
   }
 
   const eventRows = await supabaseAdminRequest({
@@ -193,6 +193,7 @@ async function loadReminderApprovalContext({ adminConfig, token }) {
 function buildApprovalResponse({ token, draftRecord, eventRecord, teamRecord, recipients, rsvps }) {
   const baseUrl = buildRsvpBaseUrl(process.env.TEAMPRO_APP_BASE_URL || "https://www.teampro.co.nz");
   const summary = summariseRsvps(rsvps);
+  const approvalLabel = formatApprovalLabel(draftRecord);
   return {
     token,
     teamName: teamRecord?.team_name || "TeamPro team",
@@ -202,6 +203,8 @@ function buildApprovalResponse({ token, draftRecord, eventRecord, teamRecord, re
     location: eventRecord.location || "",
     notes: eventRecord.notes || "",
     reminderType: draftRecord.reminder_type || "",
+    draftType: draftRecord.draft_type || "scheduled_reminder",
+    approvalLabel,
     subject: draftRecord.draft_json?.message?.email_subject || buildSubject(teamRecord?.team_name || "TeamPro team", eventRecord),
     messageText: draftRecord.draft_json?.message?.email_body || "",
     recipientCount: recipients.length,
@@ -222,16 +225,19 @@ async function sendReminderApprovalNow({ adminConfig, context }) {
   const { draftRecord, eventRecord, teamRecord, recipients } = context;
 
   if (!recipients.length) {
-    throw new Error("No matching recipients are available for this reminder.");
+    throw new Error("No matching recipients are available for this approval.");
   }
 
-  const rsvpRows = await ensureEventRsvps({
-    adminConfig,
-    userId: draftRecord.user_id,
-    teamId: draftRecord.team_id,
-    eventRecord,
-    emailContacts: recipients,
-  });
+  const includeRsvp = draftRecord.draft_json?.rsvp?.rsvp_required !== false;
+  const rsvpRows = includeRsvp
+    ? await ensureEventRsvps({
+        adminConfig,
+        userId: draftRecord.user_id,
+        teamId: draftRecord.team_id,
+        eventRecord,
+        emailContacts: recipients,
+      })
+    : [];
   const rsvpsByContactId = groupRowsByContactId(rsvpRows);
   const subject = draftRecord.draft_json?.message?.email_subject || buildSubject(teamRecord?.team_name || "TeamPro team", eventRecord);
   const baseUrl = buildRsvpBaseUrl(process.env.TEAMPRO_APP_BASE_URL || "https://www.teampro.co.nz");
@@ -249,7 +255,7 @@ async function sendReminderApprovalNow({ adminConfig, context }) {
       messageText: draftRecord.draft_json?.message?.email_body || "",
       rsvpRows: rsvpsByContactId[contact.id] || [],
       baseUrl,
-      includeRsvp: draftRecord.draft_json?.rsvp?.rsvp_required !== false,
+      includeRsvp,
     });
     sendResults.push(sendResult);
     if (index < recipients.length - 1) {
@@ -267,10 +273,12 @@ async function sendReminderApprovalNow({ adminConfig, context }) {
         draftRecord,
         status: "used",
       }),
-      markEventAsSent({
-        adminConfig,
-        eventRecord,
-      }),
+      ...(draftRecord.draft_type === "scheduled_reminder"
+        ? [markEventAsSent({
+            adminConfig,
+            eventRecord,
+          })]
+        : []),
       createEventUpdateLog({
         adminConfig,
         draftRecord,
@@ -295,7 +303,7 @@ async function sendReminderApprovalNow({ adminConfig, context }) {
     failedCount: failedResults.length,
     sendResults,
     failedResults,
-    message: buildEmailSendStatusMessage(sentResults.length, failedResults.length),
+    message: buildEmailSendStatusMessage(sentResults.length, failedResults.length, draftRecord),
   };
 }
 
@@ -410,17 +418,26 @@ function summariseRsvps(rows) {
   );
 }
 
-function buildEmailSendStatusMessage(sentCount, failedCount) {
+function buildEmailSendStatusMessage(sentCount, failedCount, draftRecord) {
+  const label = draftRecord?.draft_type === "event_cancellation" ? "Cancellation message" : "Reminder";
   if (sentCount > 0 && failedCount > 0) {
-    return `Reminder sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed due to send limits or delivery errors.`;
+    return `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed due to send limits or delivery errors.`;
   }
   if (sentCount > 0) {
-    return `Reminder sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}.`;
+    return `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}.`;
   }
   if (failedCount > 0) {
-    return `Reminder could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed due to send limits or delivery errors.`;
+    return `${label} could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed due to send limits or delivery errors.`;
   }
-  return "Reminder did not send to any contacts.";
+  return `${label} did not send to any contacts.`;
+}
+
+function formatApprovalLabel(draftRecord) {
+  if (draftRecord?.draft_type === "event_cancellation") {
+    return "Cancellation message";
+  }
+
+  return `${formatReminderLabel(draftRecord?.reminder_type)} reminder`;
 }
 
 function groupRowsByContactId(rows) {

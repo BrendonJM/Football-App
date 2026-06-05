@@ -69,7 +69,7 @@ function renderApprovalDetails() {
     .join(" | ");
   approvalEventLocation.textContent = currentApproval.location ? `Location: ${currentApproval.location}` : "";
   approvalReminderMeta.textContent = [
-    currentApproval.reminderType ? `${formatReminderLabel(currentApproval.reminderType)} reminder` : "",
+    currentApproval.approvalLabel || (currentApproval.reminderType ? `${formatReminderLabel(currentApproval.reminderType)} reminder` : ""),
     currentApproval.rsvpSummary
       ? `${currentApproval.rsvpSummary.yes} yes, ${currentApproval.rsvpSummary.no} no, ${currentApproval.rsvpSummary.maybe} maybe, ${currentApproval.rsvpSummary.no_response} no response`
       : "",
@@ -79,6 +79,9 @@ function renderApprovalDetails() {
   approvalRecipientSummary.textContent = `${currentApproval.recipientCount || 0} recipient${currentApproval.recipientCount === 1 ? "" : "s"}: ${(currentApproval.recipientNames || []).join(", ")}`;
   approvalMessageText.value = currentApproval.messageText || "";
   approvalReviewLink.href = currentApproval.reviewUrl || "/";
+  if (approvalSendNow) {
+    approvalSendNow.textContent = currentApproval.draftType === "event_cancellation" ? "Send Cancellation Now" : "Send Now";
+  }
 }
 
 async function submitApprovalAction(action) {
@@ -89,7 +92,9 @@ async function submitApprovalAction(action) {
 
   approvalSendNow.disabled = true;
   approvalDismiss.disabled = true;
-  setApprovalStatus(action === "send" ? "Sending reminder..." : "Dismissing reminder...", false);
+    setApprovalStatus(action === "send"
+      ? (currentApproval?.draftType === "event_cancellation" ? "Sending cancellation..." : "Sending reminder...")
+      : "Dismissing reminder...", false);
 
   try {
     const response = await fetch(approvalEndpoint, {
@@ -106,11 +111,13 @@ async function submitApprovalAction(action) {
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(result.error || "Reminder approval could not be completed.");
+      throw new Error(result.error || "Approval could not be completed.");
     }
 
     setApprovalStatus(
-      result.message || (action === "send" ? "Reminder sent." : "Reminder dismissed."),
+      result.message || (action === "send"
+        ? (currentApproval?.draftType === "event_cancellation" ? "Cancellation sent." : "Reminder sent.")
+        : "Reminder dismissed."),
       false,
     );
 
@@ -119,7 +126,7 @@ async function submitApprovalAction(action) {
       approvalDismiss.classList.add("hidden");
     }
   } catch (error) {
-    setApprovalStatus(error?.message || "Reminder approval could not be completed.", true);
+    setApprovalStatus(error?.message || "Approval could not be completed.", true);
   } finally {
     approvalSendNow.disabled = false;
     approvalDismiss.disabled = false;
