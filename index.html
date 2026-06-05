@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div id="appShell" class="app-shell">
       <header id="appTopbar" class="topbar">
         <div class="topbar-primary">
           <div class="brandmark" aria-label="TeamPro">
@@ -41,6 +41,10 @@
               <button id="deleteTeam" type="button" class="danger-button">Delete Team</button>
             </div>
           </div>
+        </div>
+        <div id="guestTopbarActions" class="landing-topbar-actions hidden">
+          <button type="button" class="ghost-button" data-cta-login>Log In</button>
+          <button type="button" class="primary-button" data-cta-auth>Create Your Free Team</button>
         </div>
       </header>
 
@@ -86,6 +90,10 @@
                       <button id="loginButton" type="button" class="secondary-button">Log In</button>
                     </div>
                   </form>
+                  <div class="landing-signup-note">
+                    <span>Free forever for grassroots teams</span>
+                    <span>Set up takes just a few minutes</span>
+                  </div>
                   <p id="authStatus" class="status-text" aria-live="polite"></p>
                 </div>
 
@@ -131,6 +139,7 @@
                       <p>Parents can reply fast with RSVP buttons in email</p>
                     </div>
                   </div>
+                  <div class="landing-dashboard-ribbon">Everything your team needs in one simple place</div>
                 </div>
               </div>
             </section>

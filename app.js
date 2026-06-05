@@ -47,9 +47,11 @@ const aiCommunicationDraftsTableName = "ai_communication_drafts";
 const userSettingsTableName = "user_settings";
 const authRequiredPage = "account";
 
+const appShell = document.querySelector("#appShell");
 const appTopbar = document.querySelector("#appTopbar");
 const appNav = document.querySelector("#appNav");
 const topbarSide = document.querySelector("#topbarSide");
+const guestTopbarActions = document.querySelector("#guestTopbarActions");
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
 const playerNamesInput = document.querySelector("#playerNames");
@@ -72,6 +74,7 @@ const authStatus = document.querySelector("#authStatus");
 const landingPage = document.querySelector("#landingPage");
 const accountSignedInContent = document.querySelector("#accountSignedInContent");
 const authCtaButtons = Array.from(document.querySelectorAll("[data-cta-auth]"));
+const loginCtaButtons = Array.from(document.querySelectorAll("[data-cta-login]"));
 const scrollTargetButtons = Array.from(document.querySelectorAll("[data-scroll-target]"));
 const quickReminderApprovalPanel = document.querySelector("#quickReminderApprovalPanel");
 const quickReminderApprovalHeading = document.querySelector("#quickReminderApprovalHeading");
@@ -336,6 +339,12 @@ feedbackForm.addEventListener("submit", async (event) => {
 authCtaButtons.forEach((button) => {
   button.addEventListener("click", () => {
     focusSignupExperience();
+  });
+});
+
+loginCtaButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    focusLoginExperience();
   });
 });
 
@@ -897,6 +906,7 @@ async function applyAuthSession(session) {
 
 function renderAuthState() {
   const isLoggedIn = Boolean(supabaseUserId);
+  appShell?.classList.toggle("is-guest-shell", !isLoggedIn);
   landingPage?.classList.toggle("hidden", isLoggedIn);
   accountSignedInContent?.classList.toggle("hidden", !isLoggedIn);
   authGuestPanel.classList.toggle("hidden", isLoggedIn);
@@ -906,6 +916,7 @@ function renderAuthState() {
   appTopbar?.classList.toggle("guest-topbar", !isLoggedIn);
   appNav?.classList.toggle("hidden", !isLoggedIn);
   topbarSide?.classList.toggle("hidden", !isLoggedIn);
+  guestTopbarActions?.classList.toggle("hidden", isLoggedIn);
   teamSwitcher.disabled = !isLoggedIn;
   newTeamButton.disabled = !isLoggedIn;
   deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
@@ -2125,6 +2136,14 @@ function renderPage() {
 }
 
 function focusSignupExperience() {
+  const target = authGuestPanel || landingPage;
+  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => {
+    authEmailInput?.focus();
+  }, 180);
+}
+
+function focusLoginExperience() {
   const target = authGuestPanel || landingPage;
   target?.scrollIntoView({ behavior: "smooth", block: "center" });
   window.setTimeout(() => {
