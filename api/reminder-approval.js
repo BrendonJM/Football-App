@@ -9,6 +9,7 @@ const {
   supabaseAdminRequest,
   verifyReminderApprovalToken,
 } = require("./_supabase-admin");
+const { buildCalendarInviteAttachment, getCalendarMethod } = require("./_calendar-invite");
 
 const RSVP_TABLE_NAME = "event_rsvps";
 const EVENTS_TABLE_NAME = "team_events";
@@ -547,6 +548,16 @@ async function sendResendEmail({
   includeRsvp,
 }) {
   try {
+    const calendarAttachment = buildCalendarInviteAttachment({
+      eventRecord,
+      teamName,
+      contact,
+      messageText,
+      fromEmail: resendFromEmail,
+      includeRsvp,
+      baseUrl,
+    });
+
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -575,6 +586,7 @@ async function sendResendEmail({
           baseUrl,
           includeRsvp,
         }),
+        attachments: [calendarAttachment],
       }),
     });
 
@@ -634,12 +646,15 @@ function wait(milliseconds) {
 }
 
 function buildSubject(teamName, eventRecord) {
-  return `${teamName} update: ${eventRecord.event_title}`;
+  return getCalendarMethod(eventRecord) === "CANCEL"
+    ? `${teamName}: ${eventRecord.event_title} cancelled`
+    : `${teamName} update: ${eventRecord.event_title}`;
 }
 
 function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl, includeRsvp }) {
+  const isCancellation = getCalendarMethod(eventRecord) === "CANCEL";
   const lines = [
-    `${teamName} update`,
+    isCancellation ? `${teamName} event cancelled` : `${teamName} update`,
     "",
     `Event: ${eventRecord.event_title}`,
     `Type: ${formatEventTypeLabel(eventRecord.event_type)}`,
@@ -650,12 +665,12 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
     "",
     messageText,
     "",
-    includeRsvp
+    includeRsvp && !isCancellation
       ? `Hello ${contact.contact_name || "there"}, you can RSVP without logging in:`
       : `Hello ${contact.contact_name || "there"},`,
   ].filter(Boolean);
 
-  if (includeRsvp) {
+  if (includeRsvp && !isCancellation) {
     rsvpRows.forEach((row) => {
       const fallbackLink = buildRsvpLink({ baseUrl, token: row.token });
       lines.push(
@@ -675,9 +690,10 @@ function buildUpdateText({ teamName, eventRecord, contact, messageText, rsvpRows
 }
 
 function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows, baseUrl, includeRsvp }) {
+  const isCancellation = getCalendarMethod(eventRecord) === "CANCEL";
   return `
     <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
-      <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} update</h2>
+      <h2 style="margin-bottom: 12px;">${escapeHtml(teamName)} ${isCancellation ? "event cancelled" : "update"}</h2>
       <p>Hello ${escapeHtml(contact.contact_name || "there")},</p>
       <p><strong>Event:</strong> ${escapeHtml(String(eventRecord.event_title || ""))}</p>
       ${eventRecord.event_type ? `<p><strong>Type:</strong> ${escapeHtml(formatEventTypeLabel(String(eventRecord.event_type || "")))}</p>` : ""}
@@ -686,7 +702,7 @@ function buildUpdateHtml({ teamName, eventRecord, contact, messageText, rsvpRows
       ${eventRecord.location ? `<p><strong>Location:</strong> ${escapeHtml(String(eventRecord.location))}</p>` : ""}
       <div style="padding: 12px 14px; border-radius: 12px; background: #f3f4f6; white-space: pre-wrap;">${escapeHtml(messageText)}</div>
       ${
-        includeRsvp
+        includeRsvp && !isCancellation
           ? `<div style="margin-top: 20px;">
               <p style="margin-bottom: 8px;"><strong>RSVP without logging in</strong></p>
               ${rsvpRows
