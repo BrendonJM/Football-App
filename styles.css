@@ -107,6 +107,19 @@ button {
   gap: 10px;
 }
 
+.topbar:not(.guest-topbar) .topbar-primary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.topbar:not(.guest-topbar) .topbar-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .team-switcher-actions {
   display: flex;
   flex-wrap: wrap;
@@ -194,6 +207,28 @@ p {
 .team-switcher {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
+}
+
+.topbar:not(.guest-topbar) .team-switcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar:not(.guest-topbar) .team-switcher .field {
+  min-width: 280px;
+}
+
+.topbar:not(.guest-topbar) .team-switcher .field span {
+  display: none;
+}
+
+.topbar:not(.guest-topbar) .team-switcher select {
+  min-width: 240px;
+}
+
+.topbar:not(.guest-topbar) .page-nav {
+  flex-wrap: wrap;
 }
 
 .panel,
