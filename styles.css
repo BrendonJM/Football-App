@@ -532,6 +532,46 @@ p {
   border-radius: 28px;
 }
 
+.app-shell.is-guest-shell .landing-page > .panel,
+.app-shell.is-guest-shell .landing-page .landing-signup-card,
+.app-shell.is-guest-shell .landing-page .landing-dashboard-card,
+.app-shell.is-guest-shell .landing-page .landing-benefit-card,
+.app-shell.is-guest-shell .landing-page .landing-who-card,
+.app-shell.is-guest-shell .landing-page .landing-final-cta,
+.app-shell.is-guest-shell .landing-page .landing-free-banner {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 252, 0.96));
+  border-color: rgba(21, 30, 40, 0.08);
+  box-shadow: 0 18px 40px rgba(21, 30, 40, 0.08);
+}
+
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-section-heading h2 {
+  color: #eef3f8;
+}
+
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-section-heading p {
+  color: #aebccd;
+}
+
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-kicker,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-problem-card strong,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-benefit-card h3,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-step-card h3,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-who-card h3 {
+  color: #eef3f8;
+}
+
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-problem-card,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-step-card {
+  background: rgba(21, 29, 39, 0.72);
+  border-color: rgba(216, 223, 232, 0.08);
+}
+
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-problem-card p,
+.app-shell.is-guest-shell .landing-page > .landing-section:not(.panel) .landing-step-card p {
+  color: #aebccd;
+}
+
 .app-shell.is-guest-shell .ghost-button {
   background: rgba(255, 255, 255, 0.72);
   border-color: rgba(31, 49, 71, 0.12);
