@@ -1953,6 +1953,64 @@ textarea {
     flex: 1 1 180px;
   }
 
+  .app-shell.is-guest-shell {
+    width: min(100% - 24px, 100%);
+    padding-top: 12px;
+  }
+
+  .app-shell.is-guest-shell .topbar.guest-topbar {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: stretch;
+    margin-bottom: 14px;
+    padding: 4px 0 18px;
+  }
+
+  .app-shell.is-guest-shell .topbar-primary {
+    width: 100%;
+  }
+
+  .app-shell.is-guest-shell .brandmark {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .app-shell.is-guest-shell .brandmark-logo {
+    width: min(100%, 220px);
+  }
+
+  .app-shell.is-guest-shell .landing-topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    justify-content: stretch;
+  }
+
+  .app-shell.is-guest-shell .landing-topbar-actions .primary-button,
+  .app-shell.is-guest-shell .landing-topbar-actions .ghost-button {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .app-shell.is-guest-shell .landing-page {
+    gap: 56px;
+  }
+
+  .app-shell.is-guest-shell .landing-hero {
+    padding-top: 10px;
+    gap: 26px;
+  }
+
+  .app-shell.is-guest-shell h1 {
+    font-size: clamp(2.65rem, 12vw, 4.2rem);
+  }
+
+  .app-shell.is-guest-shell .landing-subheading {
+    max-width: none;
+    font-size: 0.98rem;
+  }
+
   .landing-signup-band-form .button-row,
   .landing-check-row {
     justify-content: flex-start;
@@ -2030,6 +2088,28 @@ textarea {
   .landing-trust-pill,
   .landing-feature-pill {
     justify-content: center;
+  }
+
+  .app-shell.is-guest-shell {
+    width: min(100% - 16px, 100%);
+  }
+
+  .app-shell.is-guest-shell .brandmark-logo {
+    width: min(100%, 190px);
+  }
+
+  .app-shell.is-guest-shell .topbar.guest-topbar {
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .app-shell.is-guest-shell .landing-hero {
+    padding-top: 4px;
+  }
+
+  .app-shell.is-guest-shell h1 {
+    font-size: clamp(2.35rem, 11.5vw, 3.65rem);
+    line-height: 0.98;
   }
 
   .slot {
