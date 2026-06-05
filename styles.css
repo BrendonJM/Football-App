@@ -438,8 +438,7 @@ p {
 }
 
 .landing-problem-grid,
-.landing-benefit-grid,
-.landing-who-grid {
+.landing-benefit-grid {
   display: grid;
   gap: 14px;
 }
@@ -451,8 +450,7 @@ p {
 }
 
 .landing-problem-card,
-.landing-benefit-card,
-.landing-who-card {
+.landing-benefit-card {
   display: grid;
   gap: 10px;
   padding: 20px;
@@ -463,8 +461,7 @@ p {
 }
 
 .landing-problem-card strong,
-.landing-benefit-card h3,
-.landing-who-card {
+.landing-benefit-card h3 {
   color: #24439b;
   font-family: "Space Grotesk", sans-serif;
   text-align: center;
@@ -590,16 +587,6 @@ p {
   font-weight: 700;
 }
 
-.landing-who-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.landing-who-card {
-  justify-items: center;
-  align-items: center;
-  min-height: 96px;
-}
-
 .landing-final-cta {
   display: grid;
   justify-items: center;
@@ -723,11 +710,6 @@ p {
 
 .app-shell.is-guest-shell .landing-feature-list {
   max-width: 860px;
-  margin: 0 auto;
-}
-
-.app-shell.is-guest-shell .landing-who-grid {
-  max-width: 920px;
   margin: 0 auto;
 }
 
@@ -1931,7 +1913,6 @@ textarea {
 
   .landing-problem-grid,
   .landing-benefit-grid,
-  .landing-who-grid,
   .landing-auth-fields,
   .landing-footer-grid {
     grid-template-columns: 1fr;
