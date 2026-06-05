@@ -45,7 +45,11 @@ const eventUpdateLogsTableName = "event_update_logs";
 const eventRsvpsTableName = "event_rsvps";
 const aiCommunicationDraftsTableName = "ai_communication_drafts";
 const userSettingsTableName = "user_settings";
+const authRequiredPage = "account";
 
+const appTopbar = document.querySelector("#appTopbar");
+const appNav = document.querySelector("#appNav");
+const topbarSide = document.querySelector("#topbarSide");
 const teamNameInput = document.querySelector("#teamName");
 const playersOnFieldInput = document.querySelector("#playersOnField");
 const playerNamesInput = document.querySelector("#playerNames");
@@ -65,6 +69,10 @@ const authGuestPanel = document.querySelector("#authGuestPanel");
 const authUserPanel = document.querySelector("#authUserPanel");
 const authUserEmail = document.querySelector("#authUserEmail");
 const authStatus = document.querySelector("#authStatus");
+const landingPage = document.querySelector("#landingPage");
+const accountSignedInContent = document.querySelector("#accountSignedInContent");
+const authCtaButtons = Array.from(document.querySelectorAll("[data-cta-auth]"));
+const scrollTargetButtons = Array.from(document.querySelectorAll("[data-scroll-target]"));
 const quickReminderApprovalPanel = document.querySelector("#quickReminderApprovalPanel");
 const quickReminderApprovalHeading = document.querySelector("#quickReminderApprovalHeading");
 const quickReminderApprovalMeta = document.querySelector("#quickReminderApprovalMeta");
@@ -323,6 +331,19 @@ logoutButton.addEventListener("click", async () => {
 feedbackForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await submitFeedback();
+});
+
+authCtaButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    focusSignupExperience();
+  });
+});
+
+scrollTargetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const targetId = button.dataset.scrollTarget || "";
+    scrollToSection(targetId);
+  });
 });
 
 saveAccountSettingsButton?.addEventListener("click", async () => {
@@ -876,10 +897,15 @@ async function applyAuthSession(session) {
 
 function renderAuthState() {
   const isLoggedIn = Boolean(supabaseUserId);
+  landingPage?.classList.toggle("hidden", isLoggedIn);
+  accountSignedInContent?.classList.toggle("hidden", !isLoggedIn);
   authGuestPanel.classList.toggle("hidden", isLoggedIn);
   authUserPanel.classList.toggle("hidden", !isLoggedIn);
   accountSettingsPanel?.classList.toggle("hidden", !isLoggedIn);
   authUserEmail.textContent = supabaseUserEmail || "Signed in";
+  appTopbar?.classList.toggle("guest-topbar", !isLoggedIn);
+  appNav?.classList.toggle("hidden", !isLoggedIn);
+  topbarSide?.classList.toggle("hidden", !isLoggedIn);
   teamSwitcher.disabled = !isLoggedIn;
   newTeamButton.disabled = !isLoggedIn;
   deleteTeamButton.disabled = !isLoggedIn || state.teams.length === 0;
@@ -2079,11 +2105,12 @@ function renderTeamSwitcher() {
 }
 
 function renderPage() {
-  const accountActive = state.page === "account";
-  const configActive = state.page === "config";
-  const manageActive = state.page === "manage";
-  const commsActive = state.page === "comms";
-  const trainingActive = state.page === "training";
+  const effectivePage = supabaseUserId ? state.page : authRequiredPage;
+  const accountActive = effectivePage === "account";
+  const configActive = effectivePage === "config";
+  const manageActive = effectivePage === "manage";
+  const commsActive = effectivePage === "comms";
+  const trainingActive = effectivePage === "training";
 
   accountPage.classList.toggle("hidden", !accountActive);
   configPage.classList.toggle("hidden", !configActive);
@@ -2095,6 +2122,25 @@ function renderPage() {
   navManage.classList.toggle("is-active", manageActive);
   navComms.classList.toggle("is-active", commsActive);
   navTraining.classList.toggle("is-active", trainingActive);
+}
+
+function focusSignupExperience() {
+  const target = authGuestPanel || landingPage;
+  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => {
+    authEmailInput?.focus();
+  }, 180);
+}
+
+function scrollToSection(sectionId) {
+  if (!sectionId) {
+    return;
+  }
+
+  document.querySelector(`#${CSS.escape(sectionId)}`)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function renderManagerControls() {
