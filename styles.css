@@ -133,25 +133,25 @@ button {
   line-height: 1;
 }
 
-.brandmark-icon {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.brandmark-icon svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 .brandmark-word {
   color: #26429a;
   font-family: "Space Grotesk", sans-serif;
   font-size: clamp(1.8rem, 3vw, 2.55rem);
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+.brandmark-logo {
+  display: block;
+  width: clamp(210px, 24vw, 340px);
+  height: auto;
+}
+
+.brandmark-icon-image {
+  display: block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .eyebrow {
@@ -739,22 +739,23 @@ p {
   gap: 18px;
 }
 
-.app-shell.is-guest-shell .landing-footer .brandmark-word {
-  color: #ffffff;
-}
-
 .app-shell.is-guest-shell .landing-footer .brandmark {
   gap: 10px;
 }
 
-.app-shell.is-guest-shell .landing-footer .brandmark-icon {
-  width: 26px;
-  height: 26px;
-}
-
 .app-shell.is-guest-shell .landing-footer .brandmark-word {
+  color: #ffffff;
   font-size: 1.2rem;
   letter-spacing: -0.02em;
+}
+
+.app-shell.is-guest-shell .landing-footer .brandmark-logo {
+  width: 180px;
+}
+
+.app-shell.is-guest-shell .landing-footer .brandmark-icon-image {
+  width: 24px;
+  height: 24px;
 }
 
 .app-shell.is-guest-shell .landing-dashboard-card,
