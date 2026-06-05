@@ -318,6 +318,8 @@ p {
 }
 
 .landing-dashboard-card {
+  display: grid;
+  gap: 18px;
   padding: 24px;
   background: #ffffff;
   border: 1px solid #edf1f6;
@@ -547,6 +549,7 @@ p {
 .landing-signup-band-copy {
   display: grid;
   gap: 8px;
+  align-content: start;
 }
 
 .landing-signup-band-copy h2 {
@@ -670,11 +673,6 @@ p {
   box-shadow: none;
 }
 
-.app-shell.is-guest-shell .panel {
-  padding: 0;
-  border-radius: 24px;
-}
-
 .app-shell.is-guest-shell .ghost-button {
   background: #ffffff;
   border: 1px solid #d8e1ee;
@@ -757,6 +755,46 @@ p {
 .app-shell.is-guest-shell .landing-footer .brandmark-word {
   font-size: 1.2rem;
   letter-spacing: -0.02em;
+}
+
+.app-shell.is-guest-shell .landing-dashboard-card,
+.app-shell.is-guest-shell .landing-signup-band {
+  background: #ffffff;
+  border: 1px solid #edf1f6;
+  box-shadow: 0 22px 48px rgba(15, 27, 45, 0.08);
+}
+
+.app-shell.is-guest-shell .landing-dashboard-card *,
+.app-shell.is-guest-shell .landing-signup-band * {
+  color: inherit;
+}
+
+.app-shell.is-guest-shell .landing-signup-band .landing-kicker,
+.app-shell.is-guest-shell .landing-dashboard-card .landing-kicker,
+.app-shell.is-guest-shell .landing-metric-label {
+  color: #f59e0b;
+}
+
+.app-shell.is-guest-shell .landing-dashboard-card h2,
+.app-shell.is-guest-shell .landing-signup-band h2 {
+  color: #26429a;
+}
+
+.app-shell.is-guest-shell .landing-signup-band p,
+.app-shell.is-guest-shell .landing-dashboard-card p,
+.app-shell.is-guest-shell .landing-metric-card p,
+.app-shell.is-guest-shell .landing-dashboard-card .landing-dashboard-badge {
+  color: #667487;
+}
+
+.app-shell.is-guest-shell .landing-dashboard-card strong,
+.app-shell.is-guest-shell .landing-signup-band .button-row .primary-button,
+.app-shell.is-guest-shell .landing-signup-band .button-row .secondary-button {
+  color: #0f1b2d;
+}
+
+.app-shell.is-guest-shell .landing-dashboard-badge {
+  color: #f59e0b;
 }
 
 .setup-panel {
