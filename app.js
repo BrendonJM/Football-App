@@ -75,6 +75,7 @@ const landingPage = document.querySelector("#landingPage");
 const accountSignedInContent = document.querySelector("#accountSignedInContent");
 const authCtaButtons = Array.from(document.querySelectorAll("[data-cta-auth]"));
 const loginCtaButtons = Array.from(document.querySelectorAll("[data-cta-login]"));
+const authCloseButtons = Array.from(document.querySelectorAll("[data-auth-close]"));
 const scrollTargetButtons = Array.from(document.querySelectorAll("[data-scroll-target]"));
 const quickReminderApprovalPanel = document.querySelector("#quickReminderApprovalPanel");
 const quickReminderApprovalHeading = document.querySelector("#quickReminderApprovalHeading");
@@ -318,12 +319,12 @@ addFormationButton.addEventListener("click", () => {
   setStatus(formationHelp, `${formation} added to your formation list.`, false);
 });
 
-signupForm.addEventListener("submit", async (event) => {
+signupForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   await signUpWithEmail();
 });
 
-loginButton.addEventListener("click", async () => {
+loginButton?.addEventListener("click", async () => {
   await signInWithEmail();
 });
 
@@ -345,6 +346,12 @@ authCtaButtons.forEach((button) => {
 loginCtaButtons.forEach((button) => {
   button.addEventListener("click", () => {
     focusLoginExperience();
+  });
+});
+
+authCloseButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    authGuestPanel?.classList.add("hidden");
   });
 });
 
@@ -910,7 +917,9 @@ function renderAuthState() {
   appShell?.classList.toggle("is-guest-shell", !isLoggedIn);
   landingPage?.classList.toggle("hidden", isLoggedIn);
   accountSignedInContent?.classList.toggle("hidden", !isLoggedIn);
-  authGuestPanel.classList.toggle("hidden", isLoggedIn);
+  if (isLoggedIn) {
+    authGuestPanel?.classList.add("hidden");
+  }
   authUserPanel.classList.toggle("hidden", !isLoggedIn);
   accountSettingsPanel?.classList.toggle("hidden", !isLoggedIn);
   authUserEmail.textContent = supabaseUserEmail || "Signed in";
@@ -2137,16 +2146,14 @@ function renderPage() {
 }
 
 function focusSignupExperience() {
-  const target = authGuestPanel || landingPage;
-  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  authGuestPanel?.classList.remove("hidden");
   window.setTimeout(() => {
     authEmailInput?.focus();
   }, 180);
 }
 
 function focusLoginExperience() {
-  const target = authGuestPanel || landingPage;
-  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  authGuestPanel?.classList.remove("hidden");
   window.setTimeout(() => {
     authEmailInput?.focus();
   }, 180);

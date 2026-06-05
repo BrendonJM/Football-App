@@ -59,13 +59,9 @@
                 <p class="landing-subheading">
                   TeamPro helps coaches, managers and parents stay organised with availability tracking, team communication, events and reminders.
                 </p>
-                <div class="button-row landing-cta-row">
-                  <button type="button" class="primary-button" data-cta-auth>Create Your Free Team</button>
-                  <button type="button" class="ghost-button" data-scroll-target="landingBenefits">See How It Works</button>
-                </div>
                 <div class="landing-trust-points" aria-label="Trust points">
                   <span class="landing-trust-pill">Completely free</span>
-                  <span class="landing-trust-pill">No credit card required</span>
+                  <span class="landing-trust-pill">No mobile app needed</span>
                   <span class="landing-trust-pill">Built for grassroots sport</span>
                 </div>
               </div>
@@ -73,67 +69,57 @@
               <div class="landing-hero-stack">
                 <div class="landing-dashboard-card" aria-label="Sample TeamPro dashboard">
                   <div class="landing-dashboard-header">
-                    <div>
-                      <p class="landing-kicker small-eyebrow">Sample team</p>
-                      <h2>Westfield Under 12s</h2>
+                    <div class="landing-dashboard-title">
+                      <span class="landing-dashboard-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" role="presentation">
+                          <path d="M12 2 6 4.5v6.2c0 4.1 2.5 7.8 6 9.3 3.5-1.5 6-5.2 6-9.3V4.5L12 2Z"></path>
+                        </svg>
+                      </span>
+                      <div>
+                        <h2>Westfield Under 12s</h2>
+                        <p>Sunday League · 16 players</p>
+                      </div>
                     </div>
-                    <span class="landing-dashboard-badge">16 players</span>
                   </div>
 
                   <div class="landing-dashboard-grid">
                     <div class="landing-metric-card">
-                      <span class="landing-metric-label">Upcoming game</span>
-                      <strong>Saturday 10:15am</strong>
-                      <p>vs Riverside Rovers</p>
+                      <div class="landing-metric-topline">
+                        <span class="landing-metric-label">Next Game</span>
+                        <span class="landing-metric-time">Saturday 10:00am</span>
+                      </div>
+                      <p class="landing-metric-opponent">vs Riverside Rovers — Home</p>
+                      <div class="landing-rsvp-row" aria-label="Availability summary">
+                        <div class="landing-rsvp-stat">
+                          <strong>11</strong>
+                          <span>Available</span>
+                        </div>
+                        <div class="landing-rsvp-stat is-red">
+                          <strong>3</strong>
+                          <span>Unavailable</span>
+                        </div>
+                        <div class="landing-rsvp-stat is-orange">
+                          <strong>2</strong>
+                          <span>Pending</span>
+                        </div>
+                      </div>
                     </div>
                     <div class="landing-metric-card">
-                      <span class="landing-metric-label">Availability</span>
-                      <strong>11 yes • 3 no • 2 pending</strong>
-                      <p>Know who’s ready before game day</p>
+                      <div class="landing-metric-topline">
+                        <span class="landing-metric-label">Training</span>
+                        <span class="landing-metric-time is-muted">Thursday 6:30pm</span>
+                      </div>
+                      <p class="landing-metric-opponent">Community Park — Pitch 2</p>
                     </div>
                     <div class="landing-metric-card">
-                      <span class="landing-metric-label">Training</span>
-                      <strong>Thursday 6:30pm</strong>
-                      <p>Community Park — Pitch 2</p>
-                    </div>
-                    <div class="landing-metric-card">
-                      <span class="landing-metric-label">Reminders</span>
-                      <strong>Kit wash rota sent</strong>
-                      <p>Match fees due Friday</p>
+                      <div class="landing-metric-topline">
+                        <span class="landing-metric-label with-icon">Reminders</span>
+                      </div>
+                      <p class="landing-metric-note">Kit wash rota sent · Match fees due Friday</p>
                     </div>
                   </div>
                 </div>
               </div>
-            </section>
-
-            <section id="authGuestPanel" class="landing-signup-band">
-              <div class="landing-signup-band-copy">
-                <p class="landing-kicker small-eyebrow">Start free</p>
-                <h2>Create your free team</h2>
-                <p>Set up your team, invite parents and stop chasing replies in group chat.</p>
-              </div>
-              <form id="signupForm" class="stack-form landing-signup-form landing-signup-band-form">
-                <div class="split-fields landing-auth-fields">
-                  <label class="field">
-                    <span>Email</span>
-                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
-                  </label>
-                  <label class="field">
-                    <span>Password</span>
-                    <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
-                  </label>
-                </div>
-                <div class="button-row">
-                  <button type="submit" class="primary-button">Create Account</button>
-                  <button id="loginButton" type="button" class="secondary-button">Log In</button>
-                </div>
-                <div class="landing-signup-note">
-                  <span>Completely free</span>
-                  <span>No credit card required</span>
-                  <span>Built for grassroots sport</span>
-                </div>
-                <p id="authStatus" class="status-text" aria-live="polite"></p>
-              </form>
             </section>
 
             <section class="landing-section landing-soft-section">
@@ -249,6 +235,40 @@
                 <span>© 2026 TeamPro. All rights reserved.</span>
               </div>
             </footer>
+
+            <div id="authGuestPanel" class="landing-auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+              <div class="landing-auth-modal-backdrop" data-auth-close></div>
+              <div class="landing-auth-modal-card">
+                <button type="button" class="landing-auth-close" data-auth-close aria-label="Close sign up dialog">×</button>
+                <div class="landing-auth-modal-copy">
+                  <p class="landing-kicker small-eyebrow">Start free</p>
+                  <h2 id="authModalTitle">Create your free team</h2>
+                  <p>Set up your team, invite parents and stop chasing replies in group chat.</p>
+                </div>
+                <form id="signupForm" class="stack-form landing-signup-form">
+                  <div class="split-fields landing-auth-fields">
+                    <label class="field">
+                      <span>Email</span>
+                      <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+                    </label>
+                    <label class="field">
+                      <span>Password</span>
+                      <input id="authPassword" type="password" autocomplete="new-password" placeholder="Minimum 6 characters" />
+                    </label>
+                  </div>
+                  <div class="button-row">
+                    <button type="submit" class="primary-button">Create Account</button>
+                    <button id="loginButton" type="button" class="secondary-button">Log In</button>
+                  </div>
+                  <div class="landing-signup-note">
+                    <span>Completely free</span>
+                    <span>No credit card required</span>
+                    <span>Built for grassroots sport</span>
+                  </div>
+                  <p id="authStatus" class="status-text" aria-live="polite"></p>
+                </form>
+              </div>
+            </div>
           </section>
 
           <div id="accountSignedInContent" class="layout-grid single-panel-layout hidden">
