@@ -218,11 +218,15 @@ p {
 }
 
 .topbar:not(.guest-topbar) .team-switcher .field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 240px;
 }
 
 .topbar:not(.guest-topbar) .team-switcher .field span {
-  margin-bottom: 6px;
+  margin: 0;
+  white-space: nowrap;
   color: #0f1b2d;
   font-size: 0.82rem;
   letter-spacing: 0.06em;
@@ -230,6 +234,10 @@ p {
 
 .topbar:not(.guest-topbar) .team-switcher select {
   min-width: 240px;
+}
+
+.topbar:not(.guest-topbar) .team-switcher-actions {
+  align-items: center;
 }
 
 .panel,
