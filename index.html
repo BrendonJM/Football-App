@@ -271,17 +271,63 @@
             </div>
           </section>
 
-          <div id="accountSignedInContent" class="layout-grid single-panel-layout hidden">
-            <section class="panel">
-              <div id="authUserPanel" class="info-card hidden">
-                <strong id="authUserEmail">Signed in</strong>
-                <p>Your teams are saved privately to your account.</p>
-                <div class="button-row">
-                  <button id="logoutButton" type="button" class="secondary-button">Log Out</button>
+          <div id="accountSignedInContent" class="hidden">
+            <section class="account-dashboard">
+              <div class="account-main-grid">
+                <div id="authUserPanel" class="info-card account-card hidden">
+                  <div class="account-card-heading">
+                    <h2>Account</h2>
+                  </div>
+                  <strong id="authUserEmail">Signed in</strong>
+                  <p>Your teams are saved privately to your account.</p>
+                  <div class="button-row">
+                    <button id="logoutButton" type="button" class="secondary-button">Log Out</button>
+                  </div>
+                </div>
+
+                <div id="accountSettingsPanel" class="info-card account-card hidden">
+                  <div class="account-card-heading">
+                    <h2>Settings</h2>
+                  </div>
+                  <div class="stack-form compact-stack account-settings-stack">
+                    <button id="openEventReminderSettings" type="button" class="secondary-button settings-trigger-button">
+                      Event Reminders
+                    </button>
+                    <div id="eventReminderSettingsPanel" class="stack-form hidden">
+                      <div class="account-reminder-row">
+                        <span class="account-reminder-label">Event Reminders</span>
+                        <div class="checkbox-grid reminder-settings-grid account-reminder-toggles">
+                          <label class="linked-player-tile account-toggle-tile">
+                            <input id="accountReminder3Day" type="checkbox" checked />
+                            <span class="linked-player-content">
+                              <strong>3 day</strong>
+                            </span>
+                          </label>
+                          <label class="linked-player-tile account-toggle-tile">
+                            <input id="accountReminder1Day" type="checkbox" checked />
+                            <span class="linked-player-content">
+                              <strong>1 day</strong>
+                            </span>
+                          </label>
+                          <label class="linked-player-tile account-toggle-tile">
+                            <input id="accountReminderSameDay" type="checkbox" checked />
+                            <span class="linked-player-content">
+                              <strong>Day of</strong>
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="button-row account-settings-actions">
+                        <button id="saveAccountSettings" type="button" class="primary-button">Save Settings</button>
+                        <button id="runReminderCheck" type="button" class="secondary-button">Generate Due Reminders</button>
+                      </div>
+                    </div>
+                  </div>
+                  <p id="accountSettingsStatus" class="status-text" aria-live="polite"></p>
                 </div>
               </div>
 
-              <div id="quickReminderApprovalPanel" class="info-card hidden">
+              <div id="quickReminderApprovalPanel" class="info-card account-card hidden">
                 <strong id="quickReminderApprovalHeading">Reminder ready to send</strong>
                 <p id="quickReminderApprovalMeta"></p>
                 <label class="field">
@@ -296,49 +342,12 @@
                 <p id="quickReminderApprovalStatus" class="status-text" aria-live="polite"></p>
               </div>
 
-              <div id="accountSettingsPanel" class="info-card hidden">
-                <strong>Settings</strong>
-                <div class="stack-form compact-stack account-settings-stack">
-                  <button id="openEventReminderSettings" type="button" class="secondary-button settings-trigger-button">
-                    Event Reminders
-                  </button>
-                  <div id="eventReminderSettingsPanel" class="stack-form hidden">
-                    <div class="field">
-                      <span>Default reminder schedule</span>
-                      <div class="checkbox-grid reminder-settings-grid">
-                        <label class="linked-player-tile">
-                          <input id="accountReminder3Day" type="checkbox" checked />
-                          <span class="linked-player-content">
-                            <strong>3 days before</strong>
-                          </span>
-                        </label>
-                        <label class="linked-player-tile">
-                          <input id="accountReminder1Day" type="checkbox" checked />
-                          <span class="linked-player-content">
-                            <strong>1 day before</strong>
-                          </span>
-                        </label>
-                        <label class="linked-player-tile">
-                          <input id="accountReminderSameDay" type="checkbox" checked />
-                          <span class="linked-player-content">
-                            <strong>Day of event</strong>
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                    <div class="button-row">
-                      <button id="saveAccountSettings" type="button" class="primary-button">Save Settings</button>
-                      <button id="runReminderCheck" type="button" class="secondary-button">Generate Due Reminders</button>
-                    </div>
-                  </div>
+              <div class="info-card account-card feedback-card">
+                <div class="account-card-heading">
+                  <h2>Your Feedback</h2>
                 </div>
-                <p id="accountSettingsStatus" class="status-text" aria-live="polite"></p>
-              </div>
-
-              <div class="info-card">
                 <form id="feedbackForm" class="stack-form">
                   <label class="field">
-                    <span>Your feedback</span>
                     <textarea
                       id="feedbackMessage"
                       name="feedbackMessage"
@@ -350,9 +359,8 @@
                     <button id="submitFeedback" type="submit" class="primary-button">Submit Feedback</button>
                   </div>
                 </form>
+                <p id="feedbackStatus" class="status-text" aria-live="polite"></p>
               </div>
-
-              <p id="feedbackStatus" class="status-text" aria-live="polite"></p>
             </section>
           </div>
         </section>

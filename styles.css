@@ -92,6 +92,13 @@ button {
   margin-bottom: 12px;
 }
 
+.topbar:not(.guest-topbar) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px 28px;
+  margin-bottom: 22px;
+}
+
 .topbar.guest-topbar {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -105,6 +112,14 @@ button {
 .team-switcher {
   display: grid;
   gap: 10px;
+}
+
+.topbar:not(.guest-topbar) .topbar-primary {
+  gap: 18px;
+}
+
+.topbar:not(.guest-topbar) .topbar-side {
+  align-self: end;
 }
 
 .team-switcher-actions {
@@ -196,6 +211,27 @@ p {
   align-items: end;
 }
 
+.topbar:not(.guest-topbar) .team-switcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar:not(.guest-topbar) .team-switcher .field {
+  min-width: 240px;
+}
+
+.topbar:not(.guest-topbar) .team-switcher .field span {
+  margin-bottom: 6px;
+  color: #0f1b2d;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+.topbar:not(.guest-topbar) .team-switcher select {
+  min-width: 240px;
+}
+
 .panel,
 .nav-button {
   border: 1px solid var(--line);
@@ -207,22 +243,25 @@ p {
   gap: 8px;
   padding: 6px;
   border-radius: 999px;
-  background: rgba(237, 243, 251, 0.96);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .nav-button {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 22px;
   border-radius: 999px;
-  background: transparent;
-  color: #46608d;
+  background: #eaf1fb;
+  border-color: transparent;
+  box-shadow: none;
+  color: #26429a;
   font-weight: 700;
 }
 
 .nav-button.is-active {
   background: #f59e0b;
-  color: #0f1b2d;
+  color: #ffffff;
 }
 
 .layout-grid,
@@ -1120,6 +1159,123 @@ p {
   align-self: start;
 }
 
+.account-card .settings-trigger-button {
+  display: none !important;
+}
+
+.account-card #eventReminderSettingsPanel.hidden {
+  display: grid !important;
+}
+
+.account-dashboard {
+  display: grid;
+  gap: 22px;
+}
+
+.account-main-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.account-card {
+  padding: 28px;
+  border-radius: 24px;
+  background: #f3f7fd;
+  border: 1px solid #dbe6f4;
+  box-shadow: none;
+}
+
+.account-card-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.account-card-heading h2 {
+  margin: 0;
+  color: #0f1b2d;
+  font-size: 1.65rem;
+}
+
+#authUserPanel > strong {
+  color: #0f1b2d;
+  font-size: 1.05rem;
+}
+
+.account-reminder-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid #d7e3f1;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.account-reminder-label {
+  color: #26429a;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.account-reminder-toggles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.account-toggle-tile .linked-player-content {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: #d9e7f9;
+  border-color: transparent;
+}
+
+.account-toggle-tile .linked-player-content strong {
+  color: #26429a;
+  font-size: 0.96rem;
+}
+
+.account-toggle-tile input:hover + .linked-player-content,
+.account-toggle-tile input:focus-visible + .linked-player-content {
+  border-color: #8fb0e2;
+  box-shadow: inset 0 0 0 1px rgba(38, 66, 154, 0.12);
+}
+
+.account-toggle-tile input:checked + .linked-player-content {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  box-shadow: none;
+  transform: none;
+}
+
+.account-toggle-tile input:checked + .linked-player-content strong {
+  color: #ffffff;
+}
+
+.account-settings-actions {
+  margin-top: 6px;
+}
+
+.feedback-card textarea {
+  min-height: 190px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.feedback-card .button-row {
+  margin-top: 4px;
+}
+
 .panel-heading p,
 .helper-text,
 .status-text,
@@ -1971,6 +2127,23 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .topbar:not(.guest-topbar) {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .topbar:not(.guest-topbar) .topbar-side {
+    justify-self: stretch;
+  }
+
+  .topbar:not(.guest-topbar) .team-switcher {
+    flex-wrap: wrap;
+  }
+
+  .account-main-grid {
+    grid-template-columns: 1fr;
+  }
+
   .team-admin-grid {
     grid-template-columns: 1fr;
   }
@@ -2025,6 +2198,27 @@ textarea {
   }
 
   .landing-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar:not(.guest-topbar) .team-switcher .field {
+    min-width: 100%;
+  }
+
+  .topbar:not(.guest-topbar) .team-switcher select {
+    min-width: 0;
+  }
+
+  .account-card {
+    padding: 22px;
+  }
+
+  .account-reminder-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .account-reminder-toggles {
     grid-template-columns: 1fr;
   }
 
