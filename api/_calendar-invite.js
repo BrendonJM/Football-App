@@ -50,6 +50,7 @@ function buildCalendarInviteText({
   const sequence = buildCalendarSequence(eventRecord);
   const status = method === "CANCEL" ? "CANCELLED" : "CONFIRMED";
   const timezone = getEventTimezone(eventRecord);
+  const summary = buildCalendarSummary(eventRecord, teamName);
   const description = buildCalendarDescription({
     eventRecord,
     teamName,
@@ -70,7 +71,7 @@ function buildCalendarInviteText({
     `UID:${uid}`,
     `DTSTAMP:${dtStamp}`,
     `SEQUENCE:${sequence}`,
-    `SUMMARY:${escapeIcsText(eventRecord?.event_title || `${teamName} event`)}`,
+    `SUMMARY:${escapeIcsText(summary)}`,
     `DTSTART;TZID=${timezone}:${formatDateTimeLocal(dtStartLocal)}`,
     `DTEND;TZID=${timezone}:${formatDateTimeLocal(dtEndLocal)}`,
     `STATUS:${status}`,
@@ -84,6 +85,14 @@ function buildCalendarInviteText({
   ].filter(Boolean);
 
   return `${lines.map(foldIcsLine).join("\r\n")}\r\n`;
+}
+
+function buildCalendarSummary(eventRecord, teamName) {
+  const teamLabel = String(teamName || "TeamPro").trim() || "TeamPro";
+  const eventTypeLabel = formatEventTypeLabel(eventRecord?.event_type || eventRecord?.eventType || "other");
+  const locationLabel = String(eventRecord?.location || "").trim() || "Location TBC";
+
+  return `${teamLabel} > ${eventTypeLabel} > ${locationLabel}`;
 }
 
 function buildAttendeeLine(contact) {
