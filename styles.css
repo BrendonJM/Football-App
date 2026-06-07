@@ -2134,6 +2134,14 @@ textarea {
   padding-top: 40px;
 }
 
+.rsvp-shell .panel-heading {
+  gap: 10px;
+}
+
+.rsvp-shell .brandmark-logo {
+  width: min(220px, 100%);
+}
+
 .rsvp-choice-row .secondary-button.is-active {
   background: #f59e0b;
   color: #0f1b2d;
