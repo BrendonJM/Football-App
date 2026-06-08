@@ -90,9 +90,8 @@ function buildCalendarInviteText({
 function buildCalendarSummary(eventRecord, teamName) {
   const teamLabel = String(teamName || "TeamPro").trim() || "TeamPro";
   const eventTypeLabel = formatEventTypeLabel(eventRecord?.event_type || eventRecord?.eventType || "other");
-  const locationLabel = String(eventRecord?.location || "").trim() || "Location TBC";
 
-  return `${teamLabel} > ${eventTypeLabel} > ${locationLabel}`;
+  return `${teamLabel}: ${eventTypeLabel}`;
 }
 
 function buildAttendeeLine(contact) {
