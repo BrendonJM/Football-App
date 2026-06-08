@@ -1094,6 +1094,7 @@ p {
 .events-admin-grid {
   grid-template-columns: minmax(360px, 1.12fr) minmax(300px, 0.88fr);
   gap: 24px;
+  margin-top: 24px;
 }
 
 #commsPage .panel {
