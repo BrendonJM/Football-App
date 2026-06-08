@@ -1093,11 +1093,11 @@ p {
 
 .events-admin-grid {
   grid-template-columns: minmax(360px, 1.12fr) minmax(300px, 0.88fr);
-  gap: 22px;
+  gap: 24px;
 }
 
 #commsPage .panel {
-  padding: 24px;
+  padding: 28px;
   border-radius: 26px;
   background: #f3f7fd;
   border: 1px solid #dbe6f4;
@@ -1105,11 +1105,12 @@ p {
 }
 
 #commsPage .panel-heading {
-  gap: 6px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 #commsPage .stack-form {
-  gap: 14px;
+  gap: 18px;
 }
 
 #commsPage .info-card,
@@ -1129,7 +1130,7 @@ p {
 #commsPage .panel > .button-row,
 #commsPage .panel > .info-card,
 #commsPage .panel > .entity-list {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 #commsPage .entity-card {
@@ -1189,11 +1190,12 @@ p {
 
 #commsPage .events-list-panel .panel-heading,
 #commsPage .events-detail-panel .panel-heading {
-  margin-bottom: 4px;
+  margin-bottom: 14px;
 }
 
 #commsPage .events-summary-card {
   background: #edf4fe;
+  margin-top: 4px;
 }
 
 #commsPage .events-summary-card strong {
@@ -1203,6 +1205,7 @@ p {
 #commsPage .event-list-scroll {
   max-height: 920px;
   padding-right: 6px;
+  margin-top: 4px;
 }
 
 #commsPage .entity-card.entity-card-compact {
@@ -1240,7 +1243,7 @@ p {
 }
 
 #commsPage .events-panel-subheading {
-  margin: 0;
+  margin: -2px 0 0;
   color: #0f1b2d;
   font-family: "Space Grotesk", sans-serif;
   font-size: 1.9rem;
@@ -1263,6 +1266,7 @@ p {
 
 #commsPage .events-message-field {
   gap: 10px;
+  margin-top: 2px;
 }
 
 #commsPage .events-message-field textarea {
@@ -1272,6 +1276,23 @@ p {
 
 #commsPage #sendReminderPrimaryAction {
   min-width: 220px;
+}
+
+#commsPage .events-ai-panel .info-card {
+  padding: 20px 20px 22px;
+}
+
+#commsPage .events-ai-panel .button-row {
+  margin-top: 12px;
+}
+
+#commsPage .events-list-panel > .button-row {
+  margin-top: 2px;
+}
+
+#commsPage .events-detail-panel #eventRsvpList.hidden + #eventRsvpStatus,
+#commsPage .events-detail-panel #eventRsvpStatus:empty {
+  min-height: 0;
 }
 
 .panel {
