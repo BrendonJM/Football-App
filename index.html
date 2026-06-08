@@ -561,8 +561,8 @@
           </div>
         </section>
 
-        <section id="commsPage" class="page-section hidden">
-          <section class="panel">
+        <section id="commsPage" class="page-section hidden events-page">
+          <section class="panel events-ai-panel">
             <div class="panel-heading">
               <h2>AI Assistant</h2>
             </div>
@@ -711,7 +711,7 @@
           </section>
 
           <div class="team-admin-grid events-admin-grid">
-            <section class="panel">
+            <section class="panel events-list-panel">
               <div class="panel-heading">
                 <h2>Events</h2>
               </div>
@@ -720,7 +720,7 @@
                 <button id="openEventForm" type="button" class="primary-button">Create New Event</button>
               </div>
 
-              <div id="eventListSummary" class="info-card compact-info-card">
+              <div id="eventListSummary" class="info-card compact-info-card events-summary-card">
                 <strong>Events</strong>
               </div>
 
@@ -832,23 +832,20 @@
               <div id="eventList" class="entity-list event-list-scroll"></div>
             </section>
 
-            <section class="panel">
+            <section class="panel events-detail-panel">
               <div class="panel-heading">
                 <h2 id="selectedEventHeading">Selected Event</h2>
+                <p class="events-panel-subheading">Responses</p>
               </div>
 
               <div class="stack-form">
-                <div class="panel-heading compact-panel-heading">
-                  <h2>Responses</h2>
-                </div>
-
-                <div id="eventRsvpSummary" class="info-card"></div>
+                <div id="eventRsvpSummary" class="info-card events-response-card"></div>
                 <div id="eventRsvpList" class="entity-list"></div>
                 <p id="eventRsvpStatus" class="status-text" aria-live="polite"></p>
 
                 <div id="reminderDraftSummary" class="info-card hidden"></div>
 
-                <div id="reminderRecipientsPanel" class="info-card hidden">
+                <div id="reminderRecipientsPanel" class="info-card hidden events-reminder-card">
                   <strong>Reminder recipients</strong>
                   <p id="messageRecipientSummary">Choose an event to see who should receive the reminder.</p>
                   <div class="button-row compact-button-row">
@@ -858,7 +855,7 @@
                   <div id="messageRecipientList" class="recipient-list"></div>
                 </div>
 
-                <div class="info-card">
+                <div class="info-card events-reminder-card">
                   <strong>Reminder action</strong>
                   <div class="button-row">
                     <button id="sendReminderEmail" type="button" class="secondary-button">Send Reminder</button>
@@ -866,10 +863,14 @@
                   </div>
                 </div>
 
-                <label class="field">
+                <label class="field events-message-field">
                   <span>Reminder message</span>
                   <textarea id="messagePreview" rows="6"></textarea>
                 </label>
+
+                <div class="button-row">
+                  <button id="sendReminderPrimaryAction" type="button" class="primary-button">Send to All Parents</button>
+                </div>
 
                 <p id="messageStatus" class="status-text" aria-live="polite"></p>
               </div>

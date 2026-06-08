@@ -200,6 +200,7 @@ const selectAllMessageRecipientsButton = document.querySelector("#selectAllMessa
 const clearMessageRecipientsButton = document.querySelector("#clearMessageRecipients");
 const messagePreview = document.querySelector("#messagePreview");
 const sendReminderEmailButton = document.querySelector("#sendReminderEmail");
+const sendReminderPrimaryActionButton = document.querySelector("#sendReminderPrimaryAction");
 const dismissReminderDraftButton = document.querySelector("#dismissReminderDraft");
 const messageStatus = document.querySelector("#messageStatus");
 const eventRsvpSummary = document.querySelector("#eventRsvpSummary");
@@ -510,6 +511,12 @@ sendReminderEmailButton?.addEventListener("click", async () => {
   }
 
   await sendEventUpdateEmail("reminder");
+});
+
+sendReminderPrimaryActionButton?.addEventListener("click", () => {
+  if (!sendReminderEmailButton?.disabled) {
+    sendReminderEmailButton.click();
+  }
 });
 
 dismissReminderDraftButton?.addEventListener("click", async () => {
@@ -2457,6 +2464,13 @@ function renderEventMessaging() {
     } else {
       sendReminderEmailButton.textContent = selectedDraft?.draftType === "event_cancellation" ? "Send Cancellation" : "Send Reminder";
     }
+  }
+
+  if (sendReminderPrimaryActionButton) {
+    sendReminderPrimaryActionButton.disabled = sendReminderEmailButton?.disabled ?? true;
+    sendReminderPrimaryActionButton.textContent = selectedDraft
+      ? sendReminderEmailButton?.textContent || "Send Reminder"
+      : "Send to All Parents";
   }
 
   if (!selectedEvent) {
