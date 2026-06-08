@@ -1697,6 +1697,28 @@ textarea {
   border: 2px solid #2e465e;
 }
 
+.forwards-dot {
+  background: #dbe4ee;
+  border: 2px solid #274663;
+}
+
+.backs-dot {
+  background: #f59e0b;
+}
+
+.infield-dot {
+  background: #cfa66a;
+}
+
+.ring-dot {
+  background: #dbe4ee;
+  border: 2px solid #274663;
+}
+
+.deep-dot {
+  background: #2e6d49;
+}
+
 .pitch {
   position: relative;
   min-height: 760px;
@@ -1734,14 +1756,69 @@ textarea {
   border-radius: 0;
 }
 
+.pitch--rugby {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    repeating-linear-gradient(
+      180deg,
+      #15583c 0,
+      #15583c 64px,
+      #1b6d4a 64px,
+      #1b6d4a 128px
+    );
+}
+
+.pitch--cricket {
+  background: radial-gradient(circle at center, #2d8558 0%, #246b48 58%, #184f36 100%);
+}
+
+.pitch--softball {
+  background: linear-gradient(180deg, #286f4b 0%, #1f5b3c 100%);
+}
+
+.pitch--cricket::before,
+.pitch--cricket::after,
+.pitch--softball::before,
+.pitch--softball::after {
+  content: none;
+}
+
 .pitch-circle,
 .pitch-box,
 .pitch-goal-box,
 .pitch-centre-spot,
-.pitch-penalty-spot {
+.pitch-penalty-spot,
+.rugby-halfway-line,
+.rugby-try-line,
+.rugby-twenty-two-line,
+.rugby-five-line,
+.cricket-ring,
+.cricket-inner-ring,
+.cricket-strip,
+.cricket-crease,
+.softball-outfield-arc,
+.softball-infield-diamond,
+.softball-base,
+.softball-pitcher-circle {
   position: absolute;
-  border: 2px solid rgba(255, 255, 255, 0.92);
   z-index: 1;
+}
+
+.pitch-circle,
+.pitch-box,
+.pitch-goal-box,
+.pitch-centre-spot,
+.pitch-penalty-spot,
+.rugby-halfway-line,
+.rugby-try-line,
+.rugby-twenty-two-line,
+.rugby-five-line,
+.cricket-ring,
+.cricket-inner-ring,
+.cricket-crease,
+.softball-outfield-arc,
+.softball-pitcher-circle {
+  border: 2px solid rgba(255, 255, 255, 0.92);
 }
 
 .pitch-circle {
@@ -1813,6 +1890,143 @@ textarea {
   transform: translate(-50%, 50%);
 }
 
+.rugby-halfway-line,
+.rugby-try-line,
+.rugby-twenty-two-line,
+.rugby-five-line {
+  left: 22px;
+  right: 22px;
+  height: 0;
+}
+
+.rugby-halfway-line {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.rugby-try-line.top {
+  top: 8%;
+}
+
+.rugby-try-line.bottom {
+  bottom: 8%;
+}
+
+.rugby-twenty-two-line.top {
+  top: 22%;
+}
+
+.rugby-twenty-two-line.bottom {
+  bottom: 22%;
+}
+
+.rugby-five-line.top {
+  top: 13%;
+}
+
+.rugby-five-line.bottom {
+  bottom: 13%;
+}
+
+.cricket-ring,
+.cricket-inner-ring {
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.cricket-ring {
+  width: 88%;
+  height: 88%;
+}
+
+.cricket-inner-ring {
+  width: 62%;
+  height: 62%;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.cricket-strip {
+  left: 50%;
+  top: 50%;
+  width: 13%;
+  height: 44%;
+  transform: translate(-50%, -50%);
+  border-radius: 22px;
+  background: #d8bf96;
+}
+
+.cricket-crease {
+  left: 50%;
+  width: 18%;
+  height: 0;
+  transform: translateX(-50%);
+}
+
+.cricket-crease.top {
+  top: 33%;
+}
+
+.cricket-crease.bottom {
+  bottom: 33%;
+}
+
+.softball-outfield-arc {
+  left: 50%;
+  top: 12%;
+  width: 74%;
+  height: 74%;
+  transform: translateX(-50%);
+  border-bottom: 0;
+  border-radius: 50% 50% 12% 12%;
+}
+
+.softball-infield-diamond {
+  left: 50%;
+  top: 56%;
+  width: 34%;
+  height: 34%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: rgba(206, 165, 104, 0.9);
+}
+
+.softball-base {
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.softball-base.home {
+  left: 50%;
+  top: 72%;
+}
+
+.softball-base.first {
+  left: 63%;
+  top: 59%;
+}
+
+.softball-base.second {
+  left: 50%;
+  top: 46%;
+}
+
+.softball-base.third {
+  left: 37%;
+  top: 59%;
+}
+
+.softball-pitcher-circle {
+  left: 50%;
+  top: 60%;
+  width: 12%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
 .slot {
   position: absolute;
   width: min(18vw, 132px);
@@ -1828,6 +2042,15 @@ textarea {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.pitch--rugby .slot-role,
+.pitch--cricket .slot-role,
+.pitch--softball .slot-role {
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+  text-transform: none;
 }
 
 .player-token,

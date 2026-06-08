@@ -8,8 +8,149 @@ const formationLibrary = {
   11: ["4-3-3", "4-4-2", "3-5-2", "4-2-3-1"],
 };
 
+const rugbyLayoutLibrary = {
+  7: {
+    key: "rugby-7-standard",
+    label: "Standard Layout",
+    slots: [
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.28, y: 0.78 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.5, y: 0.82 },
+      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.72, y: 0.78 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.4, y: 0.6 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.6, y: 0.54 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.18, y: 0.32 },
+      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.82, y: 0.22 },
+    ],
+  },
+  10: {
+    key: "rugby-10-standard",
+    label: "Standard Layout",
+    slots: [
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.24, y: 0.8 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.4, y: 0.84 },
+      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.58, y: 0.84 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.76, y: 0.8 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.36, y: 0.62 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.52, y: 0.56 },
+      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.68, y: 0.52 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.16, y: 0.34 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.84, y: 0.34 },
+      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.5, y: 0.18 },
+    ],
+  },
+  15: {
+    key: "rugby-15-standard",
+    label: "Standard Layout",
+    slots: [
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.22, y: 0.84 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.36, y: 0.88 },
+      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.5, y: 0.88 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.64, y: 0.88 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.78, y: 0.84 },
+      { role: "FL", roleLabel: "Flanker", positionLabel: "Flanker", x: 0.24, y: 0.72 },
+      { role: "FL", roleLabel: "Flanker", positionLabel: "Flanker", x: 0.76, y: 0.72 },
+      { role: "8", roleLabel: "Number 8", positionLabel: "Number 8", x: 0.5, y: 0.74 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.4, y: 0.58 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.56, y: 0.52 },
+      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.34, y: 0.4 },
+      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.66, y: 0.4 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.14, y: 0.26 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.86, y: 0.26 },
+      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.5, y: 0.14 },
+    ],
+  },
+};
+
+const softballLayoutLibrary = {
+  9: {
+    key: "softball-9-standard",
+    label: "Standard Layout",
+    slots: [
+      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.62 },
+      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.82 },
+      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.72, y: 0.58 },
+      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.62, y: 0.42 },
+      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.28, y: 0.58 },
+      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.38, y: 0.42 },
+      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.2, y: 0.2 },
+      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.1 },
+      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.8, y: 0.2 },
+    ],
+  },
+  10: {
+    key: "softball-10-standard",
+    label: "Standard Layout",
+    slots: [
+      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.62 },
+      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.82 },
+      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.72, y: 0.58 },
+      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.62, y: 0.42 },
+      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.28, y: 0.58 },
+      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.38, y: 0.42 },
+      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.18, y: 0.2 },
+      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.1 },
+      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.82, y: 0.2 },
+      { role: "RV", roleLabel: "Rover", positionLabel: "Rover", x: 0.5, y: 0.3 },
+    ],
+  },
+};
+
+const cricketSlotLibrary = [
+  { role: "WK", roleLabel: "Wicketkeeper", positionLabel: "Wicketkeeper", x: 0.5, y: 0.82 },
+  { role: "SL", roleLabel: "Slip", positionLabel: "Slip", x: 0.62, y: 0.7 },
+  { role: "GY", roleLabel: "Gully", positionLabel: "Gully", x: 0.72, y: 0.6 },
+  { role: "PT", roleLabel: "Point", positionLabel: "Point", x: 0.8, y: 0.46 },
+  { role: "CV", roleLabel: "Cover", positionLabel: "Cover", x: 0.68, y: 0.3 },
+  { role: "MO", roleLabel: "Mid-off", positionLabel: "Mid-off", x: 0.56, y: 0.2 },
+  { role: "MN", roleLabel: "Mid-on", positionLabel: "Mid-on", x: 0.44, y: 0.2 },
+  { role: "MW", roleLabel: "Mid-wicket", positionLabel: "Mid-wicket", x: 0.28, y: 0.32 },
+  { role: "SQ", roleLabel: "Square leg", positionLabel: "Square leg", x: 0.2, y: 0.48 },
+  { role: "FL", roleLabel: "Fine leg", positionLabel: "Fine leg", x: 0.28, y: 0.66 },
+  { role: "TM", roleLabel: "Third man", positionLabel: "Third man", x: 0.82, y: 0.78 },
+];
+
+const sportCatalog = {
+  football: {
+    sportType: "football",
+    displayName: "Football",
+    icon: "⚽",
+    supportedTeamSizes: [5, 6, 7, 8, 9, 10, 11],
+    defaultTeamSize: 9,
+    layoutType: "formation",
+    fieldLabel: "Football Field",
+  },
+  rugby: {
+    sportType: "rugby",
+    displayName: "Rugby",
+    icon: "🏉",
+    supportedTeamSizes: [7, 10, 15],
+    defaultTeamSize: 15,
+    layoutType: "positions",
+    fieldLabel: "Rugby Field",
+  },
+  softball: {
+    sportType: "softball",
+    displayName: "Softball",
+    icon: "🥎",
+    supportedTeamSizes: [9, 10],
+    defaultTeamSize: 9,
+    layoutType: "positions",
+    fieldLabel: "Softball Diamond",
+  },
+  cricket: {
+    sportType: "cricket",
+    displayName: "Cricket",
+    icon: "🏏",
+    supportedTeamSizes: [7, 8, 9, 10, 11],
+    defaultTeamSize: 11,
+    layoutType: "positions",
+    fieldLabel: "Cricket Field",
+  },
+};
+
 const sampleConfig = {
   teamName: "Harbour United U12",
+  sportType: "football",
   playersOnField: 9,
   players: [
     "Aria",
@@ -53,6 +194,7 @@ const appNav = document.querySelector("#appNav");
 const topbarSide = document.querySelector("#topbarSide");
 const guestTopbarActions = document.querySelector("#guestTopbarActions");
 const teamNameInput = document.querySelector("#teamName");
+const teamSportTypeInput = document.querySelector("#teamSportType");
 const playersOnFieldInput = document.querySelector("#playersOnField");
 const playerNamesInput = document.querySelector("#playerNames");
 const playerRows = document.querySelector("#playerRows");
@@ -113,7 +255,10 @@ const newTeamButton = document.querySelector("#newTeam");
 const deleteTeamButton = document.querySelector("#deleteTeam");
 
 const teamNameSummary = document.querySelector("#teamNameSummary");
+const formationFieldLabel = document.querySelector("#formationFieldLabel");
 const formationSelect = document.querySelector("#formationSelect");
+const formationBuilderSection = document.querySelector("#formationBuilderSection");
+const formationBuilderTitle = document.querySelector("#formationBuilderTitle");
 const fillEmptyPositionsButton = document.querySelector("#fillEmptyPositions");
 const resetLineupButton = document.querySelector("#resetLineup");
 const copyImageButton = document.querySelector("#copyImage");
@@ -125,6 +270,7 @@ const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench")
 const benchList = document.querySelector("#benchList");
 const pitch = document.querySelector("#pitch");
 const pitchTitle = document.querySelector("#pitchTitle");
+const pitchLegend = document.querySelector("#pitchLegend");
 const contactForm = document.querySelector("#contactForm");
 const contactIdInput = document.querySelector("#contactId");
 const contactNameInput = document.querySelector("#contactName");
@@ -277,13 +423,23 @@ configForm.addEventListener("submit", async (event) => {
 
 playersOnFieldInput.addEventListener("change", () => {
   const playersOnField = Number(playersOnFieldInput.value);
+  const sportType = getSelectedSportType();
   const validExisting = formationDraft.filter((formation) =>
-    isValidFormation(formation, playersOnField),
+    isValidFormation(formation, playersOnField, sportType),
   );
   formationDraft = validExisting.length > 0
     ? validExisting
-    : getSuggestedFormations(playersOnField).slice(0, 3);
+    : getSuggestedFormations(playersOnField, sportType).slice(0, 3);
   renderPlayerRows();
+  renderFormationChoices();
+  renderContactLinkedPlayerOptions();
+});
+
+teamSportTypeInput?.addEventListener("change", () => {
+  const sportType = getSelectedSportType();
+  renderPlayersOnFieldOptions(sportType);
+  const playersOnField = Number(playersOnFieldInput.value) || getSportDefaultTeamSize(sportType);
+  formationDraft = getSuggestedFormations(playersOnField, sportType).slice(0, 3);
   renderFormationChoices();
   renderContactLinkedPlayerOptions();
 });
@@ -294,6 +450,7 @@ playerNamesInput.addEventListener("input", () => {
 });
 
 addFormationButton.addEventListener("click", () => {
+  const sportType = getSelectedSportType();
   const playersOnField = Number(playersOnFieldInput.value);
   const formation = normaliseFormation(customFormationInput.value);
 
@@ -302,7 +459,7 @@ addFormationButton.addEventListener("click", () => {
     return;
   }
 
-  if (!isValidFormation(formation, playersOnField)) {
+  if (!isValidFormation(formation, playersOnField, sportType)) {
     setStatus(
       formationHelp,
       `Formation ${formation} is not valid for ${playersOnField} players on the field.`,
@@ -714,14 +871,7 @@ document.addEventListener("drop", (event) => {
 });
 
 function initialisePlayersOnFieldOptions() {
-  const options = Array.from({ length: 7 }, (_, offset) => offset + 5)
-    .map(
-      (value) =>
-        `<option value="${value}">${value} players</option>`,
-    )
-    .join("");
-
-  playersOnFieldInput.innerHTML = options;
+  renderPlayersOnFieldOptions(getSelectedSportType());
 }
 
 async function bootstrapApp() {
@@ -1727,6 +1877,127 @@ function sanitiseEntityMap(entityMap) {
   );
 }
 
+function getSportDefinition(sportType) {
+  return sportCatalog[sportType] || sportCatalog.football;
+}
+
+function normaliseSportType(sportType) {
+  return getSportDefinition((sportType || "").toLowerCase()).sportType;
+}
+
+function getSelectedSportType() {
+  return normaliseSportType(teamSportTypeInput?.value || state.config?.sportType || "football");
+}
+
+function getSportSupportedTeamSizes(sportType) {
+  return [...getSportDefinition(sportType).supportedTeamSizes];
+}
+
+function getSportDefaultTeamSize(sportType) {
+  return getSportDefinition(sportType).defaultTeamSize;
+}
+
+function getSportIcon(sportType) {
+  return getSportDefinition(sportType).icon;
+}
+
+function getSportDisplayName(sportType) {
+  return getSportDefinition(sportType).displayName;
+}
+
+function getSportFieldLabel(sportType) {
+  return getSportDefinition(sportType).fieldLabel;
+}
+
+function getSportLayout(sportType, playersOnField, layoutKey = "") {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType === "football") {
+    return {
+      key: layoutKey,
+      label: layoutKey,
+      slots: [],
+    };
+  }
+
+  if (safeSportType === "rugby") {
+    return rugbyLayoutLibrary[playersOnField] || rugbyLayoutLibrary[getSportDefaultTeamSize(safeSportType)];
+  }
+
+  if (safeSportType === "softball") {
+    return softballLayoutLibrary[playersOnField] || softballLayoutLibrary[getSportDefaultTeamSize(safeSportType)];
+  }
+
+  const safeSize = Math.max(7, Math.min(playersOnField, cricketSlotLibrary.length));
+  return {
+    key: `cricket-${safeSize}-standard`,
+    label: "Standard Layout",
+    slots: cricketSlotLibrary.slice(0, safeSize),
+  };
+}
+
+function getSuggestedFormations(playersOnField, sportType = "football") {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType === "football") {
+    return formationLibrary[playersOnField] || [];
+  }
+
+  const layout = getSportLayout(safeSportType, playersOnField);
+  return layout ? [layout.key] : [];
+}
+
+function getLayoutDisplayLabel(sportType, formation, playersOnField) {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType === "football") {
+    return formation || "Formation";
+  }
+
+  return getSportLayout(safeSportType, playersOnField, formation)?.label || "Standard Layout";
+}
+
+function getSportLegendItems(sportType) {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType === "football") {
+    return [
+      { cssClass: "gk-dot", label: "Goalkeeper" },
+      { cssClass: "outfield-dot", label: "Outfield" },
+    ];
+  }
+
+  if (safeSportType === "rugby") {
+    return [
+      { cssClass: "forwards-dot", label: "Forwards" },
+      { cssClass: "backs-dot", label: "Backs" },
+    ];
+  }
+
+  if (safeSportType === "softball") {
+    return [
+      { cssClass: "infield-dot", label: "Infield" },
+      { cssClass: "outfield-dot", label: "Outfield" },
+    ];
+  }
+
+  return [
+    { cssClass: "ring-dot", label: "Ring field" },
+    { cssClass: "deep-dot", label: "Boundary" },
+  ];
+}
+
+function renderPlayersOnFieldOptions(sportType, selectedValue = null) {
+  const safeSportType = normaliseSportType(sportType);
+  const supportedSizes = getSportSupportedTeamSizes(safeSportType);
+  const selectedSize = Number(selectedValue || playersOnFieldInput.value) || getSportDefaultTeamSize(safeSportType);
+  const fallbackSize = supportedSizes.includes(selectedSize) ? selectedSize : getSportDefaultTeamSize(safeSportType);
+
+  playersOnFieldInput.innerHTML = supportedSizes
+    .map((value) => `<option value="${value}" ${value === fallbackSize ? "selected" : ""}>${value} players</option>`)
+    .join("");
+}
+
 function hydrateTeamRuntime(teamRecord) {
   const config = normaliseConfig(teamRecord.config);
   const players = config.players.map((name, index) => ({
@@ -1736,7 +2007,7 @@ function hydrateTeamRuntime(teamRecord) {
   const runtime = {
     config,
     players,
-    lineup: buildLineup(players, config.playersOnField, config.selectedFormation),
+    lineup: buildLineup(players, config.playersOnField, config.selectedFormation, config.sportType),
   };
 
   return applySavedLineup(runtime, teamRecord.lineup);
@@ -1747,7 +2018,7 @@ function applySavedLineup(runtime, savedLineup) {
     return runtime;
   }
 
-  runtime.lineup = buildLineup(runtime.players, runtime.config.playersOnField, savedLineup.formation);
+  runtime.lineup = buildLineup(runtime.players, runtime.config.playersOnField, savedLineup.formation, runtime.config.sportType);
 
   const availablePlayers = new Map(runtime.players.map((player) => [player.name, player.id]));
   const absentIds = [];
@@ -1843,17 +2114,23 @@ function sanitiseTeamRecord(team) {
 }
 
 function normaliseConfig(config) {
-  const playersOnField = Number(config.playersOnField) || 9;
+  const sportType = normaliseSportType(config.sportType || "football");
+  const supportedTeamSizes = getSportSupportedTeamSizes(sportType);
+  const rawPlayersOnField = Number(config.playersOnField) || getSportDefaultTeamSize(sportType);
+  const playersOnField = supportedTeamSizes.includes(rawPlayersOnField)
+    ? rawPlayersOnField
+    : getSportDefaultTeamSize(sportType);
   const players = Array.isArray(config.players) ? dedupeNames(config.players) : [];
   const formations = Array.from(
     new Set((config.formations || []).map(normaliseFormation)),
-  ).filter((formation) => isValidFormation(formation, playersOnField));
+  ).filter((formation) => isValidFormation(formation, playersOnField, sportType));
   const safeFormations = formations.length > 0
     ? formations
-    : getSuggestedFormations(playersOnField).slice(0, 1);
+    : getSuggestedFormations(playersOnField, sportType).slice(0, 1);
 
   return {
     ...config,
+    sportType,
     teamName: (config.teamName || "").trim(),
     playersOnField,
     players,
@@ -1880,8 +2157,8 @@ function createId(index) {
   return `player-${Date.now()}-${index}`;
 }
 
-function buildLineup(players, playersOnField, formation) {
-  const slots = buildFormationSlots(formation, playersOnField).map((slot) => ({
+function buildLineup(players, playersOnField, formation, sportType = "football") {
+  const slots = buildFormationSlots(formation, playersOnField, sportType).map((slot) => ({
     ...slot,
     occupantId: null,
   }));
@@ -1894,6 +2171,7 @@ function buildLineup(players, playersOnField, formation) {
 
   return {
     formation,
+    sportType: normaliseSportType(sportType),
     slots,
     benchIds: players.slice(slots.length).map((player) => player.id),
     absentIds: [],
@@ -1906,6 +2184,10 @@ function syncFormFromState() {
 
 function applyConfigToForm(config) {
   teamNameInput.value = config.teamName;
+  if (teamSportTypeInput) {
+    teamSportTypeInput.value = config.sportType || "football";
+  }
+  renderPlayersOnFieldOptions(config.sportType, config.playersOnField);
   playersOnFieldInput.value = String(config.playersOnField);
   playerNamesInput.value = config.players.join("\n");
   renderPlayerRows();
@@ -1990,11 +2272,21 @@ function syncPlayerNamesFieldFromRows() {
 }
 
 function renderFormationChoices() {
+  const sportType = getSelectedSportType();
   const playersOnField = Number(playersOnFieldInput.value);
-  const suggestions = getSuggestedFormations(playersOnField);
+  const suggestions = getSuggestedFormations(playersOnField, sportType);
   const combined = Array.from(new Set([...formationDraft, ...suggestions]))
-    .filter((formation) => isValidFormation(formation, playersOnField))
+    .filter((formation) => isValidFormation(formation, playersOnField, sportType))
     .sort(compareFormationStrings);
+
+  if (sportType !== "football") {
+    formationSuggestions.innerHTML = combined
+      .map((formation) => `<span class="formation-choice"><span>${escapeHtml(getLayoutDisplayLabel(sportType, formation, playersOnField))}</span></span>`)
+      .join("");
+    formationHelp.textContent = `${getSportDisplayName(sportType)} uses a standard position layout for this team size.`;
+    formationHelp.classList.remove("is-error");
+    return;
+  }
 
   formationSuggestions.innerHTML = combined
     .map(
@@ -2125,7 +2417,7 @@ function renderTeamSwitcher() {
     .map((team) => {
       const selected = team.id === state.activeTeamId ? "selected" : "";
       const label = team.config.teamName || "Untitled team";
-      return `<option value="${team.id}" ${selected}>${escapeHtml(label)}</option>`;
+      return `<option value="${team.id}" ${selected}>${escapeHtml(`${getSportIcon(team.config.sportType)} ${label}`)}</option>`;
     })
     .join("");
 
@@ -2178,18 +2470,42 @@ function scrollToSection(sectionId) {
 }
 
 function renderManagerControls() {
-  teamNameSummary.textContent = state.config.teamName || "Untitled team";
-  pitchTitle.textContent = `${state.config.teamName || "Football"} | ${state.lineup.formation}`;
+  const sportType = state.config.sportType || "football";
+  const teamLabel = state.config.teamName || "Untitled team";
+  const layoutLabel = getLayoutDisplayLabel(sportType, state.lineup.formation, state.config.playersOnField);
+
+  teamNameSummary.textContent = `${getSportIcon(sportType)} ${teamLabel}`;
+  pitchTitle.textContent = `${getSportIcon(sportType)} ${getSportDisplayName(sportType)} | ${teamLabel}`;
   selectionHint.textContent = state.selectedTarget
     ? describeSelection(state.selectedTarget)
     : "Select a player on the field or bench, then select another player or an empty position.";
 
+  if (formationFieldLabel) {
+    formationFieldLabel.textContent = sportType === "football" ? "Formation" : "Layout";
+  }
+
+  if (formationBuilderTitle) {
+    formationBuilderTitle.textContent = sportType === "football" ? "Available formations" : "Available layouts";
+  }
+
+  if (formationBuilderSection) {
+    formationBuilderSection.classList.toggle("hidden", sportType !== "football");
+  }
+
   formationSelect.innerHTML = state.config.formations
     .map(
       (formation) =>
-        `<option value="${formation}" ${formation === state.lineup.formation ? "selected" : ""}>${formation}</option>`,
+        `<option value="${formation}" ${formation === state.lineup.formation ? "selected" : ""}>${escapeHtml(getLayoutDisplayLabel(sportType, formation, state.config.playersOnField))}</option>`,
     )
     .join("");
+
+  formationSelect.disabled = state.config.formations.length <= 1;
+
+  if (pitchLegend) {
+    pitchLegend.innerHTML = getSportLegendItems(sportType)
+      .map((item) => `<span><i class="legend-dot ${item.cssClass}"></i>${escapeHtml(item.label)}</span>`)
+      .join("");
+  }
 
   saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
   renderAvailabilityControl();
@@ -5205,8 +5521,44 @@ function renderBench() {
   `;
 }
 
-function renderPitch() {
-  const markings = `
+function getPitchMarkingsMarkup(sportType) {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType === "rugby") {
+    return `
+      <div class="rugby-halfway-line" aria-hidden="true"></div>
+      <div class="rugby-try-line top" aria-hidden="true"></div>
+      <div class="rugby-try-line bottom" aria-hidden="true"></div>
+      <div class="rugby-twenty-two-line top" aria-hidden="true"></div>
+      <div class="rugby-twenty-two-line bottom" aria-hidden="true"></div>
+      <div class="rugby-five-line top" aria-hidden="true"></div>
+      <div class="rugby-five-line bottom" aria-hidden="true"></div>
+    `;
+  }
+
+  if (safeSportType === "cricket") {
+    return `
+      <div class="cricket-ring" aria-hidden="true"></div>
+      <div class="cricket-inner-ring" aria-hidden="true"></div>
+      <div class="cricket-strip" aria-hidden="true"></div>
+      <div class="cricket-crease top" aria-hidden="true"></div>
+      <div class="cricket-crease bottom" aria-hidden="true"></div>
+    `;
+  }
+
+  if (safeSportType === "softball") {
+    return `
+      <div class="softball-outfield-arc" aria-hidden="true"></div>
+      <div class="softball-infield-diamond" aria-hidden="true"></div>
+      <div class="softball-base home" aria-hidden="true"></div>
+      <div class="softball-base first" aria-hidden="true"></div>
+      <div class="softball-base second" aria-hidden="true"></div>
+      <div class="softball-base third" aria-hidden="true"></div>
+      <div class="softball-pitcher-circle" aria-hidden="true"></div>
+    `;
+  }
+
+  return `
     <div class="pitch-circle" aria-hidden="true"></div>
     <div class="pitch-box top-box" aria-hidden="true"></div>
     <div class="pitch-box bottom-box" aria-hidden="true"></div>
@@ -5216,11 +5568,19 @@ function renderPitch() {
     <div class="pitch-penalty-spot top-spot" aria-hidden="true"></div>
     <div class="pitch-penalty-spot bottom-spot" aria-hidden="true"></div>
   `;
+}
+
+function renderPitch() {
+  const sportType = state.config.sportType || "football";
+  const markings = getPitchMarkingsMarkup(sportType);
+
+  pitch.className = `pitch pitch--${sportType}`;
+  pitch.setAttribute("aria-label", getSportFieldLabel(sportType));
 
   const slotMarkup = state.lineup.slots
     .map((slot, index) => {
       const player = slot.occupantId ? findPlayer(slot.occupantId) : null;
-      const isGoalkeeper = slot.role === "GK";
+      const isGoalkeeper = state.config.sportType === "football" && slot.role === "GK";
       const selectedClass = isSelected("slot", index) ? "is-selected" : "";
       const emptyClass = player ? "" : "empty";
       const absentClass = player && isPlayerAbsent(player.id) ? "absent-player" : "";
@@ -5316,11 +5676,12 @@ async function saveConfigFromForm() {
 
 function buildConfigFromForm() {
   syncPlayerNamesFieldFromRows();
+  const sportType = getSelectedSportType();
   const teamName = teamNameInput.value.trim();
   const playersOnField = Number(playersOnFieldInput.value);
   const players = dedupeNames(parsePlayerNames(playerNamesInput.value));
   const formations = formationDraft.filter((formation) =>
-    isValidFormation(formation, playersOnField),
+    isValidFormation(formation, playersOnField, sportType),
   );
 
   if (!teamName) {
@@ -5338,6 +5699,7 @@ function buildConfigFromForm() {
     ok: true,
     value: {
       teamName,
+      sportType,
       playersOnField,
       players,
       formations,
@@ -5363,10 +5725,6 @@ function dedupeNames(names) {
   });
 }
 
-function getSuggestedFormations(playersOnField) {
-  return formationLibrary[playersOnField] || [];
-}
-
 function normaliseFormation(value) {
   return value
     .trim()
@@ -5381,7 +5739,11 @@ function compareFormationStrings(left, right) {
   return left.localeCompare(right, undefined, { numeric: true });
 }
 
-function isValidFormation(formation, playersOnField) {
+function isValidFormation(formation, playersOnField, sportType = "football") {
+  if (normaliseSportType(sportType) !== "football") {
+    return getSuggestedFormations(playersOnField, sportType).includes(formation);
+  }
+
   const parts = formation
     .split("-")
     .map((part) => Number(part))
@@ -5394,9 +5756,15 @@ function isValidFormation(formation, playersOnField) {
   return parts.reduce((sum, value) => sum + value, 0) === playersOnField - 1;
 }
 
-function buildFormationSlots(formation, playersOnField) {
-  if (!isValidFormation(formation, playersOnField)) {
-    return buildFormationSlots(getSuggestedFormations(playersOnField)[0], playersOnField);
+function buildFormationSlots(formation, playersOnField, sportType = "football") {
+  const safeSportType = normaliseSportType(sportType);
+
+  if (safeSportType !== "football") {
+    return getSportLayout(safeSportType, playersOnField, formation).slots;
+  }
+
+  if (!isValidFormation(formation, playersOnField, safeSportType)) {
+    return buildFormationSlots(getSuggestedFormations(playersOnField, safeSportType)[0], playersOnField, safeSportType);
   }
 
   const lines = formation.split("-").map(Number);
@@ -5577,7 +5945,7 @@ function resetLineup() {
   const manualAbsentIds = getManualAbsentIds();
   const effectiveAbsentIds = getEffectiveAbsentIds();
   const availablePlayers = state.players.filter((player) => !effectiveAbsentIds.includes(player.id));
-  state.lineup = buildLineup(availablePlayers, state.config.playersOnField, state.lineup.formation);
+  state.lineup = buildLineup(availablePlayers, state.config.playersOnField, state.lineup.formation, state.config.sportType);
   state.lineup.absentIds = manualAbsentIds;
   effectiveAbsentIds.forEach((playerId) => {
     if (!state.lineup.benchIds.includes(playerId)) {
@@ -5601,13 +5969,14 @@ function setFormation(formation) {
     ...state.lineup.slots.map((slot) => slot.occupantId).filter((playerId) => Boolean(playerId) && !effectiveAbsentIds.includes(playerId)),
     ...state.lineup.benchIds.filter((playerId) => !effectiveAbsentIds.includes(playerId)),
   ];
-  const freshSlots = buildFormationSlots(formation, state.config.playersOnField).map((slot, index) => ({
+  const freshSlots = buildFormationSlots(formation, state.config.playersOnField, state.config.sportType).map((slot, index) => ({
     ...slot,
     occupantId: orderedPlayers[index] || null,
   }));
 
   state.lineup = {
     formation,
+    sportType: state.config.sportType,
     slots: freshSlots,
     benchIds: [...orderedPlayers.slice(freshSlots.length), ...effectiveAbsentIds.filter((playerId) => !orderedPlayers.includes(playerId))],
     absentIds: manualAbsentIds,
@@ -5864,19 +6233,21 @@ function createNewTeamDraft() {
   }
 
   upsertCurrentTeam();
-  const playersOnField = Number(playersOnFieldInput.value) || 9;
+  const sportType = getSelectedSportType();
+  const playersOnField = Number(playersOnFieldInput.value) || getSportDefaultTeamSize(sportType);
   const blankConfig = {
+    sportType,
     teamName: "",
     playersOnField,
     players: [],
-    formations: getSuggestedFormations(playersOnField).slice(0, 3),
-    selectedFormation: getSuggestedFormations(playersOnField)[0],
+    formations: getSuggestedFormations(playersOnField, sportType).slice(0, 3),
+    selectedFormation: getSuggestedFormations(playersOnField, sportType)[0],
   };
 
   state.activeTeamId = createTeamStorageId();
   state.config = normaliseConfig(blankConfig);
   state.players = [];
-  state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
+  state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation, state.config.sportType);
   state.contactsByTeamId[state.activeTeamId] = [];
   state.eventsByTeamId[state.activeTeamId] = [];
   state.rsvpsByEventId = state.rsvpsByEventId || {};
@@ -5958,17 +6329,19 @@ function deleteCurrentTeam() {
 
   if (remainingTeams.length === 0) {
     const playersOnField = 9;
+    const sportType = "football";
     state.teams = [];
     state.activeTeamId = createTeamStorageId();
     state.config = normaliseConfig({
+      sportType,
       teamName: "",
       playersOnField,
       players: [],
-      formations: getSuggestedFormations(playersOnField).slice(0, 3),
-      selectedFormation: getSuggestedFormations(playersOnField)[0],
+      formations: getSuggestedFormations(playersOnField, sportType).slice(0, 3),
+      selectedFormation: getSuggestedFormations(playersOnField, sportType)[0],
     });
     state.players = [];
-    state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation);
+    state.lineup = buildLineup([], state.config.playersOnField, state.config.selectedFormation, state.config.sportType);
     state.contactsByTeamId = {};
     state.eventsByTeamId = {};
     state.rsvpsByEventId = {};
@@ -6470,6 +6843,7 @@ function mapTeamRecordToDatabaseRow(team, userId) {
     id: team.id,
     user_id: userId,
     team_name: team.config.teamName || "Untitled team",
+    sport_type: team.config.sportType || "football",
     players_on_field: team.config.playersOnField,
     players: team.config.players,
     formations: team.config.formations,
@@ -6488,6 +6862,7 @@ function mapDatabaseTeamToRecord(row) {
     id: row.id,
     config: normaliseConfig({
       teamName: row.team_name,
+      sportType: row.sport_type || "football",
       playersOnField: row.players_on_field,
       players: Array.isArray(row.players) ? row.players : [],
       formations: Array.isArray(row.formations) ? row.formations : [],
@@ -6747,7 +7122,7 @@ async function downloadLineupImage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${slugify(state.config.teamName || "team-board")}-${state.lineup.formation}.png`;
+    link.download = `${slugify(state.config.teamName || "team-board")}-${slugify(getLayoutDisplayLabel(state.config.sportType, state.lineup.formation, state.config.playersOnField))}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -6790,28 +7165,23 @@ function drawExportBackground(context, width, height) {
 }
 
 function drawExportHeader(context, width) {
+  const sportType = state.config.sportType || "football";
+  const layoutLabel = getLayoutDisplayLabel(sportType, state.lineup.formation, state.config.playersOnField);
+
   context.fillStyle = "#102315";
   context.font = "700 68px 'Space Grotesk', sans-serif";
-  context.fillText(state.config.teamName || "Football Team", 92, 110);
+  context.fillText(state.config.teamName || `${getSportDisplayName(sportType)} Team`, 92, 110);
 
   context.fillStyle = "#55705f";
   context.font = "600 32px 'Barlow', sans-serif";
   context.fillText(
-    `${state.lineup.formation} formation | ${state.config.playersOnField} on field`,
+    `${getSportDisplayName(sportType)} | ${layoutLabel} | ${state.config.playersOnField} on field`,
     92,
     158,
   );
 }
 
-function drawExportPitch(context, width, height) {
-  const pitchRect = {
-    x: 90,
-    y: 220,
-    width: width - 180,
-    height: 1360,
-    radius: 42,
-  };
-
+function drawExportFootballField(context, width, pitchRect) {
   const pitchGradient = context.createLinearGradient(0, pitchRect.y, 0, pitchRect.y + pitchRect.height);
   pitchGradient.addColorStop(0, "#15733f");
   pitchGradient.addColorStop(1, "#1a874b");
@@ -6857,6 +7227,127 @@ function drawExportPitch(context, width, height) {
   drawSpot(context, width / 2, pitchRect.y + pitchRect.height - 210);
 }
 
+function drawExportRugbyField(context, width, pitchRect) {
+  const pitchGradient = context.createLinearGradient(0, pitchRect.y, 0, pitchRect.y + pitchRect.height);
+  pitchGradient.addColorStop(0, "#126544");
+  pitchGradient.addColorStop(1, "#1e7d55");
+
+  roundRect(context, pitchRect.x, pitchRect.y, pitchRect.width, pitchRect.height, pitchRect.radius);
+  context.fillStyle = pitchGradient;
+  context.fill();
+
+  const stripeHeight = pitchRect.height / 12;
+  for (let stripe = 0; stripe < 12; stripe += 1) {
+    context.fillStyle = stripe % 2 === 0 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
+    context.fillRect(pitchRect.x, pitchRect.y + stripe * stripeHeight, pitchRect.width, stripeHeight);
+  }
+
+  context.strokeStyle = "rgba(255,255,255,0.94)";
+  context.lineWidth = 8;
+  roundRect(context, pitchRect.x + 24, pitchRect.y + 24, pitchRect.width - 48, pitchRect.height - 48, 28);
+  context.stroke();
+
+  const left = pitchRect.x + 24;
+  const right = pitchRect.x + pitchRect.width - 24;
+  const top = pitchRect.y + 24;
+  const bottom = pitchRect.y + pitchRect.height - 24;
+  const halfway = pitchRect.y + pitchRect.height / 2;
+  const twentyTwo = pitchRect.height * 0.22;
+  const five = pitchRect.height * 0.08;
+
+  context.beginPath();
+  context.moveTo(left, halfway);
+  context.lineTo(right, halfway);
+  context.moveTo(left, top + twentyTwo);
+  context.lineTo(right, top + twentyTwo);
+  context.moveTo(left, bottom - twentyTwo);
+  context.lineTo(right, bottom - twentyTwo);
+  context.moveTo(left, top + five);
+  context.lineTo(right, top + five);
+  context.moveTo(left, bottom - five);
+  context.lineTo(right, bottom - five);
+  context.stroke();
+}
+
+function drawExportCricketField(context, width, pitchRect) {
+  roundRect(context, pitchRect.x, pitchRect.y, pitchRect.width, pitchRect.height, pitchRect.radius);
+  context.fillStyle = "#1f6b47";
+  context.fill();
+
+  context.fillStyle = "rgba(255,255,255,0.08)";
+  context.beginPath();
+  context.ellipse(width / 2, pitchRect.y + pitchRect.height / 2, pitchRect.width * 0.42, pitchRect.height * 0.42, 0, 0, Math.PI * 2);
+  context.fill();
+
+  context.strokeStyle = "rgba(255,255,255,0.92)";
+  context.lineWidth = 8;
+  context.beginPath();
+  context.ellipse(width / 2, pitchRect.y + pitchRect.height / 2, pitchRect.width * 0.44, pitchRect.height * 0.44, 0, 0, Math.PI * 2);
+  context.stroke();
+
+  context.fillStyle = "#d4bf96";
+  roundRect(context, width / 2 - 48, pitchRect.y + pitchRect.height * 0.28, 96, pitchRect.height * 0.44, 28);
+  context.fill();
+
+  context.strokeStyle = "rgba(255,255,255,0.92)";
+  context.lineWidth = 4;
+  context.beginPath();
+  context.moveTo(width / 2 - 110, pitchRect.y + pitchRect.height * 0.32);
+  context.lineTo(width / 2 + 110, pitchRect.y + pitchRect.height * 0.32);
+  context.moveTo(width / 2 - 110, pitchRect.y + pitchRect.height * 0.68);
+  context.lineTo(width / 2 + 110, pitchRect.y + pitchRect.height * 0.68);
+  context.stroke();
+}
+
+function drawExportSoftballField(context, width, pitchRect) {
+  roundRect(context, pitchRect.x, pitchRect.y, pitchRect.width, pitchRect.height, pitchRect.radius);
+  context.fillStyle = "#1f7148";
+  context.fill();
+
+  context.fillStyle = "#c9a36a";
+  context.beginPath();
+  context.moveTo(width / 2, pitchRect.y + pitchRect.height * 0.2);
+  context.lineTo(pitchRect.x + pitchRect.width * 0.82, pitchRect.y + pitchRect.height * 0.54);
+  context.lineTo(width / 2, pitchRect.y + pitchRect.height * 0.88);
+  context.lineTo(pitchRect.x + pitchRect.width * 0.18, pitchRect.y + pitchRect.height * 0.54);
+  context.closePath();
+  context.fill();
+
+  context.strokeStyle = "rgba(255,255,255,0.92)";
+  context.lineWidth = 7;
+  context.beginPath();
+  context.moveTo(width / 2, pitchRect.y + pitchRect.height * 0.2);
+  context.lineTo(pitchRect.x + pitchRect.width * 0.82, pitchRect.y + pitchRect.height * 0.54);
+  context.lineTo(width / 2, pitchRect.y + pitchRect.height * 0.88);
+  context.lineTo(pitchRect.x + pitchRect.width * 0.18, pitchRect.y + pitchRect.height * 0.54);
+  context.closePath();
+  context.stroke();
+
+  context.beginPath();
+  context.arc(width / 2, pitchRect.y + pitchRect.height * 0.62, 52, 0, Math.PI * 2);
+  context.stroke();
+}
+
+function drawExportPitch(context, width, height) {
+  const pitchRect = {
+    x: 90,
+    y: 220,
+    width: width - 180,
+    height: 1360,
+    radius: 42,
+  };
+  const sportType = state.config.sportType || "football";
+  if (sportType === "rugby") {
+    drawExportRugbyField(context, width, pitchRect);
+  } else if (sportType === "cricket") {
+    drawExportCricketField(context, width, pitchRect);
+  } else if (sportType === "softball") {
+    drawExportSoftballField(context, width, pitchRect);
+  } else {
+    drawExportFootballField(context, width, pitchRect);
+  }
+}
+
 function drawExportPlayers(context, width) {
   const pitchRect = {
     x: 90,
@@ -6873,14 +7364,15 @@ function drawExportPlayers(context, width) {
     const player = findPlayer(slot.occupantId);
     const x = pitchRect.x + slot.x * pitchRect.width;
     const y = pitchRect.y + slot.y * pitchRect.height;
-    const cardWidth = slot.role === "GK" ? 252 : 228;
-    const cardHeight = slot.role === "GK" ? 140 : 120;
+    const isGoalkeeper = state.config.sportType === "football" && slot.role === "GK";
+    const cardWidth = isGoalkeeper ? 252 : 228;
+    const cardHeight = isGoalkeeper ? 140 : 120;
     const cardX = x - cardWidth / 2;
     const cardY = y - cardHeight / 2;
-    const cardRadius = slot.role === "GK" ? 36 : 32;
+    const cardRadius = isGoalkeeper ? 36 : 32;
 
-    context.fillStyle = slot.role === "GK" ? "#f2b84a" : "#ffffff";
-    context.strokeStyle = slot.role === "GK" ? "#9d6c10" : "#0f6a3b";
+    context.fillStyle = isGoalkeeper ? "#f2b84a" : "#ffffff";
+    context.strokeStyle = isGoalkeeper ? "#9d6c10" : "#0f6a3b";
     context.lineWidth = 8;
     roundRect(context, cardX, cardY, cardWidth, cardHeight, cardRadius);
     context.fill();

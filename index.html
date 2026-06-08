@@ -387,6 +387,18 @@
                       </label>
 
                       <label class="field">
+                        <span>Sport type</span>
+                        <select id="teamSportType" name="teamSportType">
+                          <option value="football">Football</option>
+                          <option value="rugby">Rugby</option>
+                          <option value="softball">Softball</option>
+                          <option value="cricket">Cricket</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div class="split-fields">
+                      <label class="field">
                         <span>Players on the field</span>
                         <select id="playersOnField" name="playersOnField"></select>
                       </label>
@@ -490,11 +502,11 @@
               </div>
 
               <label class="field">
-                <span>Formation</span>
+                <span id="formationFieldLabel">Formation</span>
                 <select id="formationSelect"></select>
               </label>
 
-              <section class="formation-builder" aria-labelledby="formationBuilderTitle">
+              <section id="formationBuilderSection" class="formation-builder" aria-labelledby="formationBuilderTitle">
                 <div class="formation-builder-header">
                   <div>
                     <h3 id="formationBuilderTitle">Available formations</h3>
@@ -549,7 +561,7 @@
                     <p class="eyebrow small-eyebrow">Live Layout</p>
                     <h2 id="pitchTitle">Football Field</h2>
                   </div>
-                  <div class="legend">
+                  <div id="pitchLegend" class="legend">
                     <span><i class="legend-dot gk-dot"></i>Goalkeeper</span>
                     <span><i class="legend-dot outfield-dot"></i>Outfield</span>
                   </div>

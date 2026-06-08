@@ -1,16 +1,16 @@
 # TeamPro
 
-This is a lightweight browser app for setting up a football squad, arranging players on a field, planning training sessions, managing team contacts and events, and sending group updates.
+This is a lightweight browser app for setting up grassroots sports teams, arranging players on a match-day layout, planning training sessions, managing team contacts and events, and sending group updates.
 
 ## What it does
 
-- Lets you enter a team name and squad list
-- Lets you choose how many players are on the field
-- Includes recommended formation options for common small-sided formats, including 9-a-side
-- Supports adding custom formations as long as they match the selected player count
-- Shows a dedicated management screen with players laid out on a football field
+- Lets you enter a team name, sport type, and squad list
+- Supports football, rugby, softball, and cricket teams
+- Lets you choose the right team size for each sport
+- Keeps football formation options for common small-sided formats
+- Shows a dedicated match-day management screen with a sport-specific field layout
 - Lets you move and swap players between field positions and the bench
-- Lets you change formation while keeping the squad loaded
+- Keeps football formations working while rugby, softball, and cricket use standard position layouts
 - Lets you manage team contacts for each saved squad
 - Lets you create team events with dates, times, locations, and notes
 - Lets you preview, copy, and email event updates to selected contacts
@@ -26,8 +26,8 @@ This is a lightweight browser app for setting up a football squad, arranging pla
 ## Files
 
 - `index.html` contains the two-page app shell
-- `styles.css` contains the football field layout and responsive styling
-- `app.js` contains the team configuration, lineup management, and image export logic
+- `styles.css` contains the sport field layouts and responsive styling
+- `app.js` contains the team configuration, sport layout engine, lineup management, and image export logic
 - `server.js` serves the static app
 - `api/config.js` exposes the public Supabase runtime config for Vercel deployments
 - `api/feedback.js` sends feedback emails from the Account page
