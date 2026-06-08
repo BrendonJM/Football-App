@@ -1079,12 +1079,121 @@ p {
 .manage-grid {
   grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
   align-items: start;
+  gap: 24px;
 }
 
 .manage-main-column,
 .team-admin-grid {
   display: grid;
   gap: 12px;
+}
+
+#managePage .panel {
+  padding: 28px;
+  border-radius: 28px;
+  background: #f3f7fd;
+  border: 1px solid #dbe6f4;
+  box-shadow: none;
+}
+
+#managePage .panel-heading {
+  margin-bottom: 10px;
+}
+
+#managePage .panel-heading h2 {
+  color: #0f1b2d;
+  font-size: 1.95rem;
+}
+
+#managePage .small-eyebrow {
+  color: #52647d;
+}
+
+#managePage .field span,
+#managePage .summary-label,
+#managePage .mini-preview-label {
+  color: #52647d;
+}
+
+#managePage .control-panel,
+#managePage .manage-main-column {
+  gap: 18px;
+}
+
+#managePage .formation-builder,
+#managePage .bench-section,
+#managePage .selection-card,
+#managePage .summary-block {
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #dbe6f4;
+  box-shadow: none;
+}
+
+#managePage .summary-block strong {
+  margin-bottom: 0;
+  color: #26429a;
+  font-size: 1.32rem;
+}
+
+#managePage .manager-overview-card {
+  gap: 8px;
+}
+
+#managePage .manager-overview-card .summary-label {
+  color: #52647d;
+}
+
+#managePage .formation-builder-header,
+#managePage .bench-header,
+#managePage .pitch-toolbar {
+  gap: 14px;
+}
+
+#managePage .formation-builder-header h3,
+#managePage .bench-header h3,
+#managePage .selection-card .summary-label {
+  color: #0f1b2d;
+}
+
+#managePage .manager-utility-row,
+#managePage .manager-primary-row,
+#managePage .selection-card .button-row {
+  gap: 10px;
+}
+
+#managePage .pitch-panel {
+  min-height: 860px;
+  gap: 18px;
+}
+
+#managePage .manager-pitch-header {
+  padding: 18px 20px;
+  border: 1px solid #dbe6f4;
+  border-radius: 22px;
+  background: #ffffff;
+}
+
+#managePage #pitchTitle {
+  margin-top: 4px;
+  color: #26429a;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+}
+
+#managePage .pitch-stage {
+  padding: 20px;
+  border: 1px solid #dbe6f4;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+}
+
+#managePage .legend {
+  color: #52647d;
+}
+
+#managePage .legend span {
+  font-size: 0.92rem;
 }
 
 .team-admin-grid {
@@ -2586,6 +2695,10 @@ textarea {
   .pitch-panel {
     min-height: auto;
   }
+
+  #managePage .pitch-panel {
+    min-height: auto;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2617,6 +2730,19 @@ textarea {
     text-align: center;
     font-size: 0.94rem;
     line-height: 1.05;
+  }
+
+  #managePage .panel {
+    padding: 20px;
+  }
+
+  #managePage .pitch-stage {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  #managePage #pitchTitle {
+    font-size: 1.75rem;
   }
 
   .pitch {

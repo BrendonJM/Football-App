@@ -269,6 +269,7 @@ const selectionHint = document.querySelector("#selectionHint");
 const sendSelectedToBenchButton = document.querySelector("#sendSelectedToBench");
 const benchList = document.querySelector("#benchList");
 const pitch = document.querySelector("#pitch");
+const pitchEyebrow = document.querySelector("#pitchEyebrow");
 const pitchTitle = document.querySelector("#pitchTitle");
 const pitchLegend = document.querySelector("#pitchLegend");
 const contactForm = document.querySelector("#contactForm");
@@ -2473,9 +2474,13 @@ function renderManagerControls() {
   const sportType = state.config.sportType || "football";
   const teamLabel = state.config.teamName || "Untitled team";
   const layoutLabel = getLayoutDisplayLabel(sportType, state.lineup.formation, state.config.playersOnField);
+  const sportLabel = getSportDisplayName(sportType);
 
   teamNameSummary.textContent = `${getSportIcon(sportType)} ${teamLabel}`;
-  pitchTitle.textContent = `${getSportIcon(sportType)} ${getSportDisplayName(sportType)} | ${teamLabel}`;
+  if (pitchEyebrow) {
+    pitchEyebrow.textContent = `${getSportIcon(sportType)} ${sportLabel} | ${layoutLabel}`;
+  }
+  pitchTitle.textContent = teamLabel;
   selectionHint.textContent = state.selectedTarget
     ? describeSelection(state.selectedTarget)
     : "Select a player on the field or bench, then select another player or an empty position.";

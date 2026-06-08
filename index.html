@@ -492,11 +492,11 @@
         <section id="managePage" class="page-section hidden">
           <div class="manage-grid">
             <aside class="panel control-panel">
-              <div class="panel-heading">
-                <h2>Team Board</h2>
+              <div class="panel-heading matchday-panel-heading">
+                <h2>Match Day</h2>
               </div>
 
-              <div class="summary-block">
+              <div class="summary-block manager-overview-card">
                 <span class="summary-label">Team</span>
                 <strong id="teamNameSummary">-</strong>
               </div>
@@ -525,19 +525,19 @@
                 <p id="formationHelp" class="helper-text"></p>
               </section>
 
-              <div class="button-row">
+              <div class="button-row manager-utility-row">
                 <button id="fillEmptyPositions" type="button" class="secondary-button">Fill Empty Spots</button>
                 <button id="resetLineup" type="button" class="secondary-button">Reset Lineup</button>
               </div>
 
-              <div class="button-row">
+              <div class="button-row manager-primary-row">
                 <button id="copyImage" type="button" class="primary-button">Copy Image</button>
                 <button id="saveNow" type="button" class="secondary-button">Save Team Changes</button>
               </div>
 
               <p id="exportStatus" class="status-text" aria-live="polite"></p>
 
-              <div class="selection-card">
+              <div class="selection-card manager-swap-card">
                 <span class="summary-label">Quick swap</span>
                 <p id="selectionHint">Select a player on the field or bench, then select another player or an empty position.</p>
                 <div class="button-row">
@@ -556,9 +556,9 @@
 
             <div class="manage-main-column">
               <section class="panel pitch-panel">
-                <div class="pitch-toolbar">
+                <div class="pitch-toolbar manager-pitch-header">
                   <div>
-                    <p class="eyebrow small-eyebrow">Live Layout</p>
+                    <p id="pitchEyebrow" class="eyebrow small-eyebrow">Live Layout</p>
                     <h2 id="pitchTitle">Football Field</h2>
                   </div>
                   <div id="pitchLegend" class="legend">
@@ -567,7 +567,9 @@
                   </div>
                 </div>
 
-                <div id="pitch" class="pitch" aria-label="Football field"></div>
+                <div class="pitch-stage">
+                  <div id="pitch" class="pitch" aria-label="Football field"></div>
+                </div>
               </section>
             </div>
           </div>
