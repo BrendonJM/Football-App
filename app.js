@@ -272,6 +272,8 @@ const pitch = document.querySelector("#pitch");
 const pitchEyebrow = document.querySelector("#pitchEyebrow");
 const pitchTitle = document.querySelector("#pitchTitle");
 const pitchLegend = document.querySelector("#pitchLegend");
+const pitchPlayersSummary = document.querySelector("#pitchPlayersSummary");
+const pitchBenchSummary = document.querySelector("#pitchBenchSummary");
 const contactForm = document.querySelector("#contactForm");
 const contactIdInput = document.querySelector("#contactId");
 const contactNameInput = document.querySelector("#contactName");
@@ -2510,6 +2512,17 @@ function renderManagerControls() {
     pitchLegend.innerHTML = getSportLegendItems(sportType)
       .map((item) => `<span><i class="legend-dot ${item.cssClass}"></i>${escapeHtml(item.label)}</span>`)
       .join("");
+  }
+
+  if (pitchPlayersSummary || pitchBenchSummary) {
+    const onFieldCount = state.lineup.slots.filter((slot) => slot.occupantId).length;
+    const benchCount = getBenchPlayers().length;
+    if (pitchPlayersSummary) {
+      pitchPlayersSummary.textContent = `${onFieldCount} player${onFieldCount === 1 ? "" : "s"} on field`;
+    }
+    if (pitchBenchSummary) {
+      pitchBenchSummary.textContent = `${benchCount} on bench`;
+    }
   }
 
   saveNowButton.disabled = !supabaseUserId || saveNowInFlight;
