@@ -2516,7 +2516,7 @@ function renderManagerControls() {
 
   if (pitchPlayersSummary || pitchBenchSummary) {
     const onFieldCount = state.lineup.slots.filter((slot) => slot.occupantId).length;
-    const benchCount = getBenchPlayers().length;
+    const benchCount = state.lineup.benchIds.filter(Boolean).length;
     if (pitchPlayersSummary) {
       pitchPlayersSummary.textContent = `${onFieldCount} player${onFieldCount === 1 ? "" : "s"} on field`;
     }
