@@ -13,49 +13,49 @@ const rugbyLayoutLibrary = {
     key: "rugby-7-standard",
     label: "Standard Layout",
     slots: [
-      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.28, y: 0.78 },
-      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.5, y: 0.82 },
-      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.72, y: 0.78 },
-      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.4, y: 0.6 },
-      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.6, y: 0.54 },
-      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.18, y: 0.32 },
-      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.82, y: 0.22 },
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.34, y: 0.76 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.5, y: 0.79 },
+      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.66, y: 0.76 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.42, y: 0.58 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.58, y: 0.51 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.2, y: 0.36 },
+      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.8, y: 0.21 },
     ],
   },
   10: {
     key: "rugby-10-standard",
     label: "Standard Layout",
     slots: [
-      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.24, y: 0.8 },
-      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.4, y: 0.84 },
-      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.58, y: 0.84 },
-      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.76, y: 0.8 },
-      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.36, y: 0.62 },
-      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.52, y: 0.56 },
-      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.68, y: 0.52 },
-      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.16, y: 0.34 },
-      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.84, y: 0.34 },
-      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.5, y: 0.18 },
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.28, y: 0.79 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.41, y: 0.82 },
+      { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.54, y: 0.82 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.68, y: 0.79 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.37, y: 0.62 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.5, y: 0.55 },
+      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.63, y: 0.48 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.18, y: 0.33 },
+      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.82, y: 0.33 },
+      { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.5, y: 0.16 },
     ],
   },
   15: {
     key: "rugby-15-standard",
     label: "Standard Layout",
     slots: [
-      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.22, y: 0.84 },
-      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.36, y: 0.88 },
+      { role: "LH", roleLabel: "Loosehead", positionLabel: "Loosehead Prop", x: 0.28, y: 0.84 },
+      { role: "HK", roleLabel: "Hooker", positionLabel: "Hooker", x: 0.39, y: 0.87 },
       { role: "TH", roleLabel: "Tighthead", positionLabel: "Tighthead Prop", x: 0.5, y: 0.88 },
-      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.64, y: 0.88 },
-      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.78, y: 0.84 },
-      { role: "FL", roleLabel: "Flanker", positionLabel: "Flanker", x: 0.24, y: 0.72 },
-      { role: "FL", roleLabel: "Flanker", positionLabel: "Flanker", x: 0.76, y: 0.72 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.61, y: 0.87 },
+      { role: "LK", roleLabel: "Lock", positionLabel: "Lock", x: 0.72, y: 0.84 },
+      { role: "FL", roleLabel: "Flanker", positionLabel: "Blindside Flanker", x: 0.28, y: 0.71 },
       { role: "8", roleLabel: "Number 8", positionLabel: "Number 8", x: 0.5, y: 0.74 },
-      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.4, y: 0.58 },
-      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.56, y: 0.52 },
-      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.34, y: 0.4 },
-      { role: "CTR", roleLabel: "Centre", positionLabel: "Centre", x: 0.66, y: 0.4 },
-      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.14, y: 0.26 },
-      { role: "WG", roleLabel: "Wing", positionLabel: "Wing", x: 0.86, y: 0.26 },
+      { role: "FL", roleLabel: "Flanker", positionLabel: "Openside Flanker", x: 0.72, y: 0.71 },
+      { role: "SH", roleLabel: "Scrum-half", positionLabel: "Scrum-half", x: 0.39, y: 0.59 },
+      { role: "FH", roleLabel: "Fly-half", positionLabel: "Fly-half", x: 0.54, y: 0.52 },
+      { role: "CTR", roleLabel: "Inside Centre", positionLabel: "Inside Centre", x: 0.37, y: 0.4 },
+      { role: "CTR", roleLabel: "Outside Centre", positionLabel: "Outside Centre", x: 0.63, y: 0.4 },
+      { role: "WG", roleLabel: "Left Wing", positionLabel: "Left Wing", x: 0.16, y: 0.27 },
+      { role: "WG", roleLabel: "Right Wing", positionLabel: "Right Wing", x: 0.84, y: 0.27 },
       { role: "FB", roleLabel: "Fullback", positionLabel: "Fullback", x: 0.5, y: 0.14 },
     ],
   },
@@ -66,31 +66,31 @@ const softballLayoutLibrary = {
     key: "softball-9-standard",
     label: "Standard Layout",
     slots: [
-      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.62 },
-      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.82 },
-      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.72, y: 0.58 },
-      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.62, y: 0.42 },
-      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.28, y: 0.58 },
-      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.38, y: 0.42 },
-      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.2, y: 0.2 },
-      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.1 },
-      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.8, y: 0.2 },
+      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.6 },
+      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.81 },
+      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.68, y: 0.56 },
+      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.58, y: 0.4 },
+      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.32, y: 0.56 },
+      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.42, y: 0.4 },
+      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.22, y: 0.24 },
+      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.15 },
+      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.78, y: 0.24 },
     ],
   },
   10: {
     key: "softball-10-standard",
     label: "Standard Layout",
     slots: [
-      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.62 },
-      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.82 },
-      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.72, y: 0.58 },
-      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.62, y: 0.42 },
-      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.28, y: 0.58 },
-      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.38, y: 0.42 },
-      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.18, y: 0.2 },
-      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.1 },
-      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.82, y: 0.2 },
-      { role: "RV", roleLabel: "Rover", positionLabel: "Rover", x: 0.5, y: 0.3 },
+      { role: "P", roleLabel: "Pitcher", positionLabel: "Pitcher", x: 0.5, y: 0.6 },
+      { role: "C", roleLabel: "Catcher", positionLabel: "Catcher", x: 0.5, y: 0.81 },
+      { role: "1B", roleLabel: "First Base", positionLabel: "First Base", x: 0.68, y: 0.56 },
+      { role: "2B", roleLabel: "Second Base", positionLabel: "Second Base", x: 0.58, y: 0.4 },
+      { role: "3B", roleLabel: "Third Base", positionLabel: "Third Base", x: 0.32, y: 0.56 },
+      { role: "SS", roleLabel: "Shortstop", positionLabel: "Shortstop", x: 0.42, y: 0.4 },
+      { role: "LF", roleLabel: "Left Field", positionLabel: "Left Field", x: 0.2, y: 0.24 },
+      { role: "CF", roleLabel: "Centre Field", positionLabel: "Centre Field", x: 0.5, y: 0.15 },
+      { role: "RF", roleLabel: "Right Field", positionLabel: "Right Field", x: 0.8, y: 0.24 },
+      { role: "RV", roleLabel: "Rover", positionLabel: "Short Field", x: 0.5, y: 0.3 },
     ],
   },
 };
@@ -5551,6 +5551,10 @@ function getPitchMarkingsMarkup(sportType) {
       <div class="rugby-twenty-two-line bottom" aria-hidden="true"></div>
       <div class="rugby-five-line top" aria-hidden="true"></div>
       <div class="rugby-five-line bottom" aria-hidden="true"></div>
+      <div class="rugby-ten-line top" aria-hidden="true"></div>
+      <div class="rugby-ten-line bottom" aria-hidden="true"></div>
+      <div class="rugby-goal-posts top" aria-hidden="true"></div>
+      <div class="rugby-goal-posts bottom" aria-hidden="true"></div>
     `;
   }
 
@@ -5567,7 +5571,10 @@ function getPitchMarkingsMarkup(sportType) {
   if (safeSportType === "softball") {
     return `
       <div class="softball-outfield-arc" aria-hidden="true"></div>
+      <div class="softball-infield-dirt" aria-hidden="true"></div>
       <div class="softball-infield-diamond" aria-hidden="true"></div>
+      <div class="softball-foul-line left" aria-hidden="true"></div>
+      <div class="softball-foul-line right" aria-hidden="true"></div>
       <div class="softball-base home" aria-hidden="true"></div>
       <div class="softball-base first" aria-hidden="true"></div>
       <div class="softball-base second" aria-hidden="true"></div>
