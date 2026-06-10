@@ -5,6 +5,7 @@ function buildCalendarInviteAttachment({
   teamName,
   contact,
   messageText,
+  rsvpRows = [],
   fromEmail,
   includeRsvp = true,
   baseUrl = "https://www.teampro.co.nz",
@@ -15,6 +16,7 @@ function buildCalendarInviteAttachment({
     teamName,
     contact,
     messageText,
+    rsvpRows,
     fromEmail,
     includeRsvp,
     baseUrl,
@@ -36,6 +38,7 @@ function buildCalendarInviteText({
   teamName,
   contact,
   messageText,
+  rsvpRows,
   fromEmail,
   includeRsvp,
   baseUrl,
@@ -56,9 +59,11 @@ function buildCalendarInviteText({
     teamName,
     contact,
     messageText,
+    rsvpRows,
     includeRsvp,
     baseUrl,
   });
+  const primaryRsvpUrl = buildCalendarPrimaryRsvpUrl({ rsvpRows, baseUrl, includeRsvp, method });
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -77,6 +82,7 @@ function buildCalendarInviteText({
     `STATUS:${status}`,
     `LOCATION:${escapeIcsText(eventRecord?.location || "")}`,
     `DESCRIPTION:${escapeIcsText(description)}`,
+    primaryRsvpUrl ? `URL:${escapeIcsText(primaryRsvpUrl)}` : "",
     `ORGANIZER;CN=${escapeIcsText(teamName || "TeamPro")}:mailto:${organizerEmail}`,
     buildAttendeeLine(contact),
     method === "CANCEL" ? "TRANSP:TRANSPARENT" : "TRANSP:OPAQUE",
@@ -167,7 +173,7 @@ function getEventEndDateTimeLocal(eventRecord, startLocal) {
   return local;
 }
 
-function buildCalendarDescription({ eventRecord, teamName, contact, messageText, includeRsvp, baseUrl }) {
+function buildCalendarDescription({ eventRecord, teamName, contact, messageText, rsvpRows, includeRsvp, baseUrl }) {
   const lines = [
     `${teamName || "TeamPro"} event`,
     "",
@@ -188,6 +194,11 @@ function buildCalendarDescription({ eventRecord, teamName, contact, messageText,
   }
 
   if (includeRsvp) {
+    const rsvpLines = buildCalendarRsvpLines({ rsvpRows, baseUrl });
+    if (rsvpLines.length) {
+      lines.push("", "TeamPro RSVP links:", ...rsvpLines);
+    }
+
     lines.push(
       "",
       "Use your calendar invite to RSVP if your app supports it.",
@@ -196,6 +207,41 @@ function buildCalendarDescription({ eventRecord, teamName, contact, messageText,
   }
 
   return lines.filter(Boolean).join("\n");
+}
+
+function buildCalendarPrimaryRsvpUrl({ rsvpRows, baseUrl, includeRsvp, method }) {
+  if (!includeRsvp || method === "CANCEL") {
+    return "";
+  }
+
+  const firstRow = Array.isArray(rsvpRows) ? rsvpRows.find((row) => row?.token) : null;
+  if (!firstRow) {
+    return "";
+  }
+
+  return buildRsvpLink({ baseUrl, token: firstRow.token });
+}
+
+function buildCalendarRsvpLines({ rsvpRows, baseUrl }) {
+  if (!Array.isArray(rsvpRows) || rsvpRows.length === 0) {
+    return [];
+  }
+
+  return rsvpRows.flatMap((row) => {
+    if (!row?.token) {
+      return [];
+    }
+
+    const label = row.player_name ? `Player ${row.player_name}` : "RSVP";
+    const replyPage = buildRsvpLink({ baseUrl, token: row.token });
+
+    return [
+      `${label} reply page: ${replyPage}`,
+      `${label} yes: ${buildRsvpLink({ baseUrl, token: row.token, response: "yes" })}`,
+      `${label} no: ${buildRsvpLink({ baseUrl, token: row.token, response: "no" })}`,
+      `${label} maybe: ${buildRsvpLink({ baseUrl, token: row.token, response: "maybe" })}`,
+    ];
+  });
 }
 
 function formatEventTypeLabel(eventType) {

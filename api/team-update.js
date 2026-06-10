@@ -247,6 +247,7 @@ async function sendResendEmail({
       teamName,
       contact,
       messageText,
+      rsvpRows,
       fromEmail: resendFromEmail,
       includeRsvp,
       baseUrl,
