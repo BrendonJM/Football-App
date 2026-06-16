@@ -1,3 +1,5 @@
+const { buildRsvpLink } = require("./_supabase-admin");
+
 const DEFAULT_EVENT_TIMEZONE = "Pacific/Auckland";
 
 function buildCalendarInviteAttachment({
