@@ -202,7 +202,7 @@ function buildCalendarDescription({ eventRecord, teamName, contact, messageText,
     lines.push(
       "",
       "Use your calendar invite to RSVP if your app supports it.",
-      "If that doesn't work, the TeamPro RSVP links in the email body are your fallback.",
+      "If that doesn't work, open the TeamPro RSVP page linked here or in the email body.",
     );
   }
 
@@ -237,9 +237,6 @@ function buildCalendarRsvpLines({ rsvpRows, baseUrl }) {
 
     return [
       `${label} reply page: ${replyPage}`,
-      `${label} yes: ${buildRsvpLink({ baseUrl, token: row.token, response: "yes" })}`,
-      `${label} no: ${buildRsvpLink({ baseUrl, token: row.token, response: "no" })}`,
-      `${label} maybe: ${buildRsvpLink({ baseUrl, token: row.token, response: "maybe" })}`,
     ];
   });
 }

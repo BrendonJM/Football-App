@@ -304,7 +304,12 @@ async function sendReminderApprovalNow({ adminConfig, context }) {
     failedCount: failedResults.length,
     sendResults,
     failedResults,
-    message: buildEmailSendStatusMessage(sentResults.length, failedResults.length, draftRecord),
+    message: buildEmailSendStatusMessage({
+      sentCount: sentResults.length,
+      failedCount: failedResults.length,
+      draftRecord,
+      failedResults,
+    }),
   };
 }
 
@@ -419,16 +424,22 @@ function summariseRsvps(rows) {
   );
 }
 
-function buildEmailSendStatusMessage(sentCount, failedCount, draftRecord) {
+function buildEmailSendStatusMessage({ sentCount, failedCount, draftRecord, failedResults = [] }) {
   const label = draftRecord?.draft_type === "event_cancellation" ? "Cancellation message" : "Reminder";
+  const firstError = String(failedResults[0]?.error || "").trim();
+
   if (sentCount > 0 && failedCount > 0) {
-    return `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed due to send limits or delivery errors.`;
+    return firstError
+      ? `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed. First error: ${firstError}`
+      : `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}. ${failedCount} failed due to send limits or delivery errors.`;
   }
   if (sentCount > 0) {
     return `${label} sent to ${sentCount} contact${sentCount === 1 ? "" : "s"}.`;
   }
   if (failedCount > 0) {
-    return `${label} could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed due to send limits or delivery errors.`;
+    return firstError
+      ? `${label} could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed. First error: ${firstError}`
+      : `${label} could not be sent. ${failedCount} contact${failedCount === 1 ? "" : "s"} failed due to send limits or delivery errors.`;
   }
   return `${label} did not send to any contacts.`;
 }
