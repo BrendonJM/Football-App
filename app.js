@@ -311,6 +311,12 @@ const eventList = document.querySelector("#eventList");
 const eventListSummary = document.querySelector("#eventListSummary");
 const selectedEventHeading = document.querySelector("#selectedEventHeading");
 const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
+const aiAssistantImageInput = document.querySelector("#aiAssistantImageInput");
+const aiAssistantImageDropzone = document.querySelector("#aiAssistantImageDropzone");
+const aiAssistantImagePreview = document.querySelector("#aiAssistantImagePreview");
+const aiAssistantImagePreviewImage = document.querySelector("#aiAssistantImagePreviewImage");
+const aiAssistantImagePreviewName = document.querySelector("#aiAssistantImagePreviewName");
+const clearAiAssistantImageButton = document.querySelector("#clearAiAssistantImage");
 const generateAiDraftButton = document.querySelector("#generateAiDraft");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
 const aiDraftReview = document.querySelector("#aiDraftReview");
@@ -402,6 +408,10 @@ let aiDraftState = {
   loading: false,
   draftId: null,
   data: null,
+};
+let aiAssistantImageState = {
+  fileName: "",
+  dataUrl: "",
 };
 const appLinkState = readAppLinkState();
 let trainingState = {
@@ -708,6 +718,45 @@ messagePreview?.addEventListener("input", () => {
 
 generateAiDraftButton?.addEventListener("click", async () => {
   await generateAiCommunicationDraft();
+});
+aiAssistantImageInput?.addEventListener("change", async (event) => {
+  const [file] = Array.from(event.target.files || []);
+  if (!file) {
+    return;
+  }
+  await handleAiAssistantImageFile(file);
+});
+aiAssistantPromptInput?.addEventListener("paste", async (event) => {
+  const imageFile = extractImageFileFromClipboardEvent(event);
+  if (!imageFile) {
+    return;
+  }
+
+  event.preventDefault();
+  await handleAiAssistantImageFile(imageFile);
+});
+clearAiAssistantImageButton?.addEventListener("click", () => {
+  clearAiAssistantImage();
+});
+aiAssistantImageDropzone?.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  aiAssistantImageDropzone.classList.add("is-dragover");
+});
+aiAssistantImageDropzone?.addEventListener("dragleave", () => {
+  aiAssistantImageDropzone.classList.remove("is-dragover");
+});
+aiAssistantImageDropzone?.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  aiAssistantImageDropzone.classList.remove("is-dragover");
+  const [file] = Array.from(event.dataTransfer?.files || []).filter((item) => item.type.startsWith("image/"));
+  if (!file) {
+    setStatus(aiDraftStatus, "Drop an image file for TeamPro to read.", true);
+    return;
+  }
+  if (aiAssistantImageInput) {
+    aiAssistantImageInput.value = "";
+  }
+  await handleAiAssistantImageFile(file);
 });
 
 aiCopyEmailDraftButton?.addEventListener("click", async () => {
@@ -2914,6 +2963,13 @@ function renderAiAssistant() {
   const draft = aiDraftState.data;
   generateAiDraftButton.disabled = aiDraftState.loading || !supabaseUserId;
   aiAssistantPromptInput.disabled = aiDraftState.loading;
+  if (aiAssistantImageInput) {
+    aiAssistantImageInput.disabled = aiDraftState.loading;
+  }
+  if (clearAiAssistantImageButton) {
+    clearAiAssistantImageButton.disabled = aiDraftState.loading;
+  }
+  renderAiAssistantImagePreview();
 
   if (!draft) {
     aiDraftReview.classList.add("hidden");
@@ -2952,6 +3008,23 @@ function renderAiAssistant() {
 
   renderAiDraftEventMatchOptions();
   renderAiDraftActionButtons();
+}
+
+function renderAiAssistantImagePreview() {
+  if (!aiAssistantImagePreview || !aiAssistantImagePreviewImage || !aiAssistantImagePreviewName) {
+    return;
+  }
+
+  const hasImage = Boolean(aiAssistantImageState.dataUrl);
+  aiAssistantImagePreview.classList.toggle("hidden", !hasImage);
+  if (!hasImage) {
+    aiAssistantImagePreviewImage.removeAttribute("src");
+    aiAssistantImagePreviewName.textContent = "Screenshot ready";
+    return;
+  }
+
+  aiAssistantImagePreviewImage.src = aiAssistantImageState.dataUrl;
+  aiAssistantImagePreviewName.textContent = aiAssistantImageState.fileName || "Fixture screenshot ready";
 }
 
 function renderAiDraftEventMatchOptions() {
@@ -4126,9 +4199,10 @@ async function generateAiCommunicationDraft() {
   }
 
   const prompt = aiAssistantPromptInput.value.trim();
+  const screenshotDataUrl = aiAssistantImageState.dataUrl || "";
 
-  if (!prompt) {
-    setStatus(aiDraftStatus, "Add a short instruction for TeamPro first.", true);
+  if (!prompt && !screenshotDataUrl) {
+    setStatus(aiDraftStatus, "Add a short instruction or upload a schedule screenshot first.", true);
     return;
   }
 
@@ -4147,7 +4221,10 @@ async function generateAiCommunicationDraft() {
         accessToken: supabaseAccessToken,
         teamId: state.activeTeamId,
         teamName: state.config.teamName || "Untitled team",
+        teamSportType: state.config.sportType || "football",
         instruction: prompt,
+        screenshotDataUrl,
+        screenshotFileName: aiAssistantImageState.fileName || "",
         selectedEventId: state.selectedEventId || null,
         contacts: getActiveTeamContacts().map((contact) => ({
           id: contact.id,
@@ -4182,7 +4259,7 @@ async function generateAiCommunicationDraft() {
       data: normaliseAiDraft(result.draft),
     };
     renderAiAssistant();
-    setStatus(aiDraftStatus, "Draft ready for review.", false);
+    setStatus(aiDraftStatus, screenshotDataUrl ? "Draft ready from screenshot." : "Draft ready for review.", false);
   } catch (error) {
     console.error("[AI Draft] Generation failed", {
       error,
@@ -4192,6 +4269,100 @@ async function generateAiCommunicationDraft() {
     renderAiAssistant();
     setStatus(aiDraftStatus, error?.message || "AI draft generation failed.", true);
   }
+}
+
+async function handleAiAssistantImageFile(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    setStatus(aiDraftStatus, "Choose an image file for TeamPro to read.", true);
+    return;
+  }
+
+  try {
+    setStatus(aiDraftStatus, "Preparing screenshot for AI review...", false);
+    const dataUrl = await compressImageFileToDataUrl(file, {
+      maxWidth: 1800,
+      maxHeight: 1800,
+      quality: 0.9,
+    });
+    aiAssistantImageState = {
+      fileName: file.name || "fixture-screenshot.jpg",
+      dataUrl,
+    };
+    renderAiAssistant();
+    setStatus(aiDraftStatus, "Screenshot ready. Generate a draft when you’re ready.", false);
+  } catch (error) {
+    console.error("[AI Draft] Screenshot preparation failed", {
+      error,
+      message: error?.message || String(error),
+      fileName: file?.name || "",
+    });
+    clearAiAssistantImage();
+    setStatus(aiDraftStatus, "That screenshot could not be prepared right now.", true);
+  }
+}
+
+function clearAiAssistantImage() {
+  aiAssistantImageState = {
+    fileName: "",
+    dataUrl: "",
+  };
+  if (aiAssistantImageInput) {
+    aiAssistantImageInput.value = "";
+  }
+  renderAiAssistant();
+}
+
+function extractImageFileFromClipboardEvent(event) {
+  const items = Array.from(event?.clipboardData?.items || []);
+  const imageItem = items.find((item) => item.type && item.type.startsWith("image/"));
+  if (!imageItem) {
+    return null;
+  }
+
+  const file = imageItem.getAsFile();
+  if (!file) {
+    return null;
+  }
+
+  const extension = file.type.split("/")[1] || "png";
+  return new File([file], `pasted-screenshot.${extension}`, { type: file.type });
+}
+
+async function compressImageFileToDataUrl(file, { maxWidth = 1800, maxHeight = 1800, quality = 0.9 } = {}) {
+  const sourceDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageElement(sourceDataUrl);
+  const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight, 1);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Image processing is not available.");
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("File read failed."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image load failed."));
+    image.src = src;
+  });
 }
 
 function normaliseAiDraft(draft) {
@@ -4564,6 +4735,7 @@ async function discardAiDraft() {
   if (aiAssistantPromptInput) {
     aiAssistantPromptInput.value = "";
   }
+  clearAiAssistantImage();
   clearStatus(aiDraftStatus);
   renderAiAssistant();
 }
