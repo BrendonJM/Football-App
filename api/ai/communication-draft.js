@@ -143,10 +143,13 @@ module.exports = async (request, response) => {
     const teamId = String(payload.teamId || "").trim();
     const instruction = String(payload.instruction || "").trim();
     const teamName = String(payload.teamName || "").trim();
+    const teamSportType = String(payload.teamSportType || "football").trim().toLowerCase();
+    const screenshotDataUrl = String(payload.screenshotDataUrl || "").trim();
+    const screenshotFileName = String(payload.screenshotFileName || "").trim();
 
-    if (!accessToken || !teamId || !instruction) {
+    if (!accessToken || !teamId || (!instruction && !screenshotDataUrl)) {
       response.status(400).json({
-        error: "accessToken, teamId, and instruction are required.",
+        error: "accessToken, teamId, and either instruction or screenshotDataUrl are required.",
       });
       return;
     }
@@ -180,7 +183,10 @@ module.exports = async (request, response) => {
     const draft = await requestCommunicationDraft({
       openaiApiKey,
       teamName: teamRecord.team_name || teamName || "TeamPro team",
+      teamSportType,
       instruction,
+      screenshotDataUrl,
+      screenshotFileName,
       contacts: Array.isArray(payload.contacts) ? payload.contacts : [],
       upcomingEvents: Array.isArray(payload.upcomingEvents) ? payload.upcomingEvents : [],
       selectedEventId: String(payload.selectedEventId || "").trim() || null,
@@ -201,7 +207,7 @@ module.exports = async (request, response) => {
         user_id: user.id,
         team_id: teamId,
         event_id: null,
-        raw_prompt: instruction,
+        raw_prompt: instruction || `[Screenshot upload] ${screenshotFileName || "fixture screenshot"}`,
         draft_json: draft,
         status: "draft",
       },
@@ -228,11 +234,56 @@ module.exports = async (request, response) => {
 async function requestCommunicationDraft({
   openaiApiKey,
   teamName,
+  teamSportType,
   instruction,
+  screenshotDataUrl,
+  screenshotFileName,
   contacts,
   upcomingEvents,
   selectedEventId,
 }) {
+  const userContent = [
+    {
+      type: "input_text",
+      text: JSON.stringify(
+        {
+          teamName,
+          teamSportType,
+          instruction: instruction || "",
+          screenshotFileName: screenshotFileName || "",
+          selectedEventId,
+          contactsSummary: contacts,
+          upcomingEvents,
+          requirements: [
+            "Infer the likely communication intent.",
+            "Draft a parent-friendly email body and a concise SMS body.",
+            "If the coach appears to be cancelling or moving an event, note that clearly in event_action and missing_information.",
+            "If the instruction implies an attendance check, set rsvp_required to true.",
+            "Recommend the most sensible recipient group from the allowed enum.",
+            "Use NZ English and practical sideline-coach wording.",
+            "If a screenshot is provided, inspect it carefully for fixture rows, dates, times, venue names, field names, and team names.",
+            "If the screenshot contains multiple fixtures, choose the single fixture that best matches the selected teamName. Use the strongest team-name match available.",
+            "Treat a partial team-name match as useful evidence, for example 'Defenders' should strongly match 'Tawa Defenders'.",
+            "If the screenshot looks like a fixture card or schedule, prefer create_event=true and event_type=game unless the image clearly indicates training or tournament.",
+            "Use event_action.location for the venue and field detail shown in the screenshot.",
+            "Use event_action.notes to capture opponent, club, or competition details that help the coach confirm the event.",
+            "If the screenshot is ambiguous or the matching team is uncertain, include that in missing_information.",
+          ],
+        },
+        null,
+        2,
+      ),
+    },
+  ];
+
+  if (screenshotDataUrl) {
+    userContent.push({
+      type: "input_image",
+      image_url: screenshotDataUrl,
+      detail: "high",
+    });
+  }
+
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -254,30 +305,7 @@ async function requestCommunicationDraft({
         },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(
-                {
-                  teamName,
-                  instruction,
-                  selectedEventId,
-                  contactsSummary: contacts,
-                  upcomingEvents,
-                  requirements: [
-                    "Infer the likely communication intent.",
-                    "Draft a parent-friendly email body and a concise SMS body.",
-                    "If the coach appears to be cancelling or moving an event, note that clearly in event_action and missing_information.",
-                    "If the instruction implies an attendance check, set rsvp_required to true.",
-                    "Recommend the most sensible recipient group from the allowed enum.",
-                    "Use NZ English and practical sideline-coach wording.",
-                  ],
-                },
-                null,
-                2,
-              ),
-            },
-          ],
+          content: userContent,
         },
       ],
       text: {

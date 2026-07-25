@@ -71,6 +71,18 @@ button {
   display: none !important;
 }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 .app-shell {
   width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
@@ -1300,6 +1312,71 @@ p {
   padding: 18px;
 }
 
+#commsPage .ai-image-dropzone {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1.5px dashed #c8d7eb;
+  border-radius: 16px;
+  background: #f9fbff;
+  color: #55647a;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+#commsPage .ai-image-dropzone strong {
+  color: #0f1b2d;
+  font-size: 1rem;
+}
+
+#commsPage .ai-image-dropzone span {
+  color: #667487;
+  font-size: 0.95rem;
+  letter-spacing: normal;
+}
+
+#commsPage .ai-image-dropzone.is-dragover,
+#commsPage .ai-image-dropzone:hover {
+  border-color: #f59e0b;
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.14);
+}
+
+#commsPage .ai-image-preview {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d6e1f0;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+#commsPage .ai-image-preview img {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #d6e1f0;
+  background: #f4f7fb;
+}
+
+#commsPage .ai-image-preview-copy {
+  display: grid;
+  gap: 4px;
+}
+
+#commsPage .ai-image-preview-copy strong {
+  color: #0f1b2d;
+  font-size: 1rem;
+}
+
+#commsPage .ai-image-preview-copy span {
+  color: #667487;
+  font-size: 0.92rem;
+}
+
 #commsPage .events-list-panel .panel-heading,
 #commsPage .events-detail-panel .panel-heading {
   margin-bottom: 14px;
@@ -1405,6 +1482,19 @@ p {
 #commsPage .events-detail-panel #eventRsvpList.hidden + #eventRsvpStatus,
 #commsPage .events-detail-panel #eventRsvpStatus:empty {
   min-height: 0;
+}
+
+@media (max-width: 780px) {
+  #commsPage .ai-image-preview {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  #commsPage .ai-image-preview img {
+    width: 100%;
+    height: auto;
+    max-height: 180px;
+  }
 }
 
 .panel {

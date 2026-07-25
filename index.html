@@ -615,6 +615,22 @@
                     placeholder="Training cancelled tonight due to weather. Move to Thursday 5pm at Grenada North if possible. Ask parents to confirm availability."
                   ></textarea>
                 </label>
+                <div class="field">
+                  <span>Schedule screenshot (optional)</span>
+                  <label id="aiAssistantImageDropzone" class="ai-image-dropzone" for="aiAssistantImageInput">
+                    <input id="aiAssistantImageInput" type="file" accept="image/*" class="visually-hidden" />
+                    <strong>Drop a screenshot here or click to upload</strong>
+                    <span>TeamPro will match the fixture to your selected team and suggest an event draft.</span>
+                  </label>
+                </div>
+                <div id="aiAssistantImagePreview" class="ai-image-preview hidden">
+                  <img id="aiAssistantImagePreviewImage" src="" alt="Fixture screenshot preview" />
+                  <div class="ai-image-preview-copy">
+                    <strong id="aiAssistantImagePreviewName">Screenshot ready</strong>
+                    <span>TeamPro will read the time, location and team details from this image.</span>
+                  </div>
+                  <button id="clearAiAssistantImage" type="button" class="secondary-button">Remove Screenshot</button>
+                </div>
                 <div class="button-row">
                   <button id="generateAiDraft" type="button" class="primary-button">Generate Draft</button>
                 </div>
