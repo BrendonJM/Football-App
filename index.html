@@ -607,36 +607,51 @@
 
             <div class="stack-form">
               <div class="info-card">
-                <label class="field">
+                <label class="field ai-unified-field">
                   <span>Coach instruction</span>
-                  <textarea
-                    id="aiAssistantPrompt"
-                    rows="4"
-                    placeholder="Training cancelled tonight due to weather. Move to Thursday 5pm at Grenada North if possible. Ask parents to confirm availability."
-                  ></textarea>
-                </label>
-                <div class="field">
-                  <span>Schedule screenshot (optional)</span>
-                  <label id="aiAssistantImageDropzone" class="ai-image-dropzone" for="aiAssistantImageInput">
+                  <div id="aiAssistantComposer" class="ai-unified-composer">
+                    <textarea
+                      id="aiAssistantPrompt"
+                      rows="4"
+                      placeholder="Type details here, paste a screenshot, or upload an image. TeamPro will turn it into a suggested event for you to review."
+                    ></textarea>
                     <input id="aiAssistantImageInput" type="file" accept="image/*" class="visually-hidden" />
-                    <strong>Drop a screenshot here or click to upload</strong>
-                    <span>TeamPro will match the fixture to your selected team and suggest an event draft.</span>
-                  </label>
-                </div>
-                <div id="aiAssistantImagePreview" class="ai-image-preview hidden">
-                  <img id="aiAssistantImagePreviewImage" src="" alt="Fixture screenshot preview" />
-                  <div class="ai-image-preview-copy">
-                    <strong id="aiAssistantImagePreviewName">Screenshot ready</strong>
-                    <span>TeamPro will read the time, location and team details from this image.</span>
+                    <div class="ai-composer-footer">
+                      <div class="ai-composer-hint">
+                        <strong>Type, paste, drag in, or upload a screenshot</strong>
+                        <span>TeamPro will match the fixture to your selected team and suggest an event draft.</span>
+                      </div>
+                      <label id="aiAssistantImageDropzone" class="secondary-button ai-upload-button" for="aiAssistantImageInput">
+                        Upload Image
+                      </label>
+                    </div>
+                    <div id="aiAssistantImagePreview" class="ai-image-preview hidden">
+                      <img id="aiAssistantImagePreviewImage" src="" alt="Fixture screenshot preview" />
+                      <div class="ai-image-preview-copy">
+                        <strong id="aiAssistantImagePreviewName">Screenshot ready</strong>
+                        <span>TeamPro will read the time, location and team details from this image.</span>
+                      </div>
+                      <button id="clearAiAssistantImage" type="button" class="secondary-button">Remove Screenshot</button>
+                    </div>
                   </div>
-                  <button id="clearAiAssistantImage" type="button" class="secondary-button">Remove Screenshot</button>
-                </div>
+                </label>
                 <div class="button-row">
                   <button id="generateAiDraft" type="button" class="primary-button">Generate Draft</button>
+                  <button id="openAiDraftReview" type="button" class="secondary-button hidden">Review Draft</button>
                 </div>
                 <p id="aiDraftStatus" class="status-text" aria-live="polite"></p>
               </div>
 
+              <div id="aiDraftModal" class="app-modal hidden" aria-hidden="true">
+                <div id="aiDraftModalBackdrop" class="app-modal-backdrop"></div>
+                <div class="app-modal-dialog ai-draft-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aiDraftModalTitle">
+                  <div class="app-modal-header">
+                    <div>
+                      <p class="eyebrow small-eyebrow">AI Event Draft</p>
+                      <h3 id="aiDraftModalTitle">Here’s your event</h3>
+                    </div>
+                    <button id="closeAiDraftModal" type="button" class="ghost-button">Close</button>
+                  </div>
               <div id="aiDraftReview" class="stack-form hidden">
                 <div class="info-card hidden">
                   <strong>Draft summary</strong>
@@ -759,6 +774,8 @@
                   <button id="aiApplyEventUpdate" type="button" class="secondary-button">Update Chosen Event</button>
                   <button id="aiApplyEventCancellation" type="button" class="danger-button">Cancel Chosen Event</button>
                   <button id="aiDiscardDraft" type="button" class="ghost-button">Discard Draft</button>
+                </div>
+              </div>
                 </div>
               </div>
             </div>

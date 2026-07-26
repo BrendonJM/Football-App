@@ -311,6 +311,7 @@ const eventList = document.querySelector("#eventList");
 const eventListSummary = document.querySelector("#eventListSummary");
 const selectedEventHeading = document.querySelector("#selectedEventHeading");
 const aiAssistantPromptInput = document.querySelector("#aiAssistantPrompt");
+const aiAssistantComposer = document.querySelector("#aiAssistantComposer");
 const aiAssistantImageInput = document.querySelector("#aiAssistantImageInput");
 const aiAssistantImageDropzone = document.querySelector("#aiAssistantImageDropzone");
 const aiAssistantImagePreview = document.querySelector("#aiAssistantImagePreview");
@@ -318,7 +319,11 @@ const aiAssistantImagePreviewImage = document.querySelector("#aiAssistantImagePr
 const aiAssistantImagePreviewName = document.querySelector("#aiAssistantImagePreviewName");
 const clearAiAssistantImageButton = document.querySelector("#clearAiAssistantImage");
 const generateAiDraftButton = document.querySelector("#generateAiDraft");
+const openAiDraftReviewButton = document.querySelector("#openAiDraftReview");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
+const aiDraftModal = document.querySelector("#aiDraftModal");
+const aiDraftModalBackdrop = document.querySelector("#aiDraftModalBackdrop");
+const closeAiDraftModalButton = document.querySelector("#closeAiDraftModal");
 const aiDraftReview = document.querySelector("#aiDraftReview");
 const aiDraftIntent = document.querySelector("#aiDraftIntent");
 const aiDraftConfidence = document.querySelector("#aiDraftConfidence");
@@ -413,6 +418,7 @@ let aiAssistantImageState = {
   fileName: "",
   dataUrl: "",
 };
+let aiDraftModalOpen = false;
 const appLinkState = readAppLinkState();
 let trainingState = {
   focusArea: "Passing",
@@ -735,19 +741,25 @@ aiAssistantPromptInput?.addEventListener("paste", async (event) => {
   event.preventDefault();
   await handleAiAssistantImageFile(imageFile);
 });
+openAiDraftReviewButton?.addEventListener("click", () => {
+  openAiDraftModal();
+});
 clearAiAssistantImageButton?.addEventListener("click", () => {
   clearAiAssistantImage();
 });
-aiAssistantImageDropzone?.addEventListener("dragover", (event) => {
+aiAssistantComposer?.addEventListener("dragover", (event) => {
   event.preventDefault();
-  aiAssistantImageDropzone.classList.add("is-dragover");
+  aiAssistantComposer.classList.add("is-dragover");
 });
-aiAssistantImageDropzone?.addEventListener("dragleave", () => {
-  aiAssistantImageDropzone.classList.remove("is-dragover");
+aiAssistantComposer?.addEventListener("dragleave", (event) => {
+  if (event.currentTarget?.contains(event.relatedTarget)) {
+    return;
+  }
+  aiAssistantComposer.classList.remove("is-dragover");
 });
-aiAssistantImageDropzone?.addEventListener("drop", async (event) => {
+aiAssistantComposer?.addEventListener("drop", async (event) => {
   event.preventDefault();
-  aiAssistantImageDropzone.classList.remove("is-dragover");
+  aiAssistantComposer.classList.remove("is-dragover");
   const [file] = Array.from(event.dataTransfer?.files || []).filter((item) => item.type.startsWith("image/"));
   if (!file) {
     setStatus(aiDraftStatus, "Drop an image file for TeamPro to read.", true);
@@ -757,6 +769,17 @@ aiAssistantImageDropzone?.addEventListener("drop", async (event) => {
     aiAssistantImageInput.value = "";
   }
   await handleAiAssistantImageFile(file);
+});
+closeAiDraftModalButton?.addEventListener("click", () => {
+  closeAiDraftModal();
+});
+aiDraftModalBackdrop?.addEventListener("click", () => {
+  closeAiDraftModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && aiDraftModalOpen) {
+    closeAiDraftModal();
+  }
 });
 
 aiCopyEmailDraftButton?.addEventListener("click", async () => {
@@ -2969,10 +2992,15 @@ function renderAiAssistant() {
   if (clearAiAssistantImageButton) {
     clearAiAssistantImageButton.disabled = aiDraftState.loading;
   }
+  if (openAiDraftReviewButton) {
+    openAiDraftReviewButton.classList.toggle("hidden", !draft);
+    openAiDraftReviewButton.disabled = !draft;
+  }
   renderAiAssistantImagePreview();
 
   if (!draft) {
     aiDraftReview.classList.add("hidden");
+    closeAiDraftModal({ preserveDraft: true });
     aiSendDraftEmailButton.disabled = true;
     return;
   }
@@ -3008,6 +3036,35 @@ function renderAiAssistant() {
 
   renderAiDraftEventMatchOptions();
   renderAiDraftActionButtons();
+  renderAiDraftModal();
+}
+
+function renderAiDraftModal() {
+  if (!aiDraftModal) {
+    return;
+  }
+
+  const hasDraft = Boolean(aiDraftState.data);
+  aiDraftModal.classList.toggle("hidden", !hasDraft || !aiDraftModalOpen);
+  aiDraftModal.setAttribute("aria-hidden", hasDraft && aiDraftModalOpen ? "false" : "true");
+}
+
+function openAiDraftModal() {
+  if (!aiDraftState.data) {
+    return;
+  }
+
+  aiDraftModalOpen = true;
+  renderAiDraftModal();
+}
+
+function closeAiDraftModal({ preserveDraft = true } = {}) {
+  aiDraftModalOpen = false;
+  renderAiDraftModal();
+
+  if (!preserveDraft) {
+    clearAiDraftState();
+  }
 }
 
 function renderAiAssistantImagePreview() {
@@ -3066,6 +3123,9 @@ function renderAiDraftActionButtons() {
 
   const intent = draft.event_action || {};
   const hasSelectedEvent = Boolean(getAiDraftTargetEventId());
+  aiCreateEventFromDraftButton.textContent = "Confirm Event";
+  aiApplyEventUpdateButton.textContent = "Confirm Update";
+  aiApplyEventCancellationButton.textContent = "Confirm Cancellation";
   aiCreateEventFromDraftButton.classList.toggle("hidden", !intent.create_new_event);
   aiApplyEventUpdateButton.classList.toggle("hidden", !intent.update_existing_event);
   aiApplyEventCancellationButton.classList.toggle("hidden", !intent.cancel_existing_event);
@@ -4258,6 +4318,7 @@ async function generateAiCommunicationDraft() {
       draftId: result.draftId || null,
       data: normaliseAiDraft(result.draft),
     };
+    aiDraftModalOpen = true;
     renderAiAssistant();
     setStatus(aiDraftStatus, screenshotDataUrl ? "Draft ready from screenshot." : "Draft ready for review.", false);
   } catch (error) {
@@ -4460,6 +4521,7 @@ async function createEventFromAiDraft() {
     persistState();
     await saveAiDraftStatus("used", mapped.id);
     clearAiDraftState();
+    aiDraftModalOpen = false;
     renderAll();
     setStatus(aiDraftStatus, "Event created from draft.", false);
   } catch (error) {
@@ -4510,6 +4572,7 @@ async function applyAiDraftToExistingEvent(mode) {
     persistState();
     await saveAiDraftStatus("used", mapped.id);
     clearAiDraftState();
+    aiDraftModalOpen = false;
     renderAll();
     setStatus(aiDraftStatus, mode === "cancel" ? "Event cancelled from draft." : "Event updated from draft.", false);
   } catch (error) {
@@ -4528,6 +4591,7 @@ function clearAiDraftState() {
     draftId: null,
     data: null,
   };
+  aiDraftModalOpen = false;
 }
 
 function buildSingleEventRowFromAiDraft(existingEvent = null, forcedStatus = null) {
