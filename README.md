@@ -189,7 +189,8 @@ Then add the same environment variables in Vercel and redeploy if needed.
 - Scheduled reminders create `pending_review` drafts in `ai_communication_drafts`; no team-member emails are sent automatically.
 - Changing an event to `Cancelled` creates an admin approval draft for a cancellation message before anything is sent to team contacts.
 - Event emails now include a standard `.ics` calendar invite so Gmail/Google Calendar can add the event directly, use native calendar RSVP where supported, and process later cancellation updates against the same calendar item.
-- On Vercel Hobby, a daily cron calls `/api/reminder-scheduler` around early NZ morning and admins can also trigger `Generate Due Reminders` from the Account tab at any time.
+- GitHub Actions can call `/api/reminder-scheduler` every 15 minutes so admin approval emails go out even when nobody opens TeamPro.
+- The Vercel cron remains as a lightweight backup and admins can also trigger `Generate Due Reminders` from the Account tab at any time.
 - Public RSVP updates are handled only through server-side API routes using secure random tokens.
 - The browser still keeps a local cached copy for resilience, but Supabase is the source of truth after login.
 - Image copy may not work from `file://` or restricted in-app browsers. Running from `http://localhost` or a hosted `https://` site is more reliable.
@@ -214,9 +215,27 @@ Then add the same environment variables in Vercel and redeploy if needed.
   - `Accept & Send` to open TeamPro and immediately send the pending reminder if no edits are needed
   - `Dismiss` to discard the reminder draft
 - The admin can still review the draft, adjust recipients if needed, and explicitly approve sending from inside TeamPro.
-- The production fallback for Vercel Hobby is:
-  - one daily cron run via `vercel.json`
+- The production trigger path is:
+  - GitHub Actions calling `/api/reminder-scheduler` every 15 minutes
+  - plus one daily Vercel cron run via `vercel.json` as a backup
   - plus the `Generate Due Reminders` button in the Account tab for immediate/manual checks
+
+## GitHub Actions reminder scheduler
+
+Add these repository secrets in GitHub before relying on automatic reminder approvals:
+
+- `TEAMPRO_REMINDER_SCHEDULER_URL`
+  - Example: `https://www.teampro.co.nz/api/reminder-scheduler`
+- `TEAMPRO_CRON_SECRET`
+  - Use the same value as the `CRON_SECRET` environment variable configured in Vercel
+
+The workflow lives at `.github/workflows/reminder-scheduler.yml` and:
+
+- runs every 15 minutes
+- supports manual `workflow_dispatch`
+- posts to the existing server-side reminder scheduler endpoint
+- does not send team-member emails automatically
+- only creates pending approval drafts and sends the coach/admin approval email
 
 ## Manual AI communication draft test
 
@@ -241,14 +260,14 @@ Then add the same environment variables in Vercel and redeploy if needed.
 1. Sign in to TeamPro and create an event more than 3 days in the future.
 2. In `Account`, confirm the default reminder schedule is enabled as expected.
 3. Make sure the team has at least one contact with an email address.
-4. In `Account`, click `Generate Due Reminders`.
-5. Confirm TeamPro reports whether drafts were created, skipped, or already existed.
+4. Wait for the next GitHub Actions reminder scheduler run or trigger the workflow manually from GitHub Actions.
+5. Confirm TeamPro reports whether drafts were created, skipped, or already existed in the workflow logs or scheduler response.
 6. Confirm a `pending_review` draft row appears in `ai_communication_drafts`.
-7. Confirm the team admin receives the reminder review email.
+7. Confirm the team admin receives the reminder review email without needing to open TeamPro.
 8. Confirm no team-member reminder emails are sent automatically.
 9. Open the `Review & Send` link and confirm TeamPro opens the correct event and reminder draft.
 10. Approve/send the reminder and confirm recipients receive it.
-11. Trigger the reminder check again and confirm duplicate drafts are not created.
+11. Trigger the workflow again or click `Generate Due Reminders` and confirm duplicate drafts are not created.
 12. Repeat for 1-day and same-day reminder timings.
 
 Optional local API trigger:

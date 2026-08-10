@@ -1,0 +1,42 @@
+name: TeamPro Reminder Scheduler
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: teampro-reminder-scheduler
+  cancel-in-progress: false
+
+jobs:
+  run-reminder-scheduler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate scheduler configuration
+        env:
+          TEAMPRO_REMINDER_SCHEDULER_URL: ${{ secrets.TEAMPRO_REMINDER_SCHEDULER_URL }}
+          TEAMPRO_CRON_SECRET: ${{ secrets.TEAMPRO_CRON_SECRET }}
+        run: |
+          if [ -z "$TEAMPRO_REMINDER_SCHEDULER_URL" ]; then
+            echo "TEAMPRO_REMINDER_SCHEDULER_URL secret is not set."
+            exit 1
+          fi
+
+          if [ -z "$TEAMPRO_CRON_SECRET" ]; then
+            echo "TEAMPRO_CRON_SECRET secret is not set."
+            exit 1
+          fi
+
+      - name: Trigger TeamPro reminder scheduler
+        env:
+          TEAMPRO_REMINDER_SCHEDULER_URL: ${{ secrets.TEAMPRO_REMINDER_SCHEDULER_URL }}
+          TEAMPRO_CRON_SECRET: ${{ secrets.TEAMPRO_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "$TEAMPRO_REMINDER_SCHEDULER_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TEAMPRO_CRON_SECRET" \
+            -d '{}'
